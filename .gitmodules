@@ -1,0 +1,3 @@
+[submodule "lib/cuj"]
+	path = lib/cuj
+	url = https://github.com/AirGuanZ/cuj.git
