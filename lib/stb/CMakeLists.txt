@@ -1,0 +1,11 @@
+﻿CMAKE_MINIMUM_REQUIRED(VERSION 3.20)
+
+PROJECT(STB-IMAGE)
+
+ADD_LIBRARY(
+	stb STATIC
+	"stb/stb.cpp"
+	"stb/stb_image.h"
+	"stb/stb_image_write.h")
+
+TARGET_INCLUDE_DIRECTORIES(stb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

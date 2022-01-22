@@ -8,6 +8,8 @@ class PinholeCamera : public Camera
 {
 public:
 
+    void set_spectrum_builder(const SpectrumType *spectrum_builder);
+
     void set_eye(const Vec3f &eye);
 
     void set_dst(const Vec3f &dst);
@@ -20,12 +22,21 @@ public:
 
     void set_duration(float beg, float end);
 
-    void preprocess() override;
-
     SampleWeResult generate_ray(
         const CVec2f &film_coord, f32 time_sample) const override;
 
 private:
+
+    struct GenerateData
+    {
+        Vec3f left_bottom_corner;
+        Vec3f film_x;
+        Vec3f film_y;
+    };
+
+    GenerateData preprocess() const;
+
+    const SpectrumType *spectrum_builder_ = nullptr;
 
     Vec3f eye_;
     Vec3f dst_;
@@ -35,10 +46,6 @@ private:
 
     float fov_y_deg_ = 60;
     float w_over_h_  = 1;
-    
-    Vec3f left_bottom_corner_;
-    Vec3f film_x_;
-    Vec3f film_y_;
 };
 
 BTRC_CORE_END

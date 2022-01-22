@@ -1,15 +1,130 @@
+#include <array>
 #include <cassert>
 #include <vector>
 
+#include <btrc/core/wavefront/launch_params.h>
 #include <btrc/core/wavefront/trace.h>
+#include <btrc/core/utils/cmath/cmath.h>
+#include <btrc/core/utils/cuda/buffer.h>
 #include <btrc/core/utils/cuda/error.h>
+#include <btrc/core/utils/optix/device_funcs.h>
 #include <btrc/core/utils/scope_guard.h>
 
-#include <embed_ptx/trace.inl>
+//#include <embed_ptx/trace.inl>
 
 #include <optix_stubs.h>
 
 BTRC_WAVEFRONT_BEGIN
+
+namespace
+{
+
+    struct TraceLaunchParams
+    {
+        uint64_t handle;
+
+        Vec4f *ray_o_t0;
+        Vec4f *ray_d_t1;
+        Vec2u *ray_time_mask;
+
+        float *inct_t;
+        Vec4u *inct_uv_id;
+    };
+
+    CUJ_PROXY_CLASS(
+        CTraceLaunchParams, TraceLaunchParams,
+        handle, ray_o_t0, ray_d_t1, ray_time_mask, inct_t, inct_uv_id);
+
+    const char *LAUNCH_PARAMS_NAME = "launch_params";
+
+    const char *RAYGEN_TRACE_NAME     = "__raygen__trace";
+    const char *MISS_TRACE_NAME       = "__miss__trace";
+    const char *CLOSESTHIT_TRACE_NAME = "__closesthit__trace";
+
+    std::string generate_trace_kernel()
+    {
+        using namespace cuj;
+
+        ScopedModule cuj_module;
+
+        auto global_launch_params =
+            allocate_constant_memory<CTraceLaunchParams>(LAUNCH_PARAMS_NAME);
+
+        kernel(
+            RAYGEN_TRACE_NAME,
+            [global_launch_params]
+        {
+            ref launch_params = global_launch_params.get_reference();
+            var launch_idx = optix::get_launch_index_x();
+
+            var o_t0 = launch_params.ray_o_t0[launch_idx];
+            var d_t1 = launch_params.ray_d_t1[launch_idx];
+            var time_mask = launch_params.ray_time_mask[launch_idx];
+
+            var o = o_t0.xyz();
+            var d = d_t1.xyz();
+            var t0 = o_t0.w;
+            var t1 = d_t1.w;
+            var time = bitcast<f32>(time_mask.x);
+            var mask = time_mask.y;
+
+            optix::trace(
+                launch_params.handle,
+                o, d, t0, t1, time, mask, OPTIX_RAY_FLAG_NONE,
+                0, 1, 0, launch_idx);
+        });
+
+        kernel(
+            MISS_TRACE_NAME,
+            [global_launch_params]
+        {
+            ref launch_params = global_launch_params.get_reference();
+            var launch_idx = optix::get_payload(0);
+            launch_params.inct_t[launch_idx] = -1;
+        });
+
+        kernel(
+            CLOSESTHIT_TRACE_NAME,
+            [global_launch_params]
+        {
+            ref launch_params = global_launch_params.get_reference();
+            var launch_idx = optix::get_payload(0);
+            
+            var t = optix::get_ray_tmax();
+            var uv = optix::get_triangle_barycentrics();
+            var prim_id = optix::get_primitive_index();
+            var inst_id = optix::get_instance_id();
+
+            launch_params.inct_t[launch_idx] = t;
+            launch_params.inct_uv_id[launch_idx] = CVec4u(
+                bitcast<u32>(uv.x),
+                bitcast<u32>(uv.y),
+                prim_id, inst_id);
+        });
+
+        Options opts;
+        opts.approx_math_func = true;
+        opts.fast_math = true;
+        opts.opt_level = OptimizationLevel::O3;
+
+        PTXGenerator gen;
+        gen.set_options(opts);
+        gen.generate(cuj_module);
+
+        return gen.get_ptx();
+    }
+
+} // namespace anonymous
+
+TracePipeline::TracePipeline(
+    OptixDeviceContext context,
+    bool               motion_blur,
+    bool               triangle_only,
+    int                traversable_depth)
+    : TracePipeline()
+{
+    initialize(context, motion_blur, triangle_only, traversable_depth);
+}
 
 TracePipeline::TracePipeline(TracePipeline &&other) noexcept
     : TracePipeline()
@@ -54,6 +169,27 @@ void TracePipeline::swap(TracePipeline &other) noexcept
     std::swap(sbt_,          other.sbt_);
 }
 
+void TracePipeline::trace(
+    OptixTraversableHandle traversable,
+    int                    active_state_count,
+    const RaySOA          &input_ray,
+    const IntersectionSOA &output_inct) const
+{
+    const TraceParams launch_params = {
+        .handle        = traversable,
+        .ray_o_t0      = input_ray.o_t0,
+        .ray_d_t1      = input_ray.d_t1,
+        .ray_time_mask = input_ray.time_mask,
+        .inct_t        = output_inct.t,
+        .inct_uv_id    = output_inct.uv_id
+    };
+    CUDABuffer device_launch_params(1, &launch_params);
+    throw_on_error(optixLaunch(
+        pipeline_, nullptr,
+        device_launch_params, sizeof(TraceParams),
+        &sbt_.get_table(), active_state_count, 1, 1));
+}
+
 void TracePipeline::initialize(
     OptixDeviceContext context,
     bool               motion_blur,
@@ -65,7 +201,7 @@ void TracePipeline::initialize(
 
     // create module
 
-#if BTRC_IS_DEBUG
+/*#if BTRC_IS_DEBUG
     constexpr OptixCompileOptimizationLevel opt_level =
         OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
     constexpr OptixCompileDebugLevel debug_level =
@@ -74,13 +210,13 @@ void TracePipeline::initialize(
         OPTIX_EXCEPTION_FLAG_DEBUG |
         OPTIX_EXCEPTION_FLAG_TRACE_DEPTH |
         OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
-#else
+#else*/
     constexpr OptixCompileOptimizationLevel opt_level =
         OPTIX_COMPILE_OPTIMIZATION_LEVEL_3;
     constexpr OptixCompileDebugLevel debug_level =
         OPTIX_COMPILE_DEBUG_LEVEL_NONE;
     constexpr unsigned int exception_flag = OPTIX_EXCEPTION_FLAG_NONE;
-#endif
+//#endif
 
     const OptixModuleCompileOptions module_compile_options = {
         .maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT,
@@ -102,14 +238,15 @@ void TracePipeline::initialize(
         .numPayloadValues                 = 1,
         .numAttributeValues               = 0,
         .exceptionFlags                   = exception_flag,
-        .pipelineLaunchParamsVariableName = "launch_params",
+        .pipelineLaunchParamsVariableName = LAUNCH_PARAMS_NAME,
         .usesPrimitiveTypeFlags           = primitive_type_flag
     };
 
+    const std::string ptx = generate_trace_kernel();
     std::vector<char> log(2048); size_t log_len = log.size();
     OptixResult create_result = optixModuleCreateFromPTX(
         context, &module_compile_options, &pipeline_compile_options,
-        embed_var_trace, sizeof(embed_var_trace),
+        ptx.data(), ptx.size(),
         log.data(), &log_len, &module_);
     if(create_result != OPTIX_SUCCESS)
     {
@@ -129,7 +266,7 @@ void TracePipeline::initialize(
         .kind   = OPTIX_PROGRAM_GROUP_KIND_RAYGEN,
         .raygen = OptixProgramGroupSingleModule{
             .module            = module_,
-            .entryFunctionName = "__raygen__trace"
+            .entryFunctionName = RAYGEN_TRACE_NAME
         }
     };
     log_len = log.size();
@@ -149,7 +286,7 @@ void TracePipeline::initialize(
         .kind   = OPTIX_PROGRAM_GROUP_KIND_MISS,
         .miss   = OptixProgramGroupSingleModule{
             .module            = module_,
-            .entryFunctionName = "__miss__trace"
+            .entryFunctionName = MISS_TRACE_NAME
         }
     };
     log_len = log.size();
@@ -169,7 +306,7 @@ void TracePipeline::initialize(
         .kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP,
         .hitgroup = OptixProgramGroupHitgroup{
             .moduleCH            = module_,
-            .entryFunctionNameCH = "__closesthit__trace"
+            .entryFunctionNameCH = CLOSESTHIT_TRACE_NAME
         }
     };
     log_len = log.size();
@@ -185,7 +322,7 @@ void TracePipeline::initialize(
 
     // pipeline
 
-    const OptixProgramGroup program_groups[] = {
+    std::array<const OptixProgramGroup, 3> program_groups = {
         raygen_group_, miss_group_, hit_group_
     };
     const OptixPipelineLinkOptions pipeline_link_options = {
@@ -195,7 +332,7 @@ void TracePipeline::initialize(
     log_len = log.size();
     create_result = optixPipelineCreate(
         context, &pipeline_compile_options, &pipeline_link_options,
-        program_groups, sizeof(program_groups) / sizeof(program_groups[0]),
+        program_groups.data(), program_groups.size(),
         log.data(), &log_len, &pipeline_);
     if(create_result != OPTIX_SUCCESS)
         throw BtrcException(log.data());

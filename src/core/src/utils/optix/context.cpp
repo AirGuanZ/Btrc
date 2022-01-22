@@ -135,7 +135,7 @@ InstanceAS Context::create_instance_as(std::span<const Instance> instances)
             .numInstances = static_cast<unsigned int>(optix_instances.size())
         }
     };
-    
+
     auto [handle, as_buffer] = build_accel(build_input);
     return InstanceAS(handle, std::move(as_buffer));
 }

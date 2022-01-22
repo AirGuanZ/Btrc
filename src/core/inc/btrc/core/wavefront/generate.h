@@ -4,6 +4,7 @@
 #include <btrc/core/utils/cuda/module.h>
 #include <btrc/core/utils/uncopyable.h>
 #include <btrc/core/wavefront/launch_params.h>
+#include <btrc/core/wavefront/soa.h>
 
 BTRC_WAVEFRONT_BEGIN
 
@@ -26,14 +27,14 @@ public:
 
     bool is_done() const;
 
+    void clear();
+
     // returns number of new states
     int generate(
         int            active_state_count,
         cstd::LCGData *rngs,
         float2        *output_pixel_coord,
-        float4        *output_ray_o_t0,
-        float4        *output_ray_o_t1,
-        uint2         *output_ray_time_mask);
+        const RaySOA  &output_ray);
 
 private:
 

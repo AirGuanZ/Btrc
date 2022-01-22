@@ -42,6 +42,11 @@ CUDAModule::~CUDAModule()
         cuModuleUnload(impl_->cu_module);
 }
 
+bool CUDAModule::is_linked() const
+{
+    return impl_->cu_module != nullptr;
+}
+
 void CUDAModule::load_ptx_from_memory(const void *data, size_t bytes)
 {
     std::string new_data;
@@ -125,10 +130,8 @@ void CUDAModule::launch_impl(
     const std::string &entry_name,
     const Dim3        &block_cnt,
     const Dim3        &block_size,
-    void             **kernel_args)
+    void             **kernel_args) const
 {
-    if(!impl_->cu_module)
-        link();
     assert(impl_->cu_module);
 
     CUfunction entry_func = nullptr;

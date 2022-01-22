@@ -10,19 +10,6 @@
 
 BTRC_WAVEFRONT_BEGIN
 
-struct GenerateOutput
-{
-    // ray
-
-    float4 *ray_o_t0;
-    float4 *ray_d_t1;
-    uint2  *ray_time_mask;
-
-    // throughput and filter weight
-
-    float4 *throughput_weight;
-};
-
 struct TraceParams
 {
     OptixTraversableHandle handle;

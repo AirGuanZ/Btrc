@@ -56,6 +56,13 @@ SET(CUJ_BUILD_EXAMPLE OFF)
 ADD_SUBDIRECTORY(lib/cuj)
 SET_TARGET_PROPERTIES(cuj PROPERTIES FOLDER "ThirdParty")
 
+############## stb & exr
+
+ADD_SUBDIRECTORY(lib/stb)
+ADD_SUBDIRECTORY(lib/tinyexr)
+
+SET_TARGET_PROPERTIES(stb tinyexr PROPERTIES FOLDER "ThirdParty")
+
 ############## components
 
 ADD_SUBDIRECTORY(src/core)

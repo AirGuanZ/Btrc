@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <stdexcept>
 
 #ifdef __CUDACC__
@@ -69,6 +70,24 @@ template<typename T, typename I>
 BTRC_XPU constexpr T down_align(T val, I align)
 {
     return val / align * align;
+}
+
+template<typename T>
+using RC = std::shared_ptr<T>;
+
+template<typename T>
+using Box = std::unique_ptr<T>;
+
+template<typename T, typename...Args>
+BTRC_CPU auto newRC(Args &&...args)
+{
+    return std::make_shared<T>(std::forward<Args>(args)...);
+}
+
+template<typename T, typename...Args>
+BTRC_CPU auto newBox(Args &&...args)
+{
+    return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
 BTRC_CORE_END

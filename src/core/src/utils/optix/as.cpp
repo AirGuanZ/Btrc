@@ -1,5 +1,3 @@
-#include <cuda_runtime.h>
-
 #include <btrc/core/utils/optix/as.h>
 
 BTRC_OPTIX_BEGIN

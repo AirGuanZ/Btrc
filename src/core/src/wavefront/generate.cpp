@@ -1,4 +1,4 @@
-#include <btrc/core/utils/math/cmath.h>
+#include <btrc/core/utils/cmath/cmath.h>
 #include <btrc/core/wavefront/generate.h>
 
 BTRC_WAVEFRONT_BEGIN
@@ -57,6 +57,12 @@ bool GeneratePipeline::is_done() const
     return finished_spp_ >= spp_;
 }
 
+void GeneratePipeline::clear()
+{
+    finished_spp_ = 0;
+    finished_pixel_ = 0;
+}
+
 void GeneratePipeline::initialize(
     const Camera &camera, const Vec2i &film_res, int spp, int state_count)
 {
@@ -83,51 +89,44 @@ void GeneratePipeline::initialize(
             ptr<CVec4f>    output_ray_d_t1,
             ptr<CVec2u>    output_ray_time_mask,
             i32            initial_pixel_index,
-            i32            active_state_count,
-            i32            new_state_count,
-            i32            total_thread_count)
+            i32            active_state_count)
     {
-        i32 i = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
-        $while(i < new_state_count)
-        {
-            i32 state_index = active_state_count + i;
-            i32 pixel_index =
-                (initial_pixel_index + i) % (film_res_.x * film_res_.y);
-            i = i + total_thread_count;
+        i32 thread_idx = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
+        i32 state_index = active_state_count + thread_idx;
+        i32 pixel_index = (initial_pixel_index + thread_idx) % pixel_count_;
 
-            ref rng = rngs[state_index];
+        ref rng = rngs[state_index];
 
-            i32 pixel_x = pixel_index % film_res_.x;
-            i32 pixel_y = pixel_index / film_res_.y;
+        i32 pixel_x = pixel_index % film_res_.x;
+        i32 pixel_y = pixel_index / film_res_.y;
 
-            f32 pixel_xf = f32(pixel_x) + rng.uniform_float();
-            f32 pixel_yf = f32(pixel_y) + rng.uniform_float();
+        f32 pixel_xf = f32(pixel_x) + rng.uniform_float();
+        f32 pixel_yf = f32(pixel_y) + rng.uniform_float();
 
-            f32 film_x = pixel_xf / static_cast<float>(film_res_.x);
-            f32 film_y = pixel_yf / static_cast<float>(film_res_.y);
+        f32 film_x = pixel_xf / static_cast<float>(film_res_.x);
+        f32 film_y = pixel_yf / static_cast<float>(film_res_.y);
 
-            f32 time_sample = rng.uniform_float();
+        f32 time_sample = rng.uniform_float();
 
-            auto sample_we_result = camera.generate_ray(
-                CVec2f(film_x, film_y), time_sample);
+        auto sample_we_result = camera.generate_ray(
+            CVec2f(film_x, film_y), time_sample);
 
-            output_pixel_coord[state_index] = CVec2f(pixel_xf, pixel_yf);
+        output_pixel_coord[state_index] = CVec2f(pixel_xf, pixel_yf);
 
-            output_ray_o_t0[state_index] = CVec4f(
-                sample_we_result.pos.x,
-                sample_we_result.pos.y,
-                sample_we_result.pos.z,
-                0.0f);
+        output_ray_o_t0[state_index] = CVec4f(
+            sample_we_result.pos.x,
+            sample_we_result.pos.y,
+            sample_we_result.pos.z,
+            0.0f);
 
-            output_ray_d_t1[state_index] = CVec4f(
-                sample_we_result.dir.x,
-                sample_we_result.dir.y,
-                sample_we_result.dir.z,
-                btrc_inf);
+        output_ray_d_t1[state_index] = CVec4f(
+            sample_we_result.dir.x,
+            sample_we_result.dir.y,
+            sample_we_result.dir.z,
+            btrc_max_float);
 
-            output_ray_time_mask[state_index] = CVec2u(
-                bitcast<u32>(sample_we_result.time), u32(0xff));
-        };
+        output_ray_time_mask[state_index] = CVec2u(
+            bitcast<u32>(sample_we_result.time), 0xff);
     });
 
     PTXGenerator ptx_gen;
@@ -138,24 +137,23 @@ void GeneratePipeline::initialize(
     });
     ptx_gen.generate(cuj_module);
 
-    const std::string ptx = ptx_gen.get_ptx();
+    const std::string &ptx = ptx_gen.get_ptx();
     kernel_.load_ptx_from_memory(ptx.data(), ptx.size());
+    kernel_.link();
 }
 
 int GeneratePipeline::generate(
     int            active_state_count,
     cstd::LCGData *rngs,
     float2        *output_pixel_coord,
-    float4        *output_ray_o_t0,
-    float4        *output_ray_o_t1,
-    uint2         *output_ray_time_mask)
+    const RaySOA  &output_ray)
 {
     if(is_done())
         return 0;
     
-    int new_state_count = state_count_ - active_state_count;
-    new_state_count = (std::min)(
-        new_state_count, (spp_ - finished_spp_) * pixel_count_ - finished_pixel_);
+    const int new_state_count = (std::min)(
+        state_count_ - active_state_count,
+        (spp_ - finished_spp_) * pixel_count_ - finished_pixel_);
 
     constexpr int BLOCK_DIM = 256;
     const int thread_count = new_state_count;
@@ -167,13 +165,11 @@ int GeneratePipeline::generate(
         { BLOCK_DIM, 1, 1 },
         rngs,
         output_pixel_coord,
-        output_ray_o_t0,
-        output_ray_o_t1,
-        output_ray_time_mask,
+        output_ray.o_t0,
+        output_ray.d_t1,
+        output_ray.time_mask,
         finished_pixel_,
-        active_state_count,
-        new_state_count,
-        thread_count);
+        active_state_count);
 
     finished_pixel_ += new_state_count;
     finished_spp_   += finished_pixel_ / pixel_count_;

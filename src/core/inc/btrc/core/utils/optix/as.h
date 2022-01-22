@@ -1,9 +1,6 @@
 #pragma once
 
-#include <optix.h>
-
 #include <btrc/core/utils/cuda/buffer.h>
-#include <btrc/core/utils/optix/as.h>
 #include <btrc/core/utils/uncopyable.h>
 
 BTRC_OPTIX_BEGIN

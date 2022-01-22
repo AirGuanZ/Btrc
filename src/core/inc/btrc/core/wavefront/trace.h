@@ -2,6 +2,7 @@
 
 #include <btrc/core/utils/optix/sbt.h>
 #include <btrc/core/utils/uncopyable.h>
+#include <btrc/core/wavefront/soa.h>
 
 BTRC_WAVEFRONT_BEGIN
 
@@ -10,6 +11,12 @@ class TracePipeline : public Uncopyable
 public:
 
     TracePipeline() = default;
+
+    TracePipeline(
+        OptixDeviceContext context,
+        bool               motion_blur,
+        bool               triangle_only,
+        int                traversable_depth);
 
     TracePipeline(TracePipeline &&other) noexcept;
 
@@ -21,13 +28,19 @@ public:
 
     void swap(TracePipeline &other) noexcept;
 
+    void trace(
+        OptixTraversableHandle traversable,
+        int                    active_state_count,
+        const RaySOA          &input_ray,
+        const IntersectionSOA &output_inct) const;
+
+private:
+
     void initialize(
         OptixDeviceContext context,
         bool               motion_blur,
         bool               triangle_only,
         int                traversable_depth);
-
-private:
 
     OptixModule   module_   = nullptr;
     OptixPipeline pipeline_ = nullptr;

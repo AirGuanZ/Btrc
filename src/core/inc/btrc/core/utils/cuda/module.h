@@ -21,20 +21,22 @@ public:
 
     ~CUDAModule();
 
+    bool is_linked() const;
+
     void load_ptx_from_memory(const void *data, size_t bytes);
 
     void load_ptx_from_file(const std::string &filename);
+
+    void link();
     
     template<typename...Args>
     void launch(
         const std::string &entry_name,
         const Dim3        &block_cnt,
         const Dim3        &block_size,
-        Args            ...kernel_args);
+        Args            ...kernel_args) const;
 
 private:
-
-    void link();
 
     template<typename Arg0>
     void take_kernel_arg_ptrs(void **arg_ptrs, Arg0 &arg0) const;
@@ -47,7 +49,7 @@ private:
         const std::string &entry_name,
         const Dim3        &block_cnt,
         const Dim3        &block_size,
-        void             **kernel_args);
+        void             **kernel_args) const;
 
     struct Impl;
 
@@ -61,7 +63,7 @@ void CUDAModule::launch(
     const std::string &entry_name,
     const Dim3        &block_cnt,
     const Dim3        &block_size,
-    Args            ...kernel_args)
+    Args            ...kernel_args) const
 {
     if constexpr(sizeof...(kernel_args) > 0)
     {

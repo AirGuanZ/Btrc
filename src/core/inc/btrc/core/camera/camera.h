@@ -18,8 +18,6 @@ public:
 
     virtual ~Camera() = default;
 
-    virtual void preprocess() = 0;
-
     virtual SampleWeResult generate_ray(
         const CVec2f &film_coord, f32 time_sample) const = 0;
 };

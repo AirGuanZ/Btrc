@@ -57,6 +57,8 @@ public:
 
     void clear(const T &val);
 
+    void clear_bytes(uint8_t byte);
+
     void to_cpu(T *output, size_t beg = 0, size_t end = 0) const;
 
     void from_cpu(const T *cpu_data, size_t beg = 0, size_t end = 0);
@@ -80,7 +82,8 @@ template<typename T>
 CUDABuffer<T>::CUDABuffer(size_t elem_count, const T *cpu_data)
     : CUDABuffer()
 {
-    assert(elem_count);
+    if(!elem_count)
+        return;
     elem_count_ = elem_count;
     throw_on_error(cudaMalloc(&buffer_, sizeof(T) * elem_count));
     if(cpu_data)
@@ -126,7 +129,7 @@ CUDABuffer<T>::operator bool() const
 template<typename T>
 bool CUDABuffer<T>::is_empty() const
 {
-    return buffer_;
+    return buffer_ == nullptr;
 }
 
 template<typename T>
@@ -197,6 +200,13 @@ void CUDABuffer<T>::clear(const T &val)
     assert(!is_empty());
     std::vector<T> vals(elem_count_, val);
     this->from_cpu(vals.data());
+}
+
+template<typename T>
+void CUDABuffer<T>::clear_bytes(uint8_t byte)
+{
+    assert(!is_empty());
+    throw_on_error(cudaMemset(buffer_, byte, get_size_in_bytes()));
 }
 
 template<typename T>

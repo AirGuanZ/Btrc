@@ -26,7 +26,7 @@ extern "C" __global__ void __raygen__trace()
     uint32_t payload0 = idx;
     optixTrace(
         launch_params.handle,
-        o, d, t0, t1, time, mask,
+        o, d, t0, t1, time, 0xff,
         OPTIX_RAY_FLAG_NONE, 0, 1, 0, payload0);
 }
 

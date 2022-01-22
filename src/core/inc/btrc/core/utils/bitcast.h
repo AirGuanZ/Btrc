@@ -6,6 +6,7 @@
 
 BTRC_CORE_BEGIN
 
+// alternative to std::bit_cast in .cu
 template<typename To, typename From>
 BTRC_XPU To bitcast(From from)
 {
