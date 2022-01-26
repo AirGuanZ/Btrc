@@ -79,6 +79,10 @@ public:
 
     Spectrum create_zero() const override;
 
+    Spectrum create_from_rgb(float r, float g, float b) const override;
+
+    CSpectrum create_c_from_rgb(f32 r, f32 g, f32 b) const override;
+
     CSpectrum load(ptr<f32> beta) const override;
 
     void save(ptr<f32> beta, const CSpectrum &spec) const override;

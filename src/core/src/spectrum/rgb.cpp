@@ -174,6 +174,16 @@ Spectrum RGBSpectrumType::create_zero() const
     return RGBSpectrumImpl::from_rgb(0, 0, 0);
 }
 
+Spectrum RGBSpectrumType::create_from_rgb(float r, float g, float b) const
+{
+    return RGBSpectrumImpl::from_rgb(r, g, b);
+}
+
+CSpectrum RGBSpectrumType::create_c_from_rgb(f32 r, f32 g, f32 b) const
+{
+    return CRGBSpectrumImpl::from_rgb(r, g, b);
+}
+
 CSpectrum RGBSpectrumType::load(ptr<f32> beta) const
 {
     f32 a, b, c, d;

@@ -1,16 +1,8 @@
-#include <array>
-#include <cassert>
-#include <vector>
-
-#include <btrc/core/wavefront/launch_params.h>
 #include <btrc/core/wavefront/trace.h>
 #include <btrc/core/utils/cmath/cmath.h>
 #include <btrc/core/utils/cuda/buffer.h>
 #include <btrc/core/utils/cuda/error.h>
 #include <btrc/core/utils/optix/device_funcs.h>
-#include <btrc/core/utils/scope_guard.h>
-
-//#include <embed_ptx/trace.inl>
 
 #include <optix_stubs.h>
 
@@ -18,22 +10,6 @@ BTRC_WAVEFRONT_BEGIN
 
 namespace
 {
-
-    struct TraceLaunchParams
-    {
-        uint64_t handle;
-
-        Vec4f *ray_o_t0;
-        Vec4f *ray_d_t1;
-        Vec2u *ray_time_mask;
-
-        float *inct_t;
-        Vec4u *inct_uv_id;
-    };
-
-    CUJ_PROXY_CLASS(
-        CTraceLaunchParams, TraceLaunchParams,
-        handle, ray_o_t0, ray_d_t1, ray_time_mask, inct_t, inct_uv_id);
 
     const char *LAUNCH_PARAMS_NAME = "launch_params";
 
@@ -47,8 +23,8 @@ namespace
 
         ScopedModule cuj_module;
 
-        auto global_launch_params =
-            allocate_constant_memory<CTraceLaunchParams>(LAUNCH_PARAMS_NAME);
+        auto global_launch_params = allocate_constant_memory<
+            TracePipeline::CLaunchParams>(LAUNCH_PARAMS_NAME);
 
         kernel(
             RAYGEN_TRACE_NAME,
@@ -102,13 +78,12 @@ namespace
                 prim_id, inst_id);
         });
 
-        Options opts;
-        opts.approx_math_func = true;
-        opts.fast_math = true;
-        opts.opt_level = OptimizationLevel::O3;
-
         PTXGenerator gen;
-        gen.set_options(opts);
+        gen.set_options(Options{
+            .opt_level        = OptimizationLevel::O3,
+            .fast_math        = true,
+            .approx_math_func = true
+        });
         gen.generate(cuj_module);
 
         return gen.get_ptx();
@@ -138,22 +113,6 @@ TracePipeline &TracePipeline::operator=(TracePipeline &&other) noexcept
     return *this;
 }
 
-TracePipeline::~TracePipeline()
-{
-    if(!pipeline_)
-    {
-        assert(!module_ && !raygen_group_ && !miss_group_ && !hit_group_);
-        return;
-    }
-    assert(module_ && raygen_group_ && miss_group_ && hit_group_);
-    optixPipelineDestroy(pipeline_);
-    optixProgramGroupDestroy(raygen_group_);
-    optixProgramGroupDestroy(miss_group_);
-    optixProgramGroupDestroy(hit_group_);
-    optixModuleDestroy(module_);
-    sbt_ = {};
-}
-
 TracePipeline::operator bool() const
 {
     return pipeline_ != nullptr;
@@ -161,33 +120,28 @@ TracePipeline::operator bool() const
 
 void TracePipeline::swap(TracePipeline &other) noexcept
 {
-    std::swap(module_,       other.module_);
-    std::swap(pipeline_,     other.pipeline_);
-    std::swap(raygen_group_, other.raygen_group_);
-    std::swap(miss_group_,   other.miss_group_);
-    std::swap(hit_group_,    other.hit_group_);
-    std::swap(sbt_,          other.sbt_);
+    pipeline_.swap(other.pipeline_);
+    device_launch_params_.swap(other.device_launch_params_);
 }
 
 void TracePipeline::trace(
-    OptixTraversableHandle traversable,
-    int                    active_state_count,
-    const RaySOA          &input_ray,
-    const IntersectionSOA &output_inct) const
+    OptixTraversableHandle handle,
+    int active_state_count,
+    const SOAParams &soa_params) const
 {
-    const TraceParams launch_params = {
-        .handle        = traversable,
-        .ray_o_t0      = input_ray.o_t0,
-        .ray_d_t1      = input_ray.d_t1,
-        .ray_time_mask = input_ray.time_mask,
-        .inct_t        = output_inct.t,
-        .inct_uv_id    = output_inct.uv_id
+    const LaunchParams launch_params = {
+        .handle        = handle,
+        .ray_o_t0      = soa_params.ray_o_t0,
+        .ray_d_t1      = soa_params.ray_d_t1,
+        .ray_time_mask = soa_params.ray_time_mask,
+        .inct_t        = soa_params.inct_t,
+        .inct_uv_id    = soa_params.inct_uv_id
     };
-    CUDABuffer device_launch_params(1, &launch_params);
+    device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(
         pipeline_, nullptr,
-        device_launch_params, sizeof(TraceParams),
-        &sbt_.get_table(), active_state_count, 1, 1));
+        device_launch_params_, sizeof(LaunchParams),
+        &pipeline_.get_sbt(), active_state_count, 1, 1));
 }
 
 void TracePipeline::initialize(
@@ -196,174 +150,23 @@ void TracePipeline::initialize(
     bool               triangle_only,
     int                traversable_depth)
 {
-    assert(!module_ && !pipeline_);
-    assert(!raygen_group_ && !miss_group_ && !hit_group_);
+    pipeline_ = optix::SimpleOptixPipeline(
+        context,
+        optix::SimpleOptixPipeline::Program{
+            .ptx                = generate_trace_kernel(),
+            .launch_params_name = LAUNCH_PARAMS_NAME,
+            .raygen_name        = RAYGEN_TRACE_NAME,
+            .miss_name          = MISS_TRACE_NAME,
+            .closesthit_name    = CLOSESTHIT_TRACE_NAME
+        },
+        optix::SimpleOptixPipeline::Config{
+            .payload_count     = 1,
+            .traversable_depth = traversable_depth,
+            .motion_blur       = motion_blur,
+            .triangle_only     = triangle_only
+        });
 
-    // create module
-
-/*#if BTRC_IS_DEBUG
-    constexpr OptixCompileOptimizationLevel opt_level =
-        OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
-    constexpr OptixCompileDebugLevel debug_level =
-        OPTIX_COMPILE_DEBUG_LEVEL_FULL;
-    constexpr unsigned int exception_flag =
-        OPTIX_EXCEPTION_FLAG_DEBUG |
-        OPTIX_EXCEPTION_FLAG_TRACE_DEPTH |
-        OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
-#else*/
-    constexpr OptixCompileOptimizationLevel opt_level =
-        OPTIX_COMPILE_OPTIMIZATION_LEVEL_3;
-    constexpr OptixCompileDebugLevel debug_level =
-        OPTIX_COMPILE_DEBUG_LEVEL_NONE;
-    constexpr unsigned int exception_flag = OPTIX_EXCEPTION_FLAG_NONE;
-//#endif
-
-    const OptixModuleCompileOptions module_compile_options = {
-        .maxRegisterCount = OPTIX_COMPILE_DEFAULT_MAX_REGISTER_COUNT,
-        .optLevel         = opt_level,
-        .debugLevel       = debug_level,
-        .boundValues      = nullptr,
-        .numBoundValues   = 0
-    };
-
-    const unsigned int graph_flag = motion_blur ?
-        OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY :
-        OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
-    const unsigned int primitive_type_flag =
-        triangle_only ? OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE : 0;
-
-    const OptixPipelineCompileOptions pipeline_compile_options = {
-        .usesMotionBlur                   = motion_blur,
-        .traversableGraphFlags            = graph_flag,
-        .numPayloadValues                 = 1,
-        .numAttributeValues               = 0,
-        .exceptionFlags                   = exception_flag,
-        .pipelineLaunchParamsVariableName = LAUNCH_PARAMS_NAME,
-        .usesPrimitiveTypeFlags           = primitive_type_flag
-    };
-
-    const std::string ptx = generate_trace_kernel();
-    std::vector<char> log(2048); size_t log_len = log.size();
-    OptixResult create_result = optixModuleCreateFromPTX(
-        context, &module_compile_options, &pipeline_compile_options,
-        ptx.data(), ptx.size(),
-        log.data(), &log_len, &module_);
-    if(create_result != OPTIX_SUCCESS)
-    {
-        module_ = nullptr;
-        throw BtrcException(log.data());
-    }
-    BTRC_SCOPE_FAIL{
-        optixModuleDestroy(module_);
-        module_ = nullptr;
-    };
-
-    // raygen group
-
-    const OptixProgramGroupOptions group_options = {};
-
-    const OptixProgramGroupDesc raygen_group_desc = {
-        .kind   = OPTIX_PROGRAM_GROUP_KIND_RAYGEN,
-        .raygen = OptixProgramGroupSingleModule{
-            .module            = module_,
-            .entryFunctionName = RAYGEN_TRACE_NAME
-        }
-    };
-    log_len = log.size();
-    create_result = optixProgramGroupCreate(
-        context, &raygen_group_desc, 1, &group_options,
-        log.data(), &log_len, &raygen_group_);
-    if(create_result != OPTIX_SUCCESS)
-        throw BtrcException(log.data());
-    BTRC_SCOPE_FAIL{
-        optixProgramGroupDestroy(raygen_group_);
-        raygen_group_ = nullptr;
-    };
-
-    // miss group
-
-    const OptixProgramGroupDesc miss_group_desc = {
-        .kind   = OPTIX_PROGRAM_GROUP_KIND_MISS,
-        .miss   = OptixProgramGroupSingleModule{
-            .module            = module_,
-            .entryFunctionName = MISS_TRACE_NAME
-        }
-    };
-    log_len = log.size();
-    create_result = optixProgramGroupCreate(
-        context, &miss_group_desc, 1, &group_options,
-        log.data(), &log_len, &miss_group_);
-    if(create_result != OPTIX_SUCCESS)
-        throw BtrcException(log.data());
-    BTRC_SCOPE_FAIL{
-        optixProgramGroupDestroy(miss_group_);
-        miss_group_ = nullptr;
-    };
-
-    // hit group
-
-    const OptixProgramGroupDesc hit_group_desc = {
-        .kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP,
-        .hitgroup = OptixProgramGroupHitgroup{
-            .moduleCH            = module_,
-            .entryFunctionNameCH = CLOSESTHIT_TRACE_NAME
-        }
-    };
-    log_len = log.size();
-    create_result = optixProgramGroupCreate(
-        context, &hit_group_desc, 1, &group_options,
-        log.data(), &log_len, &hit_group_);
-    if(create_result != OPTIX_SUCCESS)
-        throw BtrcException(log.data());
-    BTRC_SCOPE_FAIL{
-        optixProgramGroupDestroy(hit_group_);
-        hit_group_ = nullptr;
-    };
-
-    // pipeline
-
-    std::array<const OptixProgramGroup, 3> program_groups = {
-        raygen_group_, miss_group_, hit_group_
-    };
-    const OptixPipelineLinkOptions pipeline_link_options = {
-        .maxTraceDepth = 1,
-        .debugLevel    = debug_level
-    };
-    log_len = log.size();
-    create_result = optixPipelineCreate(
-        context, &pipeline_compile_options, &pipeline_link_options,
-        program_groups.data(), program_groups.size(),
-        log.data(), &log_len, &pipeline_);
-    if(create_result != OPTIX_SUCCESS)
-        throw BtrcException(log.data());
-    BTRC_SCOPE_FAIL{
-        optixPipelineDestroy(pipeline_);
-        pipeline_ = nullptr;
-    };
-
-    // stack size
-
-    OptixStackSizes raygen_stack_sizes, miss_stack_sizes, hit_stack_sizes;
-    throw_on_error(optixProgramGroupGetStackSize(
-        raygen_group_, &raygen_stack_sizes));
-    throw_on_error(optixProgramGroupGetStackSize(
-        miss_group_, &miss_stack_sizes));
-    throw_on_error(optixProgramGroupGetStackSize(
-        hit_group_, &hit_stack_sizes));
-
-    const unsigned int cssRG = raygen_stack_sizes.cssRG;
-    const unsigned int cssMS = miss_stack_sizes.cssMS;
-    const unsigned int cssCH = hit_stack_sizes.cssCH;
-    const unsigned int css = cssRG + (std::max)(cssMS, cssCH);
-
-    throw_on_error(optixPipelineSetStackSize(
-        pipeline_, 0, 0, css, traversable_depth));
-
-    // sbt
-
-    sbt_.set_raygen_shader(raygen_group_);
-    sbt_.set_miss_shader(miss_group_);
-    sbt_.set_hit_shader(hit_group_);
+    device_launch_params_ = CUDABuffer<LaunchParams>(1);
 }
 
 BTRC_WAVEFRONT_END

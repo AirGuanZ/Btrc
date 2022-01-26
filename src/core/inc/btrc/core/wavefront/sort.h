@@ -22,7 +22,7 @@ public:
 
     // returns new active_state_count
     // TODO: doesn't need this return value
-    int sort(
+    void sort(
         int          current_active_state_count,
         const float *inct_t,
         int32_t     *output_active_state_index);

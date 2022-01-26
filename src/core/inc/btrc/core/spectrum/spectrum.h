@@ -130,6 +130,8 @@ public:
 
     virtual Spectrum create_zero() const = 0;
 
+    virtual Spectrum create_from_rgb(float r, float g, float b) const = 0;
+
     virtual CSpectrum load(ptr<f32> beta) const = 0;
 
     virtual void save(ptr<f32> beta, const CSpectrum &spec) const = 0;
@@ -137,6 +139,8 @@ public:
     CSpectrum create_cone() const;
 
     CSpectrum create_czero() const;
+
+    virtual CSpectrum create_c_from_rgb(f32 r, f32 g, f32 b) const = 0;
 
     CSpectrum load_soa(ptr<f32> beta, i32 soa_index) const;
 

@@ -67,9 +67,9 @@ public:
 
     void clear_output(std::string_view name);
 
-    const float *get_float_output(std::string_view name) const;
+    const CUDABuffer<float> &get_float_output(std::string_view name) const;
 
-    const Vec4f *get_float3_output(std::string_view name) const;
+    const CUDABuffer<float> &get_float3_output(std::string_view name) const;
 
 private:
 

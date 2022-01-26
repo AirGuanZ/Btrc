@@ -29,23 +29,26 @@ CUJ_PROXY_CLASS(
 
 struct InstanceInfo
 {
-    GeometryInfo *geometry;
-    int32_t       material_id = 0;
-    int32_t       light_id = 0;
-    Transform     transform;
+    int32_t   geometry_id = 0;
+    int32_t   material_id = 0;
+    int32_t   light_id    = 0;
+    Transform transform;
 };
 
 CUJ_PROXY_CLASS(
     CInstanceInfo,
     InstanceInfo,
-    geometry,
+    geometry_id,
     material_id,
     light_id,
     transform);
 
 struct SceneData
 {
-    std::vector<InstanceInfo>       instances;
+    RC<CUDABuffer<InstanceInfo>> instances;
+    RC<CUDABuffer<GeometryInfo>> geometries;
+    RC<CUDABuffer<int32_t>>      inst_id_to_mat_id;
+
     std::vector<RC<const Material>> materials;
     RC<const LightSampler>          light_sampler;
 };

@@ -21,11 +21,11 @@ public:
     BTRC_XPU Quaterion operator*(const Quaterion &rhs) const;
 };
 
-BTRC_XPU Quaterion normalize(const Quaterion &q);
+BTRC_XPU inline Quaterion normalize(const Quaterion &q);
 
-BTRC_XPU Quaterion conjugate(const Quaterion &q);
+BTRC_XPU inline Quaterion conjugate(const Quaterion &q);
 
-BTRC_XPU Quaterion slerp(const Quaterion &lhs, const Quaterion &rhs, float t);
+BTRC_XPU inline Quaterion slerp(const Quaterion &lhs, const Quaterion &rhs, float t);
 
 // ========================== impl ==========================
 
@@ -68,6 +68,18 @@ BTRC_XPU inline Quaterion Quaterion::operator*(const Quaterion &rhs) const
         w * rhs.x + x * rhs.w + y * rhs.z - z * rhs.y,
         w * rhs.y + y * rhs.w + z * rhs.x - x * rhs.z,
         w * rhs.z + z * rhs.w + x * rhs.y - y * rhs.x);
+}
+
+BTRC_XPU inline Quaterion normalize(const Quaterion &q)
+{
+    const float len = btrc_sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+    const float inv_len = 1 / len;
+    return Quaterion(q.w * inv_len, q.x * inv_len, q.y * inv_len, q.z * inv_len);
+}
+
+BTRC_XPU inline Quaterion conjugate(const Quaterion &q)
+{
+    return Quaterion(q.w, -q.x, -q.y, -q.z);
 }
 
 BTRC_XPU inline Quaterion slerp(

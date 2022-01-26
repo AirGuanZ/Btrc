@@ -47,7 +47,7 @@ TARGET_INCLUDE_DIRECTORIES(
 
 TARGET_LINK_LIBRARIES(
     BtrcCore PUBLIC
-    cuj CUDA::cudart_static CUDA::cuda_driver stb tinyexr)
+    cuj CUDA::cudart_static CUDA::cuda_driver stb tinyexr tinyobjloader)
 
 #BTRC_EMBED_PTX(BtrcCore trace "${CMAKE_CURRENT_SOURCE_DIR}/src/wavefront/trace.cu")
 #TARGET_INCLUDE_DIRECTORIES(

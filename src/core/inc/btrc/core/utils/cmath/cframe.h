@@ -1,14 +1,13 @@
 #pragma once
 
 #include <btrc/core/utils/cmath/cvec3.h>
+#include <btrc/core/utils/math/frame.h>
 
 BTRC_CORE_BEGIN
 
-class CFrame
+CUJ_PROXY_CLASS_EX(CFrame, Frame, x, y, z)
 {
-public:
-
-    CVec3f x, y, z;
+    CUJ_BASE_CONSTRUCTORS
 
     CFrame();
 

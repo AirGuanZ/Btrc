@@ -33,6 +33,11 @@ void Film::swap(Film &other) noexcept
     buffers_.swap(other.buffers_);
 }
 
+Film::operator bool() const
+{
+    return width_ > 0;
+}
+
 int Film::width() const
 {
     return width_;
@@ -88,7 +93,7 @@ void Film::splat(
 {
     auto buffer_it = buffers_.find(name);
     if(buffer_it == buffers_.end())
-        throw BtrcException("unknown film output name: " + std::string(name));
+        return;
     auto &buffer = buffer_it->second;
 
     var ptr_u64 = reinterpret_cast<uint64_t>(buffer.buffer.get());
@@ -118,7 +123,7 @@ void Film::splat_atomic(
 {
     auto buffer_it = buffers_.find(name);
     if(buffer_it == buffers_.end())
-        throw BtrcException("unknown film output name: " + std::string(name));
+        return;
     auto &buffer = buffer_it->second;
 
     var ptr_u64 = reinterpret_cast<uint64_t>(buffer.buffer.get());
@@ -151,24 +156,24 @@ void Film::clear_output(std::string_view name)
     it->second.buffer.clear_bytes(0);
 }
 
-const float *Film::get_float_output(std::string_view name) const
+const CUDABuffer<float> &Film::get_float_output(std::string_view name) const
 {
     auto it = buffers_.find(name);
     if(it == buffers_.end())
         throw BtrcException("unknown film output name: " + std::string(name));
     if(it->second.format != Float)
         throw BtrcException("Film::get_float_output is called with the wrong format");
-    return it->second.buffer.get();
+    return it->second.buffer;
 }
 
-const Vec4f *Film::get_float3_output(std::string_view name) const
+const CUDABuffer<float> &Film::get_float3_output(std::string_view name) const
 {
     auto it = buffers_.find(name);
     if(it == buffers_.end())
         throw BtrcException("unknown film output name: " + std::string(name));
     if(it->second.format != Float3)
         throw BtrcException("Film::get_float_output is called with the wrong format");
-    return it->second.buffer.as<Vec4f>();
+    return it->second.buffer;
 }
 
 BTRC_CORE_END

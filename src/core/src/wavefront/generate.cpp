@@ -83,19 +83,21 @@ void GeneratePipeline::initialize(
     auto generate_kernel = kernel(
         GENERATE_KERNEL_NAME,
         [&camera, this](
-            ptr<cstd::LCG> rngs,
-            ptr<CVec2f>    output_pixel_coord,
-            ptr<CVec4f>    output_ray_o_t0,
-            ptr<CVec4f>    output_ray_d_t1,
-            ptr<CVec2u>    output_ray_time_mask,
-            i32            initial_pixel_index,
-            i32            active_state_count)
+            CSOAParams soa_params,
+            i32        initial_pixel_index,
+            i32        new_state_count,
+            i32        active_state_count)
     {
         i32 thread_idx = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
+        $if(thread_idx >= new_state_count)
+        {
+            $return();
+        };
+
         i32 state_index = active_state_count + thread_idx;
         i32 pixel_index = (initial_pixel_index + thread_idx) % pixel_count_;
 
-        ref rng = rngs[state_index];
+        ref rng = soa_params.rng[state_index];
 
         i32 pixel_x = pixel_index % film_res_.x;
         i32 pixel_y = pixel_index / film_res_.y;
@@ -111,22 +113,40 @@ void GeneratePipeline::initialize(
         auto sample_we_result = camera.generate_ray(
             CVec2f(film_x, film_y), time_sample);
 
-        output_pixel_coord[state_index] = CVec2f(pixel_xf, pixel_yf);
+        soa_params.output_pixel_coord[state_index] = CVec2f(pixel_xf, pixel_yf);
 
-        output_ray_o_t0[state_index] = CVec4f(
+        soa_params.output_ray_o_t0[state_index] = CVec4f(
             sample_we_result.pos.x,
             sample_we_result.pos.y,
             sample_we_result.pos.z,
             0.0f);
 
-        output_ray_d_t1[state_index] = CVec4f(
+        soa_params.output_ray_d_t1[state_index] = CVec4f(
             sample_we_result.dir.x,
             sample_we_result.dir.y,
             sample_we_result.dir.z,
             btrc_max_float);
 
-        output_ray_time_mask[state_index] = CVec2u(
+        soa_params.output_ray_time_mask[state_index] = CVec2u(
             bitcast<u32>(sample_we_result.time), 0xff);
+
+        soa_params.output_depth[state_index] = 0;
+
+        soa_params.output_bsdf_pdf[state_index] = -1;
+
+        auto spec_type = sample_we_result.throughput.get_type();
+        spec_type->save_soa(
+            soa_params.output_beta,
+            sample_we_result.throughput,
+            state_index);
+        spec_type->save_soa(
+            soa_params.output_beta_le,
+            sample_we_result.throughput,
+            state_index);
+        spec_type->save_soa(
+            soa_params.output_path_radiance,
+            spec_type->create_czero(),
+            state_index);
     });
 
     PTXGenerator ptx_gen;
@@ -143,10 +163,8 @@ void GeneratePipeline::initialize(
 }
 
 int GeneratePipeline::generate(
-    int            active_state_count,
-    cstd::LCGData *rngs,
-    float2        *output_pixel_coord,
-    const RaySOA  &output_ray)
+    int active_state_count,
+    const SOAParams &launch_params)
 {
     if(is_done())
         return 0;
@@ -163,12 +181,9 @@ int GeneratePipeline::generate(
         GENERATE_KERNEL_NAME,
         { block_count, 1, 1 },
         { BLOCK_DIM, 1, 1 },
-        rngs,
-        output_pixel_coord,
-        output_ray.o_t0,
-        output_ray.d_t1,
-        output_ray.time_mask,
+        launch_params,
         finished_pixel_,
+        new_state_count,
         active_state_count);
 
     finished_pixel_ += new_state_count;

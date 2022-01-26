@@ -20,6 +20,7 @@ namespace
         ref<CVec3f>        ray_o,
         ref<CVec3f>        ray_d,
         ref<CInstanceInfo> instance,
+        ref<CGeometryInfo> geometry,
         u32                prim_id,
         ref<CVec2f>        uv)
     {
@@ -31,13 +32,13 @@ namespace
         
         // geometry frame
 
-        var gx_ua  = instance.geometry->geometry_ex_tex_coord_u_a [prim_id];
-        var gy_uba = instance.geometry->geometry_ey_tex_coord_u_ba[prim_id];
-        var gz_uca = instance.geometry->geometry_ez_tex_coord_u_ca[prim_id];
+        var gx_ua  = geometry.geometry_ex_tex_coord_u_a [prim_id];
+        var gy_uba = geometry.geometry_ey_tex_coord_u_ba[prim_id];
+        var gz_uca = geometry.geometry_ez_tex_coord_u_ca[prim_id];
 
-        var sn_v_a  = instance.geometry->shading_normals_tex_coord_v_a [prim_id];
-        var sn_v_ba = instance.geometry->shading_normals_tex_coord_v_ba[prim_id];
-        var sn_v_ca = instance.geometry->shading_normals_tex_coord_v_ca[prim_id];
+        var sn_v_a  = geometry.shading_normals_tex_coord_v_a [prim_id];
+        var sn_v_ba = geometry.shading_normals_tex_coord_v_ba[prim_id];
+        var sn_v_ca = geometry.shading_normals_tex_coord_v_ca[prim_id];
 
         CFrame geometry_frame = CFrame(gx_ua.xyz(), gy_uba.xyz(), gz_uca.xyz());
 
@@ -52,6 +53,8 @@ namespace
 
         var interp_normal =
             sn_v_a.xyz() + sn_v_ba.xyz() * uv.x + sn_v_ca.xyz() * uv.y;
+        interp_normal = normalize(
+            local_to_world.apply_to_vector(interp_normal));
 
         // tex coord
 
@@ -62,11 +65,11 @@ namespace
         // intersection
 
         CIntersection material_inct;
-        material_inct.position = position;
-        material_inct.frame = geometry_frame;
+        material_inct.position      = position;
+        material_inct.frame         = geometry_frame;
         material_inct.interp_normal = interp_normal;
-        material_inct.uv = uv;
-        material_inct.tex_coord = tex_coord;
+        material_inct.uv            = uv;
+        material_inct.tex_coord     = tex_coord;
 
         return material_inct;
     }
@@ -74,13 +77,13 @@ namespace
 } // namespace anonymous
 
 ShadePipeline::ShadePipeline(
-    Film                &film,
-    const SceneData     &scene,
-    const SpectrumType  *spectrum_type,
-    const TracingParams &tracing_params)
+    Film               &film,
+    const SceneData    &scene,
+    const SpectrumType *spectrum_type,
+    const ShadeParams  &shade_params)
     : ShadePipeline()
 {
-    initialize(film, scene, spectrum_type, tracing_params);
+    initialize(film, scene, spectrum_type, shade_params);
 }
 
 ShadePipeline::ShadePipeline(ShadePipeline &&other) noexcept
@@ -98,6 +101,16 @@ ShadePipeline &ShadePipeline::operator=(ShadePipeline &&other) noexcept
 void ShadePipeline::swap(ShadePipeline &other) noexcept
 {
     std::swap(kernel_, other.kernel_);
+    std::swap(scene_, other.scene_);
+    std::swap(spectrum_type_, other.spectrum_type_);
+    
+    std::swap(counters_, other.counters_);
+
+    std::swap(instances_, other.instances_);
+    std::swap(geometries_, other.geometries_);
+    std::swap(inst_id_to_mat_id_, other.inst_id_to_mat_id_);
+    
+    std::swap(shade_params_, other.shade_params_);
 }
 
 ShadePipeline::operator bool() const
@@ -124,11 +137,12 @@ ShadePipeline::StateCounters ShadePipeline::shade(
         { block_count, 1, 1 },
         { BLOCK_DIM, 1, 1 },
         total_state_count,
-        instances_.get(),
+        instances_->get(),
+        geometries_->get(),
         active_state_counter,
         inactive_state_counter,
         shadow_ray_counter,
-        inst_id_to_mat_id_.get(),
+        inst_id_to_mat_id_->get(),
         soa);
 
     throw_on_error(cudaStreamSynchronize(nullptr));
@@ -139,14 +153,14 @@ ShadePipeline::StateCounters ShadePipeline::shade(
 }
 
 void ShadePipeline::initialize(
-    Film                &film,
-    const SceneData     &scene,
-    const SpectrumType  *spectrum_type,
-    const TracingParams &tracing_params)
+    Film               &film,
+    const SceneData    &scene,
+    const SpectrumType *spectrum_type,
+    const ShadeParams  &shade_params)
 {
     scene_ = &scene;
     spectrum_type_ = spectrum_type;
-    tracing_params_ = tracing_params;
+    shade_params_ = shade_params;
 
     ScopedModule cuj_module;
 
@@ -154,6 +168,7 @@ void ShadePipeline::initialize(
         SHADE_KERNEL_NAME, [&](
             i32                total_state_count,
             ptr<CInstanceInfo> instances,
+            ptr<CGeometryInfo> geometries,
             ptr<i32>           active_state_counter,
             ptr<i32>           inactive_state_counter,
             ptr<i32>           shadow_ray_counter,
@@ -203,17 +218,20 @@ void ShadePipeline::initialize(
         var inct_uv_id = soa_params.inct_uv_id[soa_index];
         var inst_id = inct_uv_id.w;
         ref instance = instances[inst_id];
+        ref geometry = geometries[instance.geometry_id];
         var uv = CVec2f(bitcast<f32>(inct_uv_id.x), bitcast<f32>(inct_uv_id.y));
         CIntersection inct = get_intersection(
-            inct_t, ray_o, ray_d, instance, inct_uv_id.z, uv);
+            inct_t, ray_o, ray_d, instance, geometry, inct_uv_id.z, uv);
 
         // handle intersected light
 
         auto handle_intersected_light = [&](int light_id)
         {
             auto light = scene_->light_sampler->get_light(light_id);
-            assert(light->is_area());
             const AreaLight *area = light->as_area();
+            if(!area)
+                return;
+
             CSpectrum le = area->eval_le(
                 inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
             CSpectrum beta_le = spectrum_type_->load_soa(
@@ -221,7 +239,7 @@ void ShadePipeline::initialize(
             var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
             $if(bsdf_pdf < 0)
             {
-                path_radiance = path_radiance + beta_le * le / bsdf_pdf;
+                path_radiance = path_radiance + beta_le * le / -bsdf_pdf;
             }
             $else
             {
@@ -253,9 +271,9 @@ void ShadePipeline::initialize(
         // rr
 
         var rr_exit = false;
-        $if(depth >= tracing_params_.min_depth)
+        $if(depth >= shade_params_.min_depth)
         {
-            $if(depth >= tracing_params_.max_depth)
+            $if(depth >= shade_params_.max_depth)
             {
                 rr_exit = true;
             }
@@ -263,15 +281,15 @@ void ShadePipeline::initialize(
             {
                 f32 sam = rng.uniform_float();
                 var lum = beta.get_lum();
-                $if(lum < tracing_params_.rr_threshold)
+                $if(lum < shade_params_.rr_threshold)
                 {
-                    $if(sam > tracing_params_.rr_cont_prob)
+                    $if(sam > shade_params_.rr_cont_prob)
                     {
                         rr_exit = true;
                     }
                     $else
                     {
-                        beta = beta / tracing_params_.rr_cont_prob;
+                        beta = beta / shade_params_.rr_cont_prob;
                     };
                 };
             };
@@ -469,6 +487,11 @@ void ShadePipeline::initialize(
     });
 
     PTXGenerator ptx_gen;
+    ptx_gen.set_options(Options{
+        .opt_level        = OptimizationLevel::O3,
+        .fast_math        = true,
+        .approx_math_func = true
+    });
     ptx_gen.generate(cuj_module);
 
     const std::string &ptx = ptx_gen.get_ptx();
@@ -477,14 +500,9 @@ void ShadePipeline::initialize(
 
     counters_ = CUDABuffer<int32_t>(3);
 
-    std::vector<int32_t> inst_id_to_mat_id_data;
-    inst_id_to_mat_id_data.reserve(scene.instances.size());
-    for(auto &inst : scene.instances)
-        inst_id_to_mat_id_data.push_back(inst.material_id);
-    inst_id_to_mat_id_ = CUDABuffer(
-        scene.instances.size(), inst_id_to_mat_id_data.data());
-
-    instances_ = CUDABuffer(scene.instances.size(), scene.instances.data());
+    instances_ = scene.instances;
+    geometries_ = scene.geometries;
+    inst_id_to_mat_id_ = scene.inst_id_to_mat_id;
 }
 
 void ShadePipeline::handle_miss(
@@ -494,15 +512,15 @@ void ShadePipeline::handle_miss(
     auto envir_light = scene_->light_sampler->get_envir_light();
     if(envir_light)
     {
-        CSpectrum le = envir_light->eval_le(
-            soa_params.ray_d_t1[soa_index].xyz());
+        var ray_dir = soa_params.ray_d_t1[soa_index].xyz();
+        CSpectrum le = envir_light->eval_le(ray_dir);
         CSpectrum beta_le = spectrum_type_->load_soa(
             soa_params.beta_le, soa_index);
 
         var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
         $if(bsdf_pdf < 0) // delta
         {
-            CSpectrum rad = beta_le * le / bsdf_pdf;
+            CSpectrum rad = beta_le * le / -bsdf_pdf;
             path_rad = path_rad + rad;
         }
         $else

@@ -47,6 +47,11 @@ bool CUDAModule::is_linked() const
     return impl_->cu_module != nullptr;
 }
 
+void CUDAModule::swap(CUDAModule &other) noexcept
+{
+    impl_.swap(other.impl_);
+}
+
 void CUDAModule::load_ptx_from_memory(const void *data, size_t bytes)
 {
     std::string new_data;

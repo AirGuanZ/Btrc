@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <span>
 #include <vector>
 
 #include <cuda.h>
@@ -21,11 +22,17 @@ public:
 
     explicit CUDABuffer(size_t elem_count, const T *cpu_data = nullptr);
 
+    explicit CUDABuffer(std::span<const T> data);
+
     CUDABuffer(CUDABuffer &&other) noexcept;
 
     CUDABuffer &operator=(CUDABuffer &&other) noexcept;
 
     ~CUDABuffer();
+
+    void initialize(size_t elem_count, const T *cpu_data = nullptr);
+
+    void destroy();
 
     void swap(CUDABuffer &other) noexcept;
 
@@ -82,15 +89,15 @@ template<typename T>
 CUDABuffer<T>::CUDABuffer(size_t elem_count, const T *cpu_data)
     : CUDABuffer()
 {
-    if(!elem_count)
-        return;
-    elem_count_ = elem_count;
-    throw_on_error(cudaMalloc(&buffer_, sizeof(T) * elem_count));
-    if(cpu_data)
-    {
-        BTRC_SCOPE_FAIL{ cudaFree(buffer_); };
-        this->from_cpu(cpu_data);
-    }
+    if(elem_count)
+        initialize(elem_count, cpu_data);
+}
+
+template<typename T>
+CUDABuffer<T>::CUDABuffer(std::span<const T> data)
+    : CUDABuffer(data.size(), data.data())
+{
+    
 }
 
 template<typename T>
@@ -111,6 +118,28 @@ template<typename T>
 CUDABuffer<T>::~CUDABuffer()
 {
     cudaFree(buffer_);
+}
+
+template<typename T>
+void CUDABuffer<T>::initialize(size_t elem_count, const T *cpu_data)
+{
+    destroy();
+    assert(elem_count);
+    elem_count_ = elem_count;
+    throw_on_error(cudaMalloc(&buffer_, sizeof(T) * elem_count));
+    if(cpu_data)
+    {
+        BTRC_SCOPE_FAIL{ cudaFree(buffer_); };
+        this->from_cpu(cpu_data);
+    }
+}
+
+template<typename T>
+void CUDABuffer<T>::destroy()
+{
+    cudaFree(buffer_);
+    elem_count_ = 0;
+    buffer_ = nullptr;
 }
 
 template<typename T>

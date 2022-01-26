@@ -31,9 +31,9 @@ public:
         f32       pdf;
     };
 
-    bool is_area() const noexcept override;
+    bool is_area() const noexcept final { return true; }
 
-    const AreaLight *as_area() const override;
+    const AreaLight *as_area() const final { return this; }
 
     virtual CSpectrum eval_le(
         const CVec3f &pos,
@@ -63,9 +63,9 @@ public:
         f32       pdf;
     };
 
-    bool is_area() const noexcept final;
+    bool is_area() const noexcept final { return false; }
 
-    const EnvirLight *as_envir() const final;
+    const EnvirLight *as_envir() const final { return this; }
 
     virtual CSpectrum eval_le(const CVec3f &to_light) const = 0;
 

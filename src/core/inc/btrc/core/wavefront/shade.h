@@ -4,7 +4,6 @@
 #include <btrc/core/utils/cuda/module.h>
 #include <btrc/core/utils/uncopyable.h>
 #include <btrc/core/wavefront/scene.h>
-#include <btrc/core/wavefront/soa.h>
 
 /*
 r = generate ray
@@ -128,7 +127,7 @@ public:
     using SOAParams = shade_pipeline_detail::SOAParams;
     using CSOAParams = shade_pipeline_detail::CSOAParams;
 
-    struct TracingParams
+    struct ShadeParams
     {
         int   min_depth    = 4;
         int   max_depth    = 8;
@@ -145,10 +144,10 @@ public:
     ShadePipeline() = default;
 
     ShadePipeline(
-        Film                &film,
-        const SceneData     &scene,
-        const SpectrumType  *spectrum_type,
-        const TracingParams &tracing_params);
+        Film               &film,
+        const SceneData    &scene,
+        const SpectrumType *spectrum_type,
+        const ShadeParams  &shade_params);
 
     ShadePipeline(ShadePipeline &&other) noexcept;
 
@@ -166,10 +165,10 @@ public:
 private:
 
     void initialize(
-        Film                &film,
-        const SceneData     &scene,
-        const SpectrumType  *spectrum_type,
-        const TracingParams &tracing_params);
+        Film               &film,
+        const SceneData    &scene,
+        const SpectrumType *spectrum_type,
+        const ShadeParams  &shade_params);
 
     void handle_miss(
         ref<CSOAParams> soa_params, i32 soa_index, CSpectrum &path_rad);
@@ -178,11 +177,13 @@ private:
     const SceneData    *scene_ = nullptr;
     const SpectrumType *spectrum_type_;
 
-    CUDABuffer<int32_t>      counters_;
-    CUDABuffer<int32_t>      inst_id_to_mat_id_;
-    CUDABuffer<InstanceInfo> instances_;
+    CUDABuffer<int32_t> counters_;
 
-    TracingParams tracing_params_;
+    RC<CUDABuffer<InstanceInfo>> instances_;
+    RC<CUDABuffer<GeometryInfo>> geometries_;
+    RC<CUDABuffer<int32_t>>      inst_id_to_mat_id_;
+
+    ShadeParams shade_params_;
 };
 
 BTRC_WAVEFRONT_END

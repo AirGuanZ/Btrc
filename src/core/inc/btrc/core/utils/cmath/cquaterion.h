@@ -22,11 +22,11 @@ CUJ_PROXY_CLASS_EX(CQuaterion, Quaterion, w, x, y, z)
     CQuaterion operator*(const CQuaterion &rhs) const;
 };
 
-CQuaterion normalize(const CQuaterion &q);
+inline CQuaterion normalize(const CQuaterion &q);
 
-CQuaterion conjugate(const CQuaterion &q);
+inline CQuaterion conjugate(const CQuaterion &q);
 
-CQuaterion slerp(const CQuaterion &lhs, const CQuaterion &rhs, f32 t);
+inline CQuaterion slerp(const CQuaterion &lhs, const CQuaterion &rhs, f32 t);
 
 // ========================== impl ==========================
 
@@ -71,6 +71,18 @@ inline CQuaterion CQuaterion::operator*(const CQuaterion &rhs) const
         w * rhs.x + x * rhs.w + y * rhs.z - z * rhs.y,
         w * rhs.y + y * rhs.w + z * rhs.x - x * rhs.z,
         w * rhs.z + z * rhs.w + x * rhs.y - y * rhs.x);
+}
+
+inline CQuaterion normalize(const CQuaterion &q)
+{
+    var len = cstd::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+    var inv_len = 1.0f / len;
+    return CQuaterion(q.w * inv_len, q.x * inv_len, q.y * inv_len, q.z * inv_len);
+}
+
+inline CQuaterion conjugate(const CQuaterion &q)
+{
+    return CQuaterion(q.w, -q.x, -q.y, -q.z);
 }
 
 inline CQuaterion slerp(const CQuaterion &lhs, const CQuaterion &rhs, f32 t)

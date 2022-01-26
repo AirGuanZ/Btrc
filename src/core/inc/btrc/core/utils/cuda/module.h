@@ -21,6 +21,8 @@ public:
 
     ~CUDAModule();
 
+    void swap(CUDAModule &other) noexcept;
+
     bool is_linked() const;
 
     void load_ptx_from_memory(const void *data, size_t bytes);
