@@ -6,7 +6,6 @@
 #include <btrc/core/light/gradient_sky.h>
 #include <btrc/core/light_sampler/uniform_light_sampler.h>
 #include <btrc/core/material/diffuse.h>
-#include <btrc/core/spectrum/rgb.h>
 #include <btrc/core/utils/cuda/context.h>
 #include <btrc/core/utils/optix/context.h>
 #include <btrc/core/utils/image.h>
@@ -18,7 +17,7 @@
 
 using namespace btrc::core;
 
-constexpr int SPP = 512;
+constexpr int SPP = 256;
 constexpr int STATE_COUNT = 1000000;
 
 constexpr int WIDTH = 512;
@@ -26,8 +25,6 @@ constexpr int HEIGHT = 512;
 
 struct Scene
 {
-    const SpectrumType *spec_type;
-
     PinholeCamera                    camera;
     RC<CUDABuffer<wf::InstanceInfo>> instances;
     RC<CUDABuffer<wf::GeometryInfo>> geometries;
@@ -47,7 +44,7 @@ struct Pipeline
     wf::TracePipeline    trace;
     wf::SortPipeline     sort;
     wf::ShadePipeline    shade;
-    //wf::ShadowPipeline   shadow;
+    wf::ShadowPipeline   shadow;
 };
 
 struct SOAState
@@ -61,11 +58,11 @@ struct SOAState
     CUDABuffer<Vec2u> ray_time_mask;
     CUDABuffer<Vec2f> pixel_coord;
 
-    CUDABuffer<float>   beta;
-    CUDABuffer<float>   beta_le;
-    CUDABuffer<float>   bsdf_pdf;
-    CUDABuffer<int32_t> depth;
-    CUDABuffer<float>   path_radiance;
+    CUDABuffer<Spectrum> beta;
+    CUDABuffer<Spectrum> beta_le;
+    CUDABuffer<float>    bsdf_pdf;
+    CUDABuffer<int32_t>  depth;
+    CUDABuffer<Spectrum> path_radiance;
 
     // trace output
 
@@ -80,32 +77,29 @@ struct SOAState
 
     CUDABuffer<cstd::LCGData> output_rng;
 
-    CUDABuffer<float>   output_path_radiance;
-    CUDABuffer<Vec2f>   output_pixel_coord;
-    CUDABuffer<int32_t> output_depth;
-    CUDABuffer<float>   output_beta;
+    CUDABuffer<Spectrum> output_path_radiance;
+    CUDABuffer<Vec2f>    output_pixel_coord;
+    CUDABuffer<int32_t>  output_depth;
+    CUDABuffer<Spectrum> output_beta;
 
-    CUDABuffer<Vec2f> shadow_pixel_coord;
-    CUDABuffer<Vec4f> shadow_ray_o_t0;
-    CUDABuffer<Vec4f> shadow_ray_d_t1;
-    CUDABuffer<Vec2u> shadow_ray_time_mask;
-    CUDABuffer<float> shadow_beta_li;
+    CUDABuffer<Vec2f>    shadow_pixel_coord;
+    CUDABuffer<Vec4f>    shadow_ray_o_t0;
+    CUDABuffer<Vec4f>    shadow_ray_d_t1;
+    CUDABuffer<Vec2u>    shadow_ray_time_mask;
+    CUDABuffer<Spectrum> shadow_beta_li;
 
     CUDABuffer<Vec4f> output_ray_o_t0;
     CUDABuffer<Vec4f> output_ray_d_t1;
     CUDABuffer<Vec2u> output_ray_time_mask;
 
-    CUDABuffer<float> output_beta_le;
-    CUDABuffer<float> output_bsdf_pdf;
+    CUDABuffer<Spectrum> output_beta_le;
+    CUDABuffer<float>    output_bsdf_pdf;
 };
 
 Scene build_scene(optix::Context &optix_ctx)
 {
     Scene scene;
 
-    scene.spec_type = RGBSpectrumType::get_instance();
-
-    scene.camera.set_spectrum_builder(scene.spec_type);
     scene.camera.set_eye({ -2, 0, 0 });
     scene.camera.set_dst({ 0, 0, 0 });
     scene.camera.set_up({ 0, 0, 1 });
@@ -118,9 +112,9 @@ Scene build_scene(optix::Context &optix_ctx)
             .material_id = 0,
             .light_id    = -1,
             .transform   = Transform{
+                .translate = { 0, 0, 0 },
                 .scale     = 1,
-                .rotate    = Quaterion({ 1, 0, 0 }, 0),
-                .translate = { 0, 0, 0 }
+                .rotate    = Quaterion({ 1, 0, 0 }, 0)
             }
         };
         scene.instances = newRC<CUDABuffer<wf::InstanceInfo>>(1, &inst);
@@ -177,15 +171,15 @@ Scene build_scene(optix::Context &optix_ctx)
 
     {
         auto diffuse = newRC<Diffuse>();
-        diffuse->set_albedo(RGBSpectrumImpl::from_rgb(0, 0.8f, 0.8f));
+        diffuse->set_albedo(Spectrum::from_rgb(0, 0.8f, 0.8f));
         scene.materials.push_back(std::move(diffuse));
     }
 
     {
         auto sky = newRC<GradientSky>();
         sky->set_up({ 0, 0, 1 });
-        sky->set_lower(RGBSpectrumType::get_instance()->create_zero());
-        sky->set_upper(RGBSpectrumType::get_instance()->create_one());
+        sky->set_lower(Spectrum::zero());
+        sky->set_upper(Spectrum::one());
 
         auto sampler = newRC<UniformLightSampler>();
         sampler->add_light(std::move(sky));
@@ -218,7 +212,6 @@ Pipeline build_pipeline(
             .materials         = scene.materials,
             .light_sampler     = scene.light_sampler
         },
-        RGBSpectrumType::get_instance(),
         wf::ShadePipeline::ShadeParams{
             .min_depth    = 4,
             .max_depth    = 8,
@@ -226,13 +219,13 @@ Pipeline build_pipeline(
             .rr_cont_prob = 0.3f
         });
 
-    //pipeline.shadow = wf::ShadowPipeline(
-    //    film, RGBSpectrumType::get_instance(), optix_ctx, false, true, 2);
+    pipeline.shadow = wf::ShadowPipeline(
+        film, optix_ctx, false, true, 2);
 
     return pipeline;
 }
 
-SOAState build_soa_state(int state_count, const SpectrumType *spec_type)
+SOAState build_soa_state(int state_count)
 {
     SOAState ret;
     ret.input_rng.initialize(state_count);
@@ -248,12 +241,11 @@ SOAState build_soa_state(int state_count, const SpectrumType *spec_type)
     ret.ray_time_mask.initialize(state_count);
     ret.pixel_coord.initialize(state_count);
 
-    const int beta_float_count = state_count * spec_type->get_word_count();
-    ret.beta.initialize(beta_float_count);
-    ret.beta_le.initialize(beta_float_count);
+    ret.beta.initialize(state_count);
+    ret.beta_le.initialize(state_count);
     ret.bsdf_pdf.initialize(state_count);
     ret.depth.initialize(state_count);
-    ret.path_radiance.initialize(beta_float_count);
+    ret.path_radiance.initialize(state_count);
 
     ret.inct_t.initialize(state_count);
     ret.inct_uv_id.initialize(state_count);
@@ -262,22 +254,22 @@ SOAState build_soa_state(int state_count, const SpectrumType *spec_type)
     
     ret.output_rng.initialize(state_count);
 
-    ret.output_path_radiance.initialize(beta_float_count);
+    ret.output_path_radiance.initialize(state_count);
     ret.output_pixel_coord.initialize(state_count);
     ret.output_depth.initialize(state_count);
-    ret.output_beta.initialize(beta_float_count);
+    ret.output_beta.initialize(state_count);
 
     ret.shadow_pixel_coord.initialize(state_count);
     ret.shadow_ray_o_t0.initialize(state_count);
     ret.shadow_ray_d_t1.initialize(state_count);
     ret.shadow_ray_time_mask.initialize(state_count);
-    ret.shadow_beta_li.initialize(beta_float_count);
+    ret.shadow_beta_li.initialize(state_count);
 
     ret.output_ray_o_t0.initialize(state_count);
     ret.output_ray_d_t1.initialize(state_count);
     ret.output_ray_time_mask.initialize(state_count);
 
-    ret.output_beta_le.initialize(beta_float_count);
+    ret.output_beta_le.initialize(state_count);
     ret.output_bsdf_pdf.initialize(state_count);
 
     return ret;
@@ -288,15 +280,24 @@ void run()
     cuda::Context cuda_ctx(0);
     optix::Context optix_ctx(cuda_ctx);
 
+    PropertyManager props;
+    PropertyManager::push_manager(&props);
+    BTRC_SCOPE_EXIT{ PropertyManager::pop_manager(); };
+
+    CompileContext cc(false);
+    CompileContext::push_context(&cc);
+    BTRC_SCOPE_EXIT{ CompileContext::pop_context(); };
+
     auto scene = build_scene(optix_ctx);
 
-    Film film(512, 512);
+    Film film(WIDTH, HEIGHT);
     film.add_output(Film::OUTPUT_RADIANCE, Film::Float3);
     film.add_output(Film::OUTPUT_WEIGHT, Film::Float);
 
     auto pipeline = build_pipeline(optix_ctx, film, scene);
+    pipeline.shade.link(cc.generate_separate_codes());
 
-    auto soa = build_soa_state(STATE_COUNT, RGBSpectrumType::get_instance());
+    auto soa = build_soa_state(STATE_COUNT);
 
     int active_state_count = 0;
     while(!pipeline.generate.is_done() || active_state_count > 0)
@@ -369,7 +370,16 @@ void run()
 
         if(shade_counters.shadow_ray_counter)
         {
-            // TODO
+            pipeline.shadow.test(
+                scene.tlas,
+                shade_counters.shadow_ray_counter,
+                wf::ShadowPipeline::SOAParams{
+                    .pixel_coord   = soa.shadow_pixel_coord,
+                    .ray_o_t0      = soa.shadow_ray_o_t0,
+                    .ray_d_t1      = soa.shadow_ray_d_t1,
+                    .ray_time_mask = soa.shadow_ray_time_mask,
+                    .beta_li       = soa.shadow_beta_li
+                });
         }
 
         soa.input_rng.swap(soa.output_rng);

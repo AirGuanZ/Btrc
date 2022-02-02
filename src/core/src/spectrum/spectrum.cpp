@@ -2,141 +2,167 @@
 
 BTRC_CORE_BEGIN
 
-Spectrum::Spectrum(Box<SpectrumImpl> impl)
-    : impl_(std::move(impl))
+Spectrum Spectrum::from_rgb(float r, float g, float b)
+{
+    Spectrum ret;
+    ret.r = r;
+    ret.g = g;
+    ret.b = b;
+    return ret;
+}
+
+Spectrum Spectrum::one()
+{
+    return from_rgb(1, 1, 1);
+}
+
+Spectrum Spectrum::zero()
+{
+    return from_rgb(0, 0, 0);
+}
+
+Spectrum::Spectrum()
+    : r(0), g(0), b(0)
 {
     
-}
-
-Spectrum::Spectrum(const Spectrum &other)
-{
-    *this = other;
-}
-
-Spectrum &Spectrum::operator=(const Spectrum &other)
-{
-    if(!impl_)
-    {
-        if(other.impl_)
-            impl_ = other.impl_->clone();
-    }
-    else
-        impl_->assign(other.impl());
-    return *this;
-}
-
-SpectrumImpl &Spectrum::impl()
-{
-    return *impl_;
-}
-
-const SpectrumImpl &Spectrum::impl() const
-{
-    return *impl_;
-}
-
-Vec3f Spectrum::to_rgb() const
-{
-    return impl_->to_rgb();
 }
 
 bool Spectrum::is_zero() const
 {
-    return impl_->is_zero();
+    return r == 0 && g == 0 && b == 0;
 }
 
 float Spectrum::get_lum() const
 {
-    return impl_->get_lum();
+    return 0.2126f * r + 0.7152f * g + 0.0722f * b;
 }
 
-CSpectrum Spectrum::to_cspectrum() const
+Vec3f Spectrum::to_rgb() const
 {
-    return CSpectrum(impl_->to_cspectrum());
+    return Vec3f(r, g, b);
 }
 
-const SpectrumType *Spectrum::get_type() const
+CSpectrum CSpectrum::from_rgb(f32 _r, f32 _g, f32 _b)
 {
-    return impl_->get_type();
+    CSpectrum ret;
+    ret.r = _r;
+    ret.g = _g;
+    ret.b = _b;
+    return ret;
 }
 
-CSpectrum::CSpectrum(Box<CSpectrumImpl> impl)
-    : impl_(std::move(impl))
+CSpectrum CSpectrum::one()
 {
-    
+    return from_rgb(1, 1, 1);
+}
+
+CSpectrum CSpectrum::zero()
+{
+    return from_rgb(0, 0, 0);
 }
 
 CSpectrum::CSpectrum(const Spectrum &s)
-    : CSpectrum(s.to_cspectrum())
 {
-    
-}
-
-CSpectrum::CSpectrum(const CSpectrum &other)
-{
-    *this = other;
-}
-
-CSpectrum &CSpectrum::operator=(const CSpectrum &other)
-{
-    if(!impl_)
-    {
-        if(other.impl_)
-            impl_ = other.impl_->clone();
-    }
-    else
-        impl_->assign(other.impl());
-    return *this;
-}
-
-CSpectrumImpl &CSpectrum::impl()
-{
-    return *impl_;
-}
-const CSpectrumImpl &CSpectrum::impl() const
-{
-    return *impl_;
-}
-
-CVec3f CSpectrum::to_rgb() const
-{
-    return impl_->to_rgb();
+    r = s.r;
+    g = s.g;
+    b = s.b;
 }
 
 boolean CSpectrum::is_zero() const
 {
-    return impl_->is_zero();
+    return r == f32(0) & g == f32(0) & b == f32(0);
 }
 
 f32 CSpectrum::get_lum() const
 {
-    return impl_->get_lum();
+    return 0.2126f * r + 0.7152f * g + 0.0722f * b;
 }
 
-const SpectrumType *CSpectrum::get_type() const
+CVec3f CSpectrum::to_rgb() const
 {
-    return impl_->get_type();
+    return CVec3f(r, g, b);
 }
 
-CSpectrum SpectrumType::create_cone() const
+CSpectrum load_aligned(ptr<CSpectrum> addr)
 {
-    return create_one().to_cspectrum();
+    f32 r, g, b, u;
+    cstd::load_f32x4(cuj::bitcast<ptr<f32>>(addr), r, g, b, u);
+    return CSpectrum::from_rgb(r, g, b);
 }
 
-CSpectrum SpectrumType::create_czero() const
+void save_aligned(ref<CSpectrum> spec, ptr<CSpectrum> addr)
 {
-    return create_zero().to_cspectrum();
+    cstd::store_f32x4(cuj::bitcast<ptr<f32>>(addr), spec.r, spec.g, spec.b, f32(0));
 }
 
-CSpectrum SpectrumType::load_soa(ptr<f32> beta, i32 soa_index) const
+Spectrum operator+(const Spectrum &a, const Spectrum &b)
 {
-    return load(beta + get_word_count() * soa_index);
+    return Spectrum::from_rgb(a.r + b.r, a.g + b.g, a.b + b.b);
 }
 
-void SpectrumType::save_soa(
-    ptr<f32> beta, const CSpectrum &spec, i32 soa_index) const
+Spectrum operator*(const Spectrum &a, const Spectrum &b)
 {
-    save(beta + get_word_count() * soa_index, spec);
+    return Spectrum::from_rgb(a.r * b.r, a.g * b.g, a.b * b.b);
+}
+
+Spectrum operator+(const Spectrum &a, float b)
+{
+    return Spectrum::from_rgb(a.r + b, a.g + b, a.b + b);
+}
+
+Spectrum operator*(const Spectrum &a, float b)
+{
+    return Spectrum::from_rgb(a.r * b, a.g * b, a.b * b);
+}
+
+Spectrum operator/(const Spectrum &a, float b)
+{
+    return Spectrum::from_rgb(a.r / b, a.g / b, a.b / b);
+}
+
+Spectrum operator+(float a, const Spectrum &b)
+{
+    return b + a;
+}
+
+Spectrum operator*(float a, const Spectrum &b)
+{
+    return b * a;
+}
+
+CSpectrum operator+(const CSpectrum &a, const CSpectrum &b)
+{
+    return CSpectrum::from_rgb(a.r + b.r, a.g + b.g, a.b + b.b);
+}
+
+CSpectrum operator*(const CSpectrum &a, const CSpectrum &b)
+{
+    return CSpectrum::from_rgb(a.r * b.r, a.g * b.g, a.b * b.b);
+}
+
+CSpectrum operator+(const CSpectrum &a, f32 b)
+{
+    return CSpectrum::from_rgb(a.r + b, a.g + b, a.b + b);
+}
+
+CSpectrum operator*(const CSpectrum &a, f32 b)
+{
+    return CSpectrum::from_rgb(a.r * b, a.g * b, a.b * b);
+}
+
+CSpectrum operator/(const CSpectrum &a, f32 b)
+{
+    return CSpectrum::from_rgb(a.r / b, a.g / b, a.b / b);
+}
+
+CSpectrum operator+(f32 a, const CSpectrum &b)
+{
+    return b + a;
+}
+
+CSpectrum operator*(f32 a, const CSpectrum &b)
+{
+    return b * a;
 }
 
 BTRC_CORE_END

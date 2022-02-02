@@ -37,15 +37,15 @@ namespace shade_pipeline_detail
 
         // per path
 
-        float   *path_radiance;
-        Vec2f   *pixel_coord;
-        int32_t *depth;
-        float   *beta;
+        Spectrum *path_radiance;
+        Vec2f    *pixel_coord;
+        int32_t  *depth;
+        Spectrum *beta;
 
         // for computing mis le
 
-        float *beta_le;
-        float *bsdf_pdf;
+        Spectrum *beta_le;
+        float    *bsdf_pdf;
 
         // last intersection
 
@@ -64,18 +64,18 @@ namespace shade_pipeline_detail
 
         // ouput when active
 
-        float   *output_path_radiance;
-        Vec2f   *output_pixel_coord;
-        int32_t *output_depth;
-        float   *output_beta;
+        Spectrum *output_path_radiance;
+        Vec2f    *output_pixel_coord;
+        int32_t  *output_depth;
+        Spectrum *output_beta;
 
         // for shadow ray
 
-        Vec2f *output_shadow_pixel_coord;
-        Vec4f *output_shadow_ray_o_t0;
-        Vec4f *output_shadow_ray_d_t1;
-        Vec2u *output_shadow_ray_time_mask;
-        float *output_shadow_beta_li;
+        Vec2f    *output_shadow_pixel_coord;
+        Vec4f    *output_shadow_ray_o_t0;
+        Vec4f    *output_shadow_ray_d_t1;
+        Vec2u    *output_shadow_ray_time_mask;
+        Spectrum *output_shadow_beta_li;
 
         // for next ray
 
@@ -83,8 +83,8 @@ namespace shade_pipeline_detail
         Vec4f *output_new_ray_d_t1;
         Vec2u *output_new_ray_time_mask;
 
-        float *output_beta_le;
-        float *output_bsdf_pdf;
+        Spectrum *output_beta_le;
+        float    *output_bsdf_pdf;
     };
 
     CUJ_PROXY_CLASS(
@@ -144,16 +144,17 @@ public:
     ShadePipeline() = default;
 
     ShadePipeline(
-        Film               &film,
-        const SceneData    &scene,
-        const SpectrumType *spectrum_type,
-        const ShadeParams  &shade_params);
+        Film              &film,
+        const SceneData   &scene,
+        const ShadeParams &shade_params);
 
     ShadePipeline(ShadePipeline &&other) noexcept;
 
     ShadePipeline &operator=(ShadePipeline &&other) noexcept;
 
     void swap(ShadePipeline &other) noexcept;
+
+    void link(const std::vector<std::string_view> &library);
 
     operator bool() const;
 
@@ -165,17 +166,15 @@ public:
 private:
 
     void initialize(
-        Film               &film,
-        const SceneData    &scene,
-        const SpectrumType *spectrum_type,
-        const ShadeParams  &shade_params);
+        Film              &film,
+        const SceneData   &scene,
+        const ShadeParams &shade_params);
 
     void handle_miss(
-        ref<CSOAParams> soa_params, i32 soa_index, CSpectrum &path_rad);
+        ref<CSOAParams> soa_params, i32 soa_index, ref<CSpectrum> path_rad);
 
-    CUDAModule          kernel_;
-    const SceneData    *scene_ = nullptr;
-    const SpectrumType *spectrum_type_;
+    CUDAModule       kernel_;
+    const SceneData *scene_ = nullptr;
 
     CUDABuffer<int32_t> counters_;
 

@@ -16,11 +16,11 @@ namespace generate_pipeline_detail
         Vec4f         *output_ray_o_t0;
         Vec4f         *output_ray_d_t1;
         Vec2u         *output_ray_time_mask;
-        float         *output_beta;
-        float         *output_beta_le;
+        Spectrum      *output_beta;
+        Spectrum      *output_beta_le;
         float         *output_bsdf_pdf;
         int           *output_depth;
-        float         *output_path_radiance;
+        Spectrum      *output_path_radiance;
     };
 
     CUJ_PROXY_CLASS(

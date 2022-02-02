@@ -2,11 +2,6 @@
 
 BTRC_CORE_BEGIN
 
-void PinholeCamera::set_spectrum_builder(const SpectrumType *spectrum_builder)
-{
-    spectrum_builder_ = spectrum_builder;
-}
-
 void PinholeCamera::set_eye(const Vec3f &eye)
 {
     eye_ = eye;
@@ -52,7 +47,7 @@ Camera::SampleWeResult PinholeCamera::generate_ray(
         lerp(beg_time_, end_time_, time_sample) : f32(beg_time_);
 
     SampleWeResult result;
-    result.throughput = spectrum_builder_->create_cone();
+    result.throughput = CSpectrum::one();
     result.pos = eye_;
     result.dir = dir;
     result.time = time;
@@ -61,8 +56,6 @@ Camera::SampleWeResult PinholeCamera::generate_ray(
 
 PinholeCamera::GenerateData PinholeCamera::preprocess() const
 {
-    assert(spectrum_builder_);
-
     const Vec3f forward = normalize(dst_ - eye_);
     const Vec3f ex = normalize(cross(forward, up_));
     const Vec3f ey = normalize(cross(forward, ex));

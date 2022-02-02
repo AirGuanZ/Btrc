@@ -4,167 +4,69 @@
 
 BTRC_CORE_BEGIN
 
-class CSpectrumImpl;
-class CSpectrum;
-class SpectrumImpl;
-class Spectrum;
-class SpectrumType;
-
-class SpectrumImpl
-{
-public:
-
-    virtual ~SpectrumImpl() = default;
-
-    virtual Spectrum add(const SpectrumImpl &other) const = 0;
-
-    virtual Spectrum mul(const SpectrumImpl &other) const = 0;
-
-    virtual Spectrum add(float v) const = 0;
-
-    virtual Spectrum mul(float v) const = 0;
-
-    virtual void assign(const SpectrumImpl &other) = 0;
-
-    virtual Vec3f to_rgb() const = 0;
-
-    virtual bool is_zero() const = 0;
-
-    virtual float get_lum() const = 0;
-
-    virtual Box<SpectrumImpl> clone() const = 0;
-
-    virtual Box<CSpectrumImpl> to_cspectrum() const = 0;
-
-    virtual const SpectrumType *get_type() const = 0;
-};
-
-class CSpectrumImpl
-{
-public:
-
-    virtual ~CSpectrumImpl() = default;
-
-    virtual CSpectrum add(const CSpectrumImpl &other) const = 0;
-
-    virtual CSpectrum mul(const CSpectrumImpl &other) const = 0;
-
-    virtual CSpectrum add(f32 v) const = 0;
-
-    virtual CSpectrum mul(f32 v) const = 0;
-
-    virtual void assign(const CSpectrumImpl &other) = 0;
-
-    virtual CVec3f to_rgb() const = 0;
-
-    virtual boolean is_zero() const = 0;
-
-    virtual f32 get_lum() const = 0;
-
-    virtual Box<CSpectrumImpl> clone() const = 0;
-
-    virtual const SpectrumType *get_type() const = 0;
-};
-
 class Spectrum
 {
-    Box<SpectrumImpl> impl_;
-
 public:
 
-    explicit Spectrum(Box<SpectrumImpl> impl = {});
+    float r, g, b;
+    float _unused_pad_;
 
-    Spectrum(const Spectrum &other);
+    static Spectrum from_rgb(float r, float g, float b);
 
-    Spectrum &operator=(const Spectrum &other);
+    static Spectrum one();
 
-          SpectrumImpl &impl();
-    const SpectrumImpl &impl() const;
+    static Spectrum zero();
 
-    Vec3f to_rgb() const;
+    Spectrum();
 
     bool is_zero() const;
 
     float get_lum() const;
 
-    CSpectrum to_cspectrum() const;
-
-    const SpectrumType *get_type() const;
+    Vec3f to_rgb() const;
 };
 
-class CSpectrum
+CUJ_PROXY_CLASS_EX(CSpectrum, Spectrum, r, g, b, _unused_pad_)
 {
-    Box<CSpectrumImpl> impl_;
+    CUJ_BASE_CONSTRUCTORS
 
-public:
+    static CSpectrum from_rgb(f32 _r, f32 _g, f32 _b);
 
-    explicit CSpectrum(Box<CSpectrumImpl> impl = {});
+    static CSpectrum one();
 
-    CSpectrum(const Spectrum &s);
-
-    CSpectrum(const CSpectrum &other);
-
-    CSpectrum &operator=(const CSpectrum &other);
-
-          CSpectrumImpl &impl();
-    const CSpectrumImpl &impl() const;
-
-    CVec3f to_rgb() const;
+    static CSpectrum zero();
+        
+    CSpectrum(const Spectrum &s = {});
 
     boolean is_zero() const;
 
     f32 get_lum() const;
 
-    const SpectrumType *get_type() const;
+    CVec3f to_rgb() const;
 };
 
-class SpectrumType
-{
-public:
+CSpectrum load_aligned(ptr<CSpectrum> addr);
 
-    virtual ~SpectrumType() = default;
+void save_aligned(ref<CSpectrum> spec, ptr<CSpectrum> addr);
 
-    virtual int get_word_count() const = 0;
+Spectrum operator+(const Spectrum &a, const Spectrum &b);
+Spectrum operator*(const Spectrum &a, const Spectrum &b);
 
-    virtual Spectrum create_one() const = 0;
+Spectrum operator+(const Spectrum &a, float b);
+Spectrum operator*(const Spectrum &a, float b);
+Spectrum operator/(const Spectrum &a, float b);
 
-    virtual Spectrum create_zero() const = 0;
+Spectrum operator+(float a, const Spectrum &b);
+Spectrum operator*(float a, const Spectrum &b);
 
-    virtual Spectrum create_from_rgb(float r, float g, float b) const = 0;
+CSpectrum operator+(const CSpectrum &a, const CSpectrum &b);
+CSpectrum operator*(const CSpectrum &a, const CSpectrum &b);
 
-    virtual CSpectrum load(ptr<f32> beta) const = 0;
+CSpectrum operator+(const CSpectrum &a, f32 b);
+CSpectrum operator*(const CSpectrum &a, f32 b);
+CSpectrum operator/(const CSpectrum &a, f32 b);
 
-    virtual void save(ptr<f32> beta, const CSpectrum &spec) const = 0;
-
-    CSpectrum create_cone() const;
-
-    CSpectrum create_czero() const;
-
-    virtual CSpectrum create_c_from_rgb(f32 r, f32 g, f32 b) const = 0;
-
-    CSpectrum load_soa(ptr<f32> beta, i32 soa_index) const;
-
-    void save_soa(ptr<f32> beta, const CSpectrum &spec, i32 soa_index) const;
-};
-
-inline Spectrum operator+(const Spectrum &a, const Spectrum &b) { return a.impl().add(b.impl()); }
-inline Spectrum operator*(const Spectrum &a, const Spectrum &b) { return a.impl().mul(b.impl()); }
-
-inline Spectrum operator+(const Spectrum &a, float b) { return a.impl().add(b); }
-inline Spectrum operator*(const Spectrum &a, float b) { return a.impl().mul(b); }
-inline Spectrum operator/(const Spectrum &a, float b) { return a.impl().mul(1.0f / b); }
-
-inline Spectrum operator+(float a, const Spectrum &b) { return b.impl().add(a); }
-inline Spectrum operator*(float a, const Spectrum &b) { return b.impl().mul(a); }
-
-inline CSpectrum operator+(const CSpectrum &a, const CSpectrum &b) { return a.impl().add(b.impl()); }
-inline CSpectrum operator*(const CSpectrum &a, const CSpectrum &b) { return a.impl().mul(b.impl()); }
-
-inline CSpectrum operator+(const CSpectrum &a, f32 b) { return a.impl().add(b); }
-inline CSpectrum operator*(const CSpectrum &a, f32 b) { return a.impl().mul(b); }
-inline CSpectrum operator/(const CSpectrum &a, f32 b) { return a.impl().mul(1.0f / b); }
-
-inline CSpectrum operator+(f32 a, const CSpectrum &b) { return b.impl().add(a); }
-inline CSpectrum operator*(f32 a, const CSpectrum &b) { return b.impl().mul(a); }
+CSpectrum operator+(f32 a, const CSpectrum &b);
+CSpectrum operator*(f32 a, const CSpectrum &b);
 
 BTRC_CORE_END

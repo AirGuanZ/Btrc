@@ -8,31 +8,25 @@ BTRC_CORE_BEGIN
 CUJ_PROXY_CLASS_EX(CVec2f, Vec2f, x, y)
 {
     CUJ_BASE_CONSTRUCTORS
-    CUJ_NONE_TRIVIALLY_COPYABLE
     explicit CVec2f(f32 v = 0);
     CVec2f(f32 _x, f32 _y);
     CVec2f(const Vec2f &v);
-    CVec2f(const CVec2f &other) : CVec2f() { *this = other; }
-    CVec2f &operator=(const CVec2f &other);
     explicit CVec2f(ref<cstd::LCG> rng);
 };
 
 CUJ_PROXY_CLASS_EX(CVec2u, Vec2u, x, y)
 {
     CUJ_BASE_CONSTRUCTORS
-    CUJ_NONE_TRIVIALLY_COPYABLE
     explicit CVec2u(u32 v = 0);
     CVec2u(u32 _x, u32 _y);
     CVec2u(const Vec2u &v);
-    CVec2u(const CVec2u &other): CVec2u() { *this = other; }
-    CVec2u &operator=(const CVec2u &other)
-    {
-        u32 _x, _y;
-        cstd::load_u32x2(other.x.address(), _x, _y);
-        cstd::store_u32x2(x.address(), _x, _y);
-        return *this;
-    }
 };
+
+inline CVec2f load_aligned(ptr<CVec2f> addr);
+inline CVec2u load_aligned(ptr<CVec2u> addr);
+
+inline void save_aligned(ref<CVec2f> val, ptr<CVec2f> addr);
+inline void save_aligned(ref<CVec2u> val, ptr<CVec2u> addr);
 
 inline f32 length_square(const CVec2f &v);
 inline f32 length(const CVec2f &v);
@@ -74,14 +68,6 @@ inline CVec2f::CVec2f(const Vec2f &v)
     
 }
 
-inline CVec2f &CVec2f::operator=(const CVec2f &other)
-{
-    f32 _x, _y;
-    cstd::load_f32x2(other.x.address(), _x, _y);
-    cstd::store_f32x2(x.address(), _x, _y);
-    return *this;
-}
-
 inline CVec2f::CVec2f(ref<cstd::LCG> rng)
 {
     x = rng.uniform_float();
@@ -104,6 +90,30 @@ inline CVec2u::CVec2u(const Vec2u &v)
     : CVec2u(v.x, v.y)
 {
     
+}
+
+inline CVec2f load_aligned(ptr<CVec2f> addr)
+{
+    f32 x, y;
+    cstd::load_f32x2(cuj::bitcast<ptr<f32>>(addr), x, y);
+    return CVec2f(x, y);
+}
+
+inline CVec2u load_aligned(ptr<CVec2u> addr)
+{
+    u32 x, y;
+    cstd::load_u32x2(cuj::bitcast<ptr<u32>>(addr), x, y);
+    return CVec2u(x, y);
+}
+
+inline void save_aligned(ref<CVec2f> val, ptr<CVec2f> addr)
+{
+    cstd::store_f32x2(cuj::bitcast<ptr<f32>>(addr), val.x, val.y);
+}
+
+inline void save_aligned(ref<CVec2u> val, ptr<CVec2u> addr)
+{
+    cstd::store_u32x2(cuj::bitcast<ptr<u32>>(addr), val.x, val.y);
 }
 
 inline f32 length_square(const CVec2f &v)

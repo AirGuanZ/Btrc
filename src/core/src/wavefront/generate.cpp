@@ -115,38 +115,29 @@ void GeneratePipeline::initialize(
 
         soa_params.output_pixel_coord[state_index] = CVec2f(pixel_xf, pixel_yf);
 
-        soa_params.output_ray_o_t0[state_index] = CVec4f(
+        var o_t0 = CVec4f(
             sample_we_result.pos.x,
             sample_we_result.pos.y,
             sample_we_result.pos.z,
             0.0f);
+        save_aligned(o_t0, soa_params.output_ray_o_t0 + state_index);
 
-        soa_params.output_ray_d_t1[state_index] = CVec4f(
+        var d_t1 = CVec4f(
             sample_we_result.dir.x,
             sample_we_result.dir.y,
             sample_we_result.dir.z,
             btrc_max_float);
+        save_aligned(d_t1, soa_params.output_ray_d_t1 + state_index);
 
-        soa_params.output_ray_time_mask[state_index] = CVec2u(
-            bitcast<u32>(sample_we_result.time), 0xff);
+        var time_mask = CVec2u(bitcast<u32>(sample_we_result.time), 0xff);
+        save_aligned(time_mask, soa_params.output_ray_time_mask + state_index);
 
         soa_params.output_depth[state_index] = 0;
-
         soa_params.output_bsdf_pdf[state_index] = -1;
 
-        auto spec_type = sample_we_result.throughput.get_type();
-        spec_type->save_soa(
-            soa_params.output_beta,
-            sample_we_result.throughput,
-            state_index);
-        spec_type->save_soa(
-            soa_params.output_beta_le,
-            sample_we_result.throughput,
-            state_index);
-        spec_type->save_soa(
-            soa_params.output_path_radiance,
-            spec_type->create_czero(),
-            state_index);
+        save_aligned(sample_we_result.throughput, soa_params.output_beta + state_index);
+        save_aligned(sample_we_result.throughput, soa_params.output_beta_le + state_index);
+        save_aligned(CSpectrum::zero(), soa_params.output_path_radiance + state_index);
     });
 
     PTXGenerator ptx_gen;

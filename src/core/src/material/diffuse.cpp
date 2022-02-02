@@ -1,101 +1,115 @@
 #include <btrc/core/material/diffuse.h>
+#include <btrc/core/material/shader_closure.h>
+#include <btrc/core/material/shader_frame.h>
 
 BTRC_CORE_BEGIN
 
-class DiffuseBSDF : public BSDFWithBlackFringesHandling
-{
-    CSpectrum albedo_;
+CUJ_CLASS_BEGIN(DiffuseShaderImpl)
 
-public:
+    CUJ_MEMBER_VARIABLE(ShaderFrame, frame)
+    CUJ_MEMBER_VARIABLE(CSpectrum,   albedo_val)
 
-    DiffuseBSDF(
-        const CFrame &geometry_frame,
-        const CFrame &shading_frame,
-        const CSpectrum &albedo)
-        : BSDFWithBlackFringesHandling(geometry_frame, shading_frame),
-          albedo_(albedo)
-    {
-        
-    }
-
-    SampleResult sample_impl(
-        const CVec3f &wo, const CVec3f &sam, TransportMode mode) const override
+    Shader::SampleResult sample(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
     {
         $declare_scope;
-        SampleResult result;
+        Shader::SampleResult result;
 
-        $if(dot(wo, shading_frame_.z) <= 0)
+        $if(frame.is_black_fringes(wo))
         {
-            result.bsdf = albedo_.get_type()->create_czero();
+            result = frame.sample_black_fringes(wo, sam, albedo_val);
+            $exit_scope;
+        };
+
+        $if(dot(wo, frame.shading.z) <= 0)
+        {
+            result.bsdf = CSpectrum::zero();
             result.dir = CVec3f();
             result.pdf = 0;
             $exit_scope;
         };
 
         var local_wi = sample_hemisphere_zweighted(sam.x, sam.y);
-        result.bsdf = albedo_ / btrc_pi;
-        result.dir = shading_frame_.local_to_global(local_wi);
+        result.bsdf = albedo_val / btrc_pi;
+        result.dir = frame.shading.local_to_global(local_wi);
         result.pdf = pdf_sample_hemisphere_zweighted(local_wi);
 
+        result.bsdf = frame.correct_shading_energy(result.dir) * result.bsdf;
         return result;
     }
 
-    CSpectrum eval_impl(
-        const CVec3f &wi, const CVec3f &wo, TransportMode mode) const override
+    CSpectrum eval(ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
     {
+        $declare_scope;
         CSpectrum result;
-        $if(dot(wi, shading_frame_.z) <= 0 | dot(wo, shading_frame_.z) <= 0)
+
+        $if(frame.is_black_fringes(wi, wo))
         {
-            result = albedo_.get_type()->create_czero();
-        }
-        $else
-        {
-            result = albedo_ / btrc_pi;
+            result = frame.eval_black_fringes(wi, wo, albedo_val);
+            $exit_scope;
         };
+        
+        $if(dot(wi, frame.shading.z) <= 0 | dot(wo, frame.shading.z) <= 0)
+        {
+            result = CSpectrum::zero();
+            $exit_scope;
+        };
+
+        result = albedo_val / btrc_pi;
+        result = frame.correct_shading_energy(wi) * result;
         return result;
     }
 
-    f32 pdf_impl(
-        const CVec3f &wi, const CVec3f &wo, TransportMode mode) const override
+    f32 pdf(ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
     {
+        $declare_scope;
         f32 result;
-        $if(dot(wi, shading_frame_.z) <= 0 | dot(wo, shading_frame_.z) <= 0)
+
+        $if(frame.is_black_fringes(wi, wo))
+        {
+            result = frame.pdf_black_fringes(wi, wo);
+            $exit_scope;
+        };
+
+        $if(dot(wi, frame.shading.z) <= 0 | dot(wo, frame.shading.z) <= 0)
         {
             result = 0;
-        }
-        $else
-        {
-            var local_wi = normalize(shading_frame_.global_to_local(wi));
-            result = pdf_sample_hemisphere_zweighted(local_wi);
+            $exit_scope;
         };
+
+        var local_wi = normalize(frame.shading.global_to_local(wi));
+        result = pdf_sample_hemisphere_zweighted(local_wi);
         return result;
     }
 
-    CSpectrum albedo() const override
+    CSpectrum albedo() const
     {
-        return albedo_;
+        return albedo_val;
     }
 
-    CVec3f normal() const override
+    CVec3f normal() const
     {
-        return shading_frame_.z;
+        return frame.shading.z;
     }
 
-    bool is_delta() const override
+    boolean is_delta() const
     {
         return false;
     }
-};
+
+CUJ_CLASS_END
 
 void Diffuse::set_albedo(const Spectrum &albedo)
 {
     albedo_ = albedo;
 }
 
-Box<BSDF> Diffuse::create_bsdf(const CIntersection &inct) const
+RC<Shader> Diffuse::create_shader(const CIntersection &inct) const
 {
-    return newBox<DiffuseBSDF>(
-        inct.frame, inct.frame.rotate_to_new_z(inct.interp_normal), albedo_);
+    DiffuseShaderImpl impl;
+    impl.frame.geometry = inct.frame;
+    impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_normal);
+    impl.albedo_val = CSpectrum(albedo_);
+    return newRC<ShaderClosure<DiffuseShaderImpl>>(as_shared<>(), impl);
 }
 
 BTRC_CORE_END

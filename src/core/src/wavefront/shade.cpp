@@ -77,13 +77,12 @@ namespace
 } // namespace anonymous
 
 ShadePipeline::ShadePipeline(
-    Film               &film,
-    const SceneData    &scene,
-    const SpectrumType *spectrum_type,
-    const ShadeParams  &shade_params)
+    Film              &film,
+    const SceneData   &scene,
+    const ShadeParams &shade_params)
     : ShadePipeline()
 {
-    initialize(film, scene, spectrum_type, shade_params);
+    initialize(film, scene, shade_params);
 }
 
 ShadePipeline::ShadePipeline(ShadePipeline &&other) noexcept
@@ -102,7 +101,6 @@ void ShadePipeline::swap(ShadePipeline &other) noexcept
 {
     std::swap(kernel_, other.kernel_);
     std::swap(scene_, other.scene_);
-    std::swap(spectrum_type_, other.spectrum_type_);
     
     std::swap(counters_, other.counters_);
 
@@ -111,6 +109,13 @@ void ShadePipeline::swap(ShadePipeline &other) noexcept
     std::swap(inst_id_to_mat_id_, other.inst_id_to_mat_id_);
     
     std::swap(shade_params_, other.shade_params_);
+}
+
+void ShadePipeline::link(const std::vector<std::string_view> &library)
+{
+    for(auto &code : library)
+        kernel_.load_ptx_from_memory(code.data(), code.size());
+    kernel_.link();
 }
 
 ShadePipeline::operator bool() const
@@ -122,6 +127,7 @@ ShadePipeline::StateCounters ShadePipeline::shade(
     int total_state_count,
     const SOAParams &soa)
 {
+    assert(kernel_.is_linked());
     counters_.clear_bytes(0);
 
     int32_t *active_state_counter   = counters_.get();
@@ -153,13 +159,11 @@ ShadePipeline::StateCounters ShadePipeline::shade(
 }
 
 void ShadePipeline::initialize(
-    Film               &film,
-    const SceneData    &scene,
-    const SpectrumType *spectrum_type,
-    const ShadeParams  &shade_params)
+    Film              &film,
+    const SceneData   &scene,
+    const ShadeParams &shade_params)
 {
     scene_ = &scene;
-    spectrum_type_ = spectrum_type;
     shade_params_ = shade_params;
 
     ScopedModule cuj_module;
@@ -186,16 +190,14 @@ void ShadePipeline::initialize(
         var soa_index = soa_params.active_state_indices[thread_index];
 
         var rng = soa_params.rng[soa_index];
+        
+        var beta = load_aligned(soa_params.beta + soa_index);
+        var path_radiance = load_aligned(soa_params.path_radiance + soa_index);
 
-        CSpectrum beta = spectrum_type_->load_soa(
-            soa_params.beta, soa_index);
-        CSpectrum path_radiance = spectrum_type_->load_soa(
-            soa_params.path_radiance, soa_index);
-
-        var pixel_coord = soa_params.pixel_coord[soa_index];
+        var pixel_coord = load_aligned(soa_params.pixel_coord + soa_index);
         var depth = soa_params.depth[soa_index];
 
-        var inct_t = soa_params.inct_t[soa_index];
+        var<f32> inct_t = soa_params.inct_t[soa_index];
         $if(inct_t < 0)
         {
             handle_miss(soa_params, soa_index, path_radiance);
@@ -211,11 +213,11 @@ void ShadePipeline::initialize(
             $return();
         };
 
-        var ray_o = soa_params.ray_o_t0[soa_index].xyz();
-        var ray_d = soa_params.ray_d_t1[soa_index].xyz();
+        var ray_o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_t0 + soa_index));
+        var ray_d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
         var ray_time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
-
-        var inct_uv_id = soa_params.inct_uv_id[soa_index];
+        
+        var inct_uv_id = load_aligned(soa_params.inct_uv_id + soa_index);
         var inst_id = inct_uv_id.w;
         ref instance = instances[inst_id];
         ref geometry = geometries[instance.geometry_id];
@@ -232,10 +234,9 @@ void ShadePipeline::initialize(
             if(!area)
                 return;
 
-            CSpectrum le = area->eval_le(
+            var le = area->eval_le(
                 inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
-            CSpectrum beta_le = spectrum_type_->load_soa(
-                soa_params.beta_le, soa_index);
+            var beta_le = load_aligned(soa_params.beta_le + soa_index);
             var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
             $if(bsdf_pdf < 0)
             {
@@ -279,7 +280,7 @@ void ShadePipeline::initialize(
             }
             $else
             {
-                f32 sam = rng.uniform_float();
+                var sam = rng.uniform_float();
                 var lum = beta.get_lum();
                 $if(lum < shade_params_.rr_threshold)
                 {
@@ -313,11 +314,11 @@ void ShadePipeline::initialize(
 
         auto select_light = scene_->light_sampler->sample(
             inct.position, ray_time, rng.uniform_float());
-        i32 light_id = select_light.light_index;
-        f32 select_light_pdf = select_light.pdf;
+        var light_id = select_light.light_idx;
+        var select_light_pdf = select_light.pdf;
 
         CVec3f shadow_d; f32 shadow_t1 = 1; f32 light_dir_pdf;
-        CSpectrum li = spectrum_type_->create_czero();
+        var li = CSpectrum::zero();
         $if(light_id >= 0)
         {
             $switch(light_id)
@@ -353,15 +354,14 @@ void ShadePipeline::initialize(
 
         // eval bsdf
 
-        BSDF::SampleResult bsdf_sample;
+        Shader::SampleResult bsdf_sample;
 
         var is_bsdf_delta = false;
-        CVec3f gbuffer_albedo;
-        CVec3f gbuffer_normal;
+        CVec3f gbuffer_albedo, gbuffer_normal;
 
         auto handle_material = [&](const Material *mat)
         {
-            auto shader = mat->create_bsdf(inct);
+            auto shader = mat->create_shader(inct);
 
             // gbuffer
 
@@ -373,7 +373,7 @@ void ShadePipeline::initialize(
 
             // emit shadow ray
 
-            if(!shader->is_delta())
+            $if(!shader->is_delta())
             {
                 $if(light_id >= 0 & shadow_t1 > EPS)
                 {
@@ -384,28 +384,21 @@ void ShadePipeline::initialize(
                         var shadow_soa_index =
                             cstd::atomic_add(shadow_ray_counter, 1);
 
-                        soa_params.output_shadow_pixel_coord[shadow_soa_index] =
-                            pixel_coord;
-                        soa_params.output_shadow_ray_o_t0[shadow_soa_index] =
-                            CVec4f(inct.position, EPS);
-                        soa_params.output_shadow_ray_d_t1[shadow_soa_index] =
-                            CVec4f(shadow_d, shadow_t1);
-                        soa_params.output_shadow_ray_time_mask[shadow_soa_index] =
-                            CVec2u(bitcast<u32>(ray_time), RAY_MASK_ALL);
+                        save_aligned(pixel_coord, soa_params.output_shadow_pixel_coord + shadow_soa_index);
+                        save_aligned(CVec4f(inct.position, EPS), soa_params.output_shadow_ray_o_t0 + shadow_soa_index);
+                        save_aligned(CVec4f(shadow_d, shadow_t1), soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
+                        save_aligned(CVec2u(bitcast<u32>(ray_time), RAY_MASK_ALL), soa_params.output_shadow_ray_time_mask + shadow_soa_index);
 
                         var cos = cstd::abs(dot(shadow_d, inct.frame.z));
                         var bsdf_pdf = shader->pdf(
                             shadow_d, -ray_d, TransportMode::Radiance);
                         var light_pdf = select_light_pdf * light_dir_pdf;
 
-                        CSpectrum beta_li =
-                            li * beta * bsdf_val * cos / (bsdf_pdf + light_pdf);
-                        spectrum_type_->save_soa(
-                            soa_params.output_shadow_beta_li,
-                            beta_li, shadow_soa_index);
+                        CSpectrum beta_li = li * beta * bsdf_val * cos / (bsdf_pdf + light_pdf);
+                        save_aligned(beta_li, soa_params.output_shadow_beta_li + shadow_soa_index);
                     };
                 };
-            }
+            };
 
             // sample bsdf
 
@@ -456,25 +449,20 @@ void ShadePipeline::initialize(
             var output_index = cstd::atomic_add(active_state_counter, 1);
 
             soa_params.output_rng[output_index] = rng;
-
-            spectrum_type_->save_soa(
-                soa_params.output_path_radiance, path_radiance, output_index);
-            soa_params.output_pixel_coord[output_index] = pixel_coord;
+            
+            save_aligned(pixel_coord, soa_params.output_pixel_coord + output_index);
             soa_params.output_depth[output_index] = depth + 1;
-            spectrum_type_->save_soa(
-                soa_params.output_beta, beta, output_index);
+            save_aligned(path_radiance, soa_params.output_path_radiance + output_index);
+            save_aligned(beta, soa_params.output_beta + output_index);
 
-            soa_params.output_new_ray_o_t0[output_index] =
-                CVec4f(next_ray_o, next_ray_t0);
-            soa_params.output_new_ray_d_t1[output_index] =
-                CVec4f(next_ray_d, next_ray_t1);
-            soa_params.output_new_ray_time_mask[output_index] =
-                CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask));
+            save_aligned(CVec4f(next_ray_o, next_ray_t0), soa_params.output_new_ray_o_t0 + output_index);
+            save_aligned(CVec4f(next_ray_d, next_ray_t1), soa_params.output_new_ray_d_t1 + output_index);
+            save_aligned(CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)), soa_params.output_new_ray_time_mask + output_index);
 
-            spectrum_type_->save_soa(
-                soa_params.output_beta_le, beta_le, output_index);
-            soa_params.output_bsdf_pdf[output_index] = 
-                cstd::select(is_bsdf_delta, -bsdf_sample.pdf, bsdf_sample.pdf);
+            save_aligned(beta_le, soa_params.output_beta_le + output_index);
+
+            var stored_pdf = cstd::select(is_bsdf_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
+            soa_params.output_bsdf_pdf[output_index] = stored_pdf;
         }
         $else
         {
@@ -496,7 +484,6 @@ void ShadePipeline::initialize(
 
     const std::string &ptx = ptx_gen.get_ptx();
     kernel_.load_ptx_from_memory(ptx.data(), ptx.size());
-    kernel_.link();
 
     counters_ = CUDABuffer<int32_t>(3);
 
@@ -506,16 +493,15 @@ void ShadePipeline::initialize(
 }
 
 void ShadePipeline::handle_miss(
-    ref<CSOAParams> soa_params, i32 soa_index, CSpectrum &path_rad)
+    ref<CSOAParams> soa_params, i32 soa_index, ref<CSpectrum> path_rad)
 {
     var time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
     auto envir_light = scene_->light_sampler->get_envir_light();
     if(envir_light)
     {
-        var ray_dir = soa_params.ray_d_t1[soa_index].xyz();
-        CSpectrum le = envir_light->eval_le(ray_dir);
-        CSpectrum beta_le = spectrum_type_->load_soa(
-            soa_params.beta_le, soa_index);
+        var ray_dir = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
+        var le = envir_light->eval_le(ray_dir);
+        var beta_le = load_aligned(soa_params.beta_le + soa_index);
 
         var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
         $if(bsdf_pdf < 0) // delta
@@ -525,8 +511,8 @@ void ShadePipeline::handle_miss(
         }
         $else
         {
-            var o = soa_params.ray_o_t0[soa_index].xyz();
-            var d = soa_params.ray_d_t1[soa_index].xyz();
+            var o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_t0 + soa_index));
+            var d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
 
             var select_light_pdf = scene_->light_sampler->pdf(
                 o, time, scene_->light_sampler->get_envir_light_index());

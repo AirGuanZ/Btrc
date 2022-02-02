@@ -18,6 +18,10 @@ CUJ_PROXY_CLASS_EX(CVec3f, Vec3f, x, y, z)
     explicit CVec3f(ref<cstd::LCG>);
 };
 
+inline CVec3f load_aligned(ptr<CVec3f> addr);
+
+inline void save_aligned(ref<CVec3f> val, ptr<CVec3f> addr);
+
 inline f32 length_square(const CVec3f &v);
 
 inline f32 length(const CVec3f &v);
@@ -71,6 +75,18 @@ inline CVec3f::CVec3f(ref<cstd::LCG> rng)
     x = rng.uniform_float();
     y = rng.uniform_float();
     z = rng.uniform_float();
+}
+
+inline CVec3f load_aligned(ptr<CVec3f> addr)
+{
+    f32 x, y, z;
+    cstd::load_f32x3(cuj::bitcast<ptr<f32>>(addr), x, y, z);
+    return CVec3f(x, y, z);
+}
+
+inline void save_aligned(ref<CVec3f> val, ptr<CVec3f> addr)
+{
+    cstd::store_f32x3(cuj::bitcast<ptr<f32>>(addr), val.x, val.y, val.z);
 }
 
 inline f32 length_square(const CVec3f &v)

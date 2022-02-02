@@ -1,10 +1,8 @@
-#include <btrc/core/wavefront/trace.h>
 #include <btrc/core/utils/cmath/cmath.h>
 #include <btrc/core/utils/cuda/buffer.h>
 #include <btrc/core/utils/cuda/error.h>
 #include <btrc/core/utils/optix/device_funcs.h>
-
-#include <optix_stubs.h>
+#include <btrc/core/wavefront/trace.h>
 
 BTRC_WAVEFRONT_BEGIN
 
@@ -33,9 +31,9 @@ namespace
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_launch_index_x();
 
-            var o_t0 = launch_params.ray_o_t0[launch_idx];
-            var d_t1 = launch_params.ray_d_t1[launch_idx];
-            var time_mask = launch_params.ray_time_mask[launch_idx];
+            var o_t0 = load_aligned(launch_params.ray_o_t0 + launch_idx);
+            var d_t1 = load_aligned(launch_params.ray_d_t1 + launch_idx);
+            var time_mask = load_aligned(launch_params.ray_time_mask + launch_idx);
 
             var o = o_t0.xyz();
             var d = d_t1.xyz();
@@ -72,10 +70,9 @@ namespace
             var inst_id = optix::get_instance_id();
 
             launch_params.inct_t[launch_idx] = t;
-            launch_params.inct_uv_id[launch_idx] = CVec4u(
-                bitcast<u32>(uv.x),
-                bitcast<u32>(uv.y),
-                prim_id, inst_id);
+
+            var uv_id = CVec4u(bitcast<u32>(uv.x), bitcast<u32>(uv.y), prim_id, inst_id);
+            save_aligned(uv_id, launch_params.inct_uv_id + launch_idx);
         });
 
         PTXGenerator gen;
@@ -165,7 +162,6 @@ void TracePipeline::initialize(
             .motion_blur       = motion_blur,
             .triangle_only     = triangle_only
         });
-
     device_launch_params_ = CUDABuffer<LaunchParams>(1);
 }
 

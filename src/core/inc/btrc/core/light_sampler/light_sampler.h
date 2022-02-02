@@ -8,11 +8,10 @@ class LightSampler
 {
 public:
 
-    struct SampleResult
-    {
-        i32 light_index;
-        f32 pdf;
-    };
+    CUJ_CLASS_BEGIN(SampleResult)
+        CUJ_MEMBER_VARIABLE(i32, light_idx)
+        CUJ_MEMBER_VARIABLE(f32, pdf)
+    CUJ_CLASS_END
 
     virtual ~LightSampler() = default;
 

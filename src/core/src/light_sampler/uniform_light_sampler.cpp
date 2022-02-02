@@ -19,12 +19,22 @@ LightSampler::SampleResult UniformLightSampler::sample(
     const CVec3f &ref, f32 time, f32 sam) const
 {
     if(lights_.empty())
-        return { -1, 0.0f };
+    {
+        SampleResult result;
+        result.light_idx = -1;
+        result.pdf = 0;
+        return result;
+    }
+
     var idx = cstd::min(
         i32(sam * static_cast<int>(lights_.size())),
         i32(lights_.size()) - 1);
     var pdf = 1.0f / f32(lights_.size());
-    return { idx, pdf };
+
+    SampleResult result;
+    result.light_idx = idx;
+    result.pdf = pdf;
+    return result;
 }
 
 f32 UniformLightSampler::pdf(const CVec3f &ref, f32 time, i32 light_index) const

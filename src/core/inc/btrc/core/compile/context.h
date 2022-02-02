@@ -1,60 +1,133 @@
 #pragma once
 
+#include <format>
 #include <map>
-#include <vector>
 
 #include <cuj.h>
 
-#include <btrc/core/utils/uncopyable.h>
+#include <btrc/core/compile/object_base.h>
+#include <btrc/core/utils/any.h>
+#include <btrc/core/utils/scope_guard.h>
 
 BTRC_CORE_BEGIN
 
-class CompileContext;
-
-template<typename T>
-class AttributeSlot : public Uncopyable
+class CompileContext
 {
 public:
 
-    AttributeSlot();
+    static CompileContext *get_current_context();
 
-    AttributeSlot(CompileContext *context, void *device_ptr, size_t count);
+    static void push_context(CompileContext *context);
 
-    AttributeSlot(AttributeSlot &&other) noexcept;
+    static void pop_context();
 
-    AttributeSlot &operator=(AttributeSlot &&other) noexcept;
+    explicit CompileContext(bool offline);
 
-    ~AttributeSlot();
+    bool is_offline() const;
 
-    void swap(AttributeSlot &other) noexcept;
+    bool should_inline(const RC<const ObjectBase> &object) const;
 
-    operator bool() const;
+    template<typename DerivedObject,
+             typename ObjectAction,
+             typename...Args>
+        requires std::is_base_of_v<ObjectBase, DerivedObject>
+    auto record_object_action(
+        RC<const DerivedObject> object,
+        const std::string      &action_name,
+        const ObjectAction     &action,
+        Args                 ...args);
+    
+    template<typename DerivedObject,
+             typename ObjectAction,
+             typename...Args>
+        requires std::is_base_of_v<ObjectBase, DerivedObject>
+    auto record_object_action(
+        RC<DerivedObject>   object,
+        const std::string  &action_name,
+        const ObjectAction &action,
+        Args             ...args);
 
-    void set(const T *cpu_data);
-
-    cuj::cxx<T> get() const;
+    std::vector<std::string_view> generate_separate_codes() const;
 
 private:
 
-    CompileContext *context_;
-    void           *device_ptr_;
-    size_t          count_;
+    struct ActionRecord
+    {
+        Any cuj_func;
+        Any cuj_decl;
+    };
+
+    struct ObjectRecord
+    {
+        mutable std::string cached_code;
+        cuj::Module cuj_module;
+        std::map<std::string, ActionRecord, std::less<>> actions;
+    };
+
+    bool offline_;
+
+    std::map<RC<const ObjectBase>, ObjectRecord> object_records_;
 };
 
-class CompileContext : public Uncopyable
+// ========================== impl ==========================
+
+template<typename DerivedObject, typename ObjectAction, typename...Args>
+    requires std::is_base_of_v<ObjectBase, DerivedObject>
+auto CompileContext::record_object_action(
+    RC<const DerivedObject> object,
+    const std::string      &action_name,
+    const ObjectAction     &action,
+    Args                ... args)
 {
-public:
+    using StdFunction = decltype(std::function{ action });
+    using CujFunction = decltype(cuj::Function{ std::declval<StdFunction>() });
 
-    CompileContext();
+    auto &object_record = object_records_[object];
+    
+    if(auto it = object_record.actions.find(action_name);
+       it != object_record.actions.end())
+    {
+        Any &untyped_func = it->second.cuj_func;
+        Any &untyped_decl = it->second.cuj_decl;
+        auto func = untyped_func.as<CujFunction>();
+        auto decl = untyped_decl.as<CujFunction>();
+        assert(func.get_module() == &object_record.cuj_module);
+        assert(decl.get_module() == nullptr);
+        return decl(args...);
+    }
 
-    template<typename T>
-    AttributeBuffer<T> allocate(size_t count);
+    const auto func_symbol_name = std::format(
+        "btrc_{}_of_object_{}", action_name, static_cast<const void*>(object.get()));
 
-    void _free(void *ptr, size_t bytes);
+    auto old_cuj_module = cuj::Module::get_current_module();
+    BTRC_SCOPE_EXIT{ cuj::Module::set_current_module(old_cuj_module); };
 
-private:
+    if(!this->should_inline(object))
+        cuj::Module::set_current_module(&object_record.cuj_module);
+    auto func = cuj::function(func_symbol_name, action);
 
-    std::map<size_t, std::vector<void *>> free_attributes_;
-};
+    cuj::Module::set_current_module(nullptr);
+    CujFunction decl;
+    decl.set_name(func_symbol_name);
+
+    auto &action_record = object_record.actions[action_name];
+    action_record.cuj_func = func;
+    action_record.cuj_decl = decl;
+
+    cuj::Module::set_current_module(old_cuj_module);
+    return decl(args...);
+}
+
+template<typename DerivedObject, typename ObjectAction, typename ... Args>
+    requires std::is_base_of_v<ObjectBase, DerivedObject>
+auto CompileContext::record_object_action(
+    RC<DerivedObject>   object,
+    const std::string  &action_name,
+    const ObjectAction &action,
+    Args             ...args)
+{
+    return this->record_object_action(
+        RC<const DerivedObject>(object), action_name, action, args...);
+}
 
 BTRC_CORE_END

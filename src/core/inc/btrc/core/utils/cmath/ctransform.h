@@ -7,12 +7,12 @@ BTRC_CORE_BEGIN
 
 struct Transform
 {
+    Vec3f     translate;
     float     scale;
     Quaterion rotate;
-    Vec3f     translate;
 };
 
-CUJ_PROXY_CLASS_EX(CTransform, Transform, scale, rotate, translate)
+CUJ_PROXY_CLASS_EX(CTransform, Transform, translate, scale, rotate)
 {
     CUJ_BASE_CONSTRUCTORS
 

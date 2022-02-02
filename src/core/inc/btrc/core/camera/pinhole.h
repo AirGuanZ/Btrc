@@ -8,8 +8,6 @@ class PinholeCamera : public Camera
 {
 public:
 
-    void set_spectrum_builder(const SpectrumType *spectrum_builder);
-
     void set_eye(const Vec3f &eye);
 
     void set_dst(const Vec3f &dst);
@@ -35,8 +33,6 @@ private:
     };
 
     GenerateData preprocess() const;
-
-    const SpectrumType *spectrum_builder_ = nullptr;
 
     Vec3f eye_;
     Vec3f dst_;

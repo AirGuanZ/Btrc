@@ -9,8 +9,8 @@ class Diffuse : public Material
 public:
 
     void set_albedo(const Spectrum &albedo);
-
-    Box<BSDF> create_bsdf(const CIntersection &inct) const override;
+    
+    RC<Shader> create_shader(const CIntersection &inct) const override;
 
 private:
 

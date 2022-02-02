@@ -1,7 +1,6 @@
 #pragma once
 
 #include <span>
-#include <string_view>
 
 #include <btrc/core/utils/cuda/buffer.h>
 #include <btrc/core/utils/cmath/cmath.h>
