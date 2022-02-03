@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/core/utils/math/scalar.h>
+#include <btrc/core/utils/math/vec3.h>
 
 BTRC_CORE_BEGIN
 
@@ -18,6 +18,8 @@ public:
     BTRC_XPU explicit Vec4(T v);
 
     BTRC_XPU Vec4(T x, T y, T z, T w);
+
+    BTRC_XPU Vec4(const Vec3<T> &xyz, T w);
 };
 
 using Vec4f = Vec4<float>;
@@ -71,6 +73,13 @@ BTRC_XPU Vec4<T>::Vec4(T v)
 template<typename T>
 BTRC_XPU Vec4<T>::Vec4(T x, T y, T z, T w)
     : x(x), y(y), z(z), w(w)
+{
+    
+}
+
+template<typename T>
+BTRC_XPU Vec4<T>::Vec4(const Vec3<T> &xyz, T w)
+    : Vec4(xyz.x, xyz.y, xyz.z, w)
 {
     
 }

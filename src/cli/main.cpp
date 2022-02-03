@@ -9,6 +9,7 @@
 #include <btrc/core/utils/cuda/context.h>
 #include <btrc/core/utils/optix/context.h>
 #include <btrc/core/utils/image.h>
+#include <btrc/core/utils/triangle_mesh_loader.h>
 #include <btrc/core/wavefront/generate.h>
 #include <btrc/core/wavefront/shade.h>
 #include <btrc/core/wavefront/shadow.h>
@@ -17,8 +18,8 @@
 
 using namespace btrc::core;
 
-constexpr int SPP = 256;
-constexpr int STATE_COUNT = 1000000;
+constexpr int SPP = 128;
+constexpr int STATE_COUNT = 1000;
 
 constexpr int WIDTH = 512;
 constexpr int HEIGHT = 512;
@@ -100,9 +101,9 @@ Scene build_scene(optix::Context &optix_ctx)
 {
     Scene scene;
 
-    scene.camera.set_eye({ -2, 0, 0 });
+    scene.camera.set_eye({ 0, 0, 3 });
     scene.camera.set_dst({ 0, 0, 0 });
-    scene.camera.set_up({ 0, 0, 1 });
+    scene.camera.set_up({ 0, 1, 0 });
     scene.camera.set_fov_y_deg(60);
     scene.camera.set_w_over_h(static_cast<float>(WIDTH) / HEIGHT);
 
@@ -121,40 +122,10 @@ Scene build_scene(optix::Context &optix_ctx)
     }
 
     {
-        const std::vector geometry_info_data = {
-            Vec4f(0, 1, 0, 0),
-            Vec4f(0, 0, -1, 0),
-            Vec4f(-1, 0, 0, 1),
-            Vec4f(-1, 0, 0, 0),
-            Vec4f(-1, 0, 0, 0.5f),
-            Vec4f(-1, 0, 0, 0),
-        };
-        auto vec4_buf = CUDABuffer(std::span(geometry_info_data));
+        TriangleMeshLoader mesh_loader("./asset/cbox.obj");
 
-        wf::GeometryInfo geometry;
-        geometry.geometry_ex_tex_coord_u_a      = vec4_buf.get();
-        geometry.geometry_ey_tex_coord_u_ba     = vec4_buf.get() + 1;
-        geometry.geometry_ez_tex_coord_u_ca     = vec4_buf.get() + 2;
-        geometry.shading_normals_tex_coord_v_a  = vec4_buf.get() + 3;
-        geometry.shading_normals_tex_coord_v_ba = vec4_buf.get() + 4;
-        geometry.shading_normals_tex_coord_v_ca = vec4_buf.get() + 5;
-
-        scene.geometries = newRC<CUDABuffer<wf::GeometryInfo>>(1, &geometry);
-        scene.owned_data.emplace_back(
-            newRC<CUDABuffer<Vec4f>>(std::move(vec4_buf)));
-
-        const int32_t mat_id_data[] = { 0 };
-        scene.inst_id_to_mat_id = newRC<CUDABuffer<int32_t>>(1, mat_id_data);
-    }
-    
-    {
-        const Vec3f positions[] = {
-            { 0, -1, -1 },
-            { 0, 0, 1 },
-            { 0, 1, -1 }
-        };
-        auto gas = optix_ctx.create_triangle_as(positions);
-
+        auto blas = optix_ctx.create_triangle_as(
+            mesh_loader.get_positions(), mesh_loader.get_indices_i16());
         optix::Context::Instance inst = {
             .local_to_world = std::array{
                 1.0f, 0.0f, 0.0f, 0.0f,
@@ -163,21 +134,82 @@ Scene build_scene(optix::Context &optix_ctx)
             },
             .id     = 0,
             .mask   = 0xff,
-            .handle = gas
+            .handle = blas
         };
         scene.tlas = optix_ctx.create_instance_as(std::span(&inst, 1));
-        scene.blas.push_back(std::move(gas));
+        scene.blas.push_back(std::move(blas));
+        
+        std::vector<Vec4f> geometry_ex_tex_coord_u_a;
+        std::vector<Vec4f> geometry_ey_tex_coord_u_ba;
+        std::vector<Vec4f> geometry_ez_tex_coord_u_ca;
+
+        std::vector<Vec4f> shading_normals_tex_coord_v_a;
+        std::vector<Vec4f> shading_normals_tex_coord_v_ba;
+        std::vector<Vec4f> shading_normals_tex_coord_v_ca;
+
+        for(size_t i = 0; i < mesh_loader.get_primitive_count(); ++i)
+        {
+            const Vec3f ex = mesh_loader.get_geometry_exs()[i];
+            const Vec3f ez = mesh_loader.get_geometry_ezs()[i];
+            const Vec3f ey = normalize(cross(ez, ex));
+
+            const Vec2f uv_a = mesh_loader.get_tex_coords()[i * 3];
+            const Vec2f uv_b = mesh_loader.get_tex_coords()[i * 3 + 1];
+            const Vec2f uv_c = mesh_loader.get_tex_coords()[i * 3 + 2];
+
+            const Vec3f sz_a = mesh_loader.get_interp_ezs()[i * 3];
+            const Vec3f sz_b = mesh_loader.get_interp_ezs()[i * 3 + 1];
+            const Vec3f sz_c = mesh_loader.get_interp_ezs()[i * 3 + 2];
+
+            geometry_ex_tex_coord_u_a.push_back(Vec4f(ex, uv_a.x));
+            geometry_ey_tex_coord_u_ba.push_back(Vec4f(ey, uv_b.x - uv_a.x));
+            geometry_ez_tex_coord_u_ca.push_back(Vec4f(ez, uv_c.x - uv_a.x));
+
+            shading_normals_tex_coord_v_a.push_back(Vec4f(sz_a, uv_a.y));
+            shading_normals_tex_coord_v_ba.push_back(
+                Vec4f(normalize(sz_b - sz_a), uv_b.y - uv_a.y));
+            shading_normals_tex_coord_v_ca.push_back(
+                Vec4f(normalize(sz_c - sz_a), uv_c.y - uv_a.y));
+        }
+
+        CUDABuffer<Vec4f> device_geometry_ex_tex_coord_u_a(geometry_ex_tex_coord_u_a);
+        CUDABuffer<Vec4f> device_geometry_ey_tex_coord_u_ba(geometry_ey_tex_coord_u_ba);
+        CUDABuffer<Vec4f> device_geometry_ez_tex_coord_u_ca(geometry_ez_tex_coord_u_ca);
+
+        CUDABuffer<Vec4f> device_shading_normal_tex_coord_v_a(shading_normals_tex_coord_v_a);
+        CUDABuffer<Vec4f> device_shading_normal_tex_coord_v_ba(shading_normals_tex_coord_v_ba);
+        CUDABuffer<Vec4f> device_shading_normal_tex_coord_v_ca(shading_normals_tex_coord_v_ca);
+
+        wf::GeometryInfo geometry_info = {
+            .geometry_ex_tex_coord_u_a     = device_geometry_ex_tex_coord_u_a,
+            .geometry_ey_tex_coord_u_ba    = device_geometry_ey_tex_coord_u_ba,
+            .geometry_ez_tex_coord_u_ca    = device_geometry_ez_tex_coord_u_ca,
+            .shading_normal_tex_coord_v_a  = device_shading_normal_tex_coord_v_a,
+            .shading_normal_tex_coord_v_ba = device_shading_normal_tex_coord_v_ba,
+            .shading_normal_tex_coord_v_ca = device_shading_normal_tex_coord_v_ca
+        };
+
+        scene.geometries = newRC<CUDABuffer<wf::GeometryInfo>>(1, &geometry_info);
+        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_geometry_ex_tex_coord_u_a)));
+        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_geometry_ey_tex_coord_u_ba)));
+        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_geometry_ez_tex_coord_u_ca)));
+        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_shading_normal_tex_coord_v_a)));
+        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_shading_normal_tex_coord_v_ba)));
+        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_shading_normal_tex_coord_v_ca)));
+
+        const int32_t mat_id_data[] = { 0 };
+        scene.inst_id_to_mat_id = newRC<CUDABuffer<int32_t>>(1, mat_id_data);
     }
 
     {
         auto diffuse = newRC<Diffuse>();
-        diffuse->set_albedo(Spectrum::from_rgb(0, 0.8f, 0.8f));
+        diffuse->set_albedo(Spectrum::from_rgb(0.6f, 0.6f, 0.6f));
         scene.materials.push_back(std::move(diffuse));
     }
 
     {
         auto sky = newRC<GradientSky>();
-        sky->set_up({ 0, 0, 1 });
+        sky->set_up({ 0, 1, 0 });
         sky->set_lower(Spectrum::zero());
         sky->set_upper(Spectrum::one());
 
@@ -198,8 +230,7 @@ Pipeline build_pipeline(
     pipeline.generate = wf::GeneratePipeline(
         scene.camera, { film.width(), film.height() }, SPP, STATE_COUNT);
 
-    pipeline.trace = wf::TracePipeline(
-        optix_ctx, false, true, 2);
+    pipeline.trace = wf::TracePipeline(optix_ctx, false, true, 2);
 
     pipeline.sort = wf::SortPipeline();
 
@@ -213,8 +244,8 @@ Pipeline build_pipeline(
             .light_sampler     = scene.light_sampler
         },
         wf::ShadePipeline::ShadeParams{
-            .min_depth    = 4,
-            .max_depth    = 8,
+            .min_depth    = 5,
+            .max_depth    = 10,
             .rr_threshold = 0.1f,
             .rr_cont_prob = 0.3f
         });
@@ -293,6 +324,9 @@ void run()
     Film film(WIDTH, HEIGHT);
     film.add_output(Film::OUTPUT_RADIANCE, Film::Float3);
     film.add_output(Film::OUTPUT_WEIGHT, Film::Float);
+
+    film.clear_output(Film::OUTPUT_RADIANCE);
+    film.clear_output(Film::OUTPUT_WEIGHT);
 
     auto pipeline = build_pipeline(optix_ctx, film, scene);
     pipeline.shade.link(cc.generate_separate_codes());
@@ -417,11 +451,11 @@ void run()
                 film_radiance[i * 4 + 2],
             };
             const float weight = film_weight[i];
-            image(x, y) = radiance / weight;
+            image(x, y) = weight > 0 ? radiance / weight : Vec3f(0);
         }
     }
     image.pow_(1 / 2.2f);
-    image.save("output.png");
+    image.save("output.exr");
 }
 
 int main()

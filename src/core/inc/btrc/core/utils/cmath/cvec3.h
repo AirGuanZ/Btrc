@@ -32,6 +32,8 @@ inline f32 dot(const CVec3f &a, const CVec3f &b);
 
 inline CVec3f cross(const CVec3f &a, const CVec3f &b);
 
+inline boolean isfinite(const CVec3f &v);
+
 inline CVec3f operator+(const CVec3f &a, const CVec3f &b);
 inline CVec3f operator-(const CVec3f &a, const CVec3f &b);
 inline CVec3f operator*(const CVec3f &a, const CVec3f &b);
@@ -116,6 +118,11 @@ inline CVec3f cross(const CVec3f &a, const CVec3f &b)
         a.y * b.z - a.z * b.y,
         a.z * b.x - a.x * b.z,
         a.x * b.y - a.y * b.x);
+}
+
+inline boolean isfinite(const CVec3f &v)
+{
+    return cstd::isfinite(v.x) & cstd::isfinite(v.y) & cstd::isfinite(v.z);
 }
 
 inline CVec3f operator+(const CVec3f &a, const CVec3f &b)

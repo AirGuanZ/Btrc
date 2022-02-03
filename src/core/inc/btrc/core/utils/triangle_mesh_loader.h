@@ -24,6 +24,8 @@ public:
 
     operator bool() const;
 
+    void remove_indices();
+
     size_t get_primitive_count() const;
 
     std::span<const Vec3f> get_positions() const;
@@ -35,6 +37,8 @@ public:
     std::span<const Vec2f> get_tex_coords() const;
 
     std::span<const Vec3f> get_geometry_exs() const;
+
+    std::span<const Vec3f> get_geometry_ezs() const;
 
     std::span<const Vec3f> get_interp_ezs() const;
 

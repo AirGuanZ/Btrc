@@ -96,8 +96,7 @@ void Film::splat(
         return;
     auto &buffer = buffer_it->second;
 
-    var ptr_u64 = reinterpret_cast<uint64_t>(buffer.buffer.get());
-    var ptr_buffer = cuj::bitcast<ptr<f32>>(ptr_u64);
+    var ptr_buffer = cuj::import_pointer(buffer.buffer.get());
 
     i32 xi = i32(cstd::floor(pixel_coord.x));
     i32 yi = i32(cstd::floor(pixel_coord.y));
@@ -106,14 +105,20 @@ void Film::splat(
         if(buffer.format == Float)
         {
             auto &val = value.as<f32>();
-            ptr_buffer[yi * width_ + xi] = ptr_buffer[yi * width_ + xi] + val;
+            $if(cstd::isfinite(val))
+            {
+                ptr_buffer[yi * width_ + xi] = ptr_buffer[yi * width_ + xi] + val;
+            };
         }
         else
         {
             auto &val = value.as<CVec3f>();
-            ptr_buffer[(yi * width_ + xi) * 4 + 0] = ptr_buffer[(yi * width_ + xi) * 4 + 0] + val.x;
-            ptr_buffer[(yi * width_ + xi) * 4 + 1] = ptr_buffer[(yi * width_ + xi) * 4 + 1] + val.y;
-            ptr_buffer[(yi * width_ + xi) * 4 + 2] = ptr_buffer[(yi * width_ + xi) * 4 + 2] + val.z;
+            $if(isfinite(val))
+            {
+                ptr_buffer[(yi * width_ + xi) * 4 + 0] = ptr_buffer[(yi * width_ + xi) * 4 + 0] + val.x;
+                ptr_buffer[(yi * width_ + xi) * 4 + 1] = ptr_buffer[(yi * width_ + xi) * 4 + 1] + val.y;
+                ptr_buffer[(yi * width_ + xi) * 4 + 2] = ptr_buffer[(yi * width_ + xi) * 4 + 2] + val.z;
+            };
         }
     };
 }
@@ -136,14 +141,20 @@ void Film::splat_atomic(
         if(buffer.format == Float)
         {
             var val = value.as<f32>();
-            cstd::atomic_add(ptr_buffer[yi * width_ + xi].address(), val);
+            $if(cstd::isfinite(val))
+            {
+                cstd::atomic_add(ptr_buffer[yi * width_ + xi].address(), val);
+            };
         }
         else
         {
             var val = value.as<CVec3f>();
-            cstd::atomic_add(ptr_buffer[(yi * width_ + xi) * 4 + 0].address(), val.x);
-            cstd::atomic_add(ptr_buffer[(yi * width_ + xi) * 4 + 1].address(), val.y);
-            cstd::atomic_add(ptr_buffer[(yi * width_ + xi) * 4 + 2].address(), val.z);
+            $if(isfinite(val))
+            {
+                cstd::atomic_add(ptr_buffer[(yi * width_ + xi) * 4 + 0].address(), val.x);
+                cstd::atomic_add(ptr_buffer[(yi * width_ + xi) * 4 + 1].address(), val.y);
+                cstd::atomic_add(ptr_buffer[(yi * width_ + xi) * 4 + 2].address(), val.z);
+            };
         }
     };
 }

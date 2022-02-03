@@ -12,9 +12,9 @@ struct GeometryInfo
     Vec4f *geometry_ey_tex_coord_u_ba;
     Vec4f *geometry_ez_tex_coord_u_ca;
 
-    Vec4f *shading_normals_tex_coord_v_a;
-    Vec4f *shading_normals_tex_coord_v_ba;
-    Vec4f *shading_normals_tex_coord_v_ca;
+    Vec4f *shading_normal_tex_coord_v_a;
+    Vec4f *shading_normal_tex_coord_v_ba;
+    Vec4f *shading_normal_tex_coord_v_ca;
 };
 
 CUJ_PROXY_CLASS(
@@ -23,9 +23,9 @@ CUJ_PROXY_CLASS(
     geometry_ex_tex_coord_u_a,
     geometry_ey_tex_coord_u_ba,
     geometry_ez_tex_coord_u_ca,
-    shading_normals_tex_coord_v_a,
-    shading_normals_tex_coord_v_ba,
-    shading_normals_tex_coord_v_ca);
+    shading_normal_tex_coord_v_a,
+    shading_normal_tex_coord_v_ba,
+    shading_normal_tex_coord_v_ca);
 
 struct InstanceInfo
 {

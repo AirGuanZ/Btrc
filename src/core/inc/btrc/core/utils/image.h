@@ -413,7 +413,7 @@ void Image<T>::save(const std::string &filename, ImageFormat format) const
             format = ImageFormat::JPG;
         else if(ext == ".HDR")
             format = ImageFormat::HDR;
-        else if(ext == ".EXT")
+        else if(ext == ".EXR")
             format = ImageFormat::EXR;
         else
             throw BtrcException("unknown image format: " + ext);

@@ -32,7 +32,6 @@ CUJ_CLASS_BEGIN(DiffuseShaderImpl)
         result.bsdf = albedo_val / btrc_pi;
         result.dir = frame.shading.local_to_global(local_wi);
         result.pdf = pdf_sample_hemisphere_zweighted(local_wi);
-
         result.bsdf = frame.correct_shading_energy(result.dir) * result.bsdf;
         return result;
     }

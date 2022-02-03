@@ -176,6 +176,22 @@ TriangleMeshLoader::operator bool() const
     return !positions_.empty();
 }
 
+void TriangleMeshLoader::remove_indices()
+{
+    if(indices_i16_.empty() && indices_i32_.empty())
+        return;
+
+    std::vector<Vec3f> new_positions;
+    for(auto i : indices_i16_)
+        new_positions.push_back(positions_[i]);
+    for(auto i : indices_i32_)
+        new_positions.push_back(positions_[i]);
+
+    positions_.swap(new_positions);
+    indices_i16_.clear();
+    indices_i32_.clear();
+}
+
 size_t TriangleMeshLoader::get_primitive_count() const
 {
     return (std::max)(
@@ -206,6 +222,11 @@ std::span<const Vec2f> TriangleMeshLoader::get_tex_coords() const
 std::span<const Vec3f> TriangleMeshLoader::get_geometry_exs() const
 {
     return geometry_exs_;
+}
+
+std::span<const Vec3f> TriangleMeshLoader::get_geometry_ezs() const
+{
+    return geometry_ezs_;
 }
 
 std::span<const Vec3f> TriangleMeshLoader::get_interp_ezs() const

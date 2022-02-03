@@ -109,7 +109,7 @@ BTRC_XPU Vec3<T> cross(const Vec3<T> &a, const Vec3<T> &b)
     return Vec3<T>(
         a.y * b.z - a.z * b.y,
         a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.z);
+        a.x * b.y - a.y * b.x);
 }
 
 template<typename T>

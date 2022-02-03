@@ -36,9 +36,9 @@ namespace
         var gy_uba = geometry.geometry_ey_tex_coord_u_ba[prim_id];
         var gz_uca = geometry.geometry_ez_tex_coord_u_ca[prim_id];
 
-        var sn_v_a  = geometry.shading_normals_tex_coord_v_a [prim_id];
-        var sn_v_ba = geometry.shading_normals_tex_coord_v_ba[prim_id];
-        var sn_v_ca = geometry.shading_normals_tex_coord_v_ca[prim_id];
+        var sn_v_a  = geometry.shading_normal_tex_coord_v_a [prim_id];
+        var sn_v_ba = geometry.shading_normal_tex_coord_v_ba[prim_id];
+        var sn_v_ca = geometry.shading_normal_tex_coord_v_ca[prim_id];
 
         CFrame geometry_frame = CFrame(gx_ua.xyz(), gy_uba.xyz(), gz_uca.xyz());
 
@@ -216,7 +216,7 @@ void ShadePipeline::initialize(
         var ray_o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_t0 + soa_index));
         var ray_d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
         var ray_time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
-        
+
         var inct_uv_id = load_aligned(soa_params.inct_uv_id + soa_index);
         var inst_id = inct_uv_id.w;
         ref instance = instances[inst_id];
@@ -224,6 +224,21 @@ void ShadePipeline::initialize(
         var uv = CVec2f(bitcast<f32>(inct_uv_id.x), bitcast<f32>(inct_uv_id.y));
         CIntersection inct = get_intersection(
             inct_t, ray_o, ray_d, instance, geometry, inct_uv_id.z, uv);
+
+        /*{
+            CVec3f nc = CVec3f(pixel_coord.x, pixel_coord.y, 0);
+            path_radiance = CSpectrum::from_rgb(nc.x, nc.y, nc.z);
+            $if(depth == 0)
+            {
+                film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
+            };
+            film.splat_atomic(
+                pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
+            var output_index = total_state_count - 1
+                - cstd::atomic_add(inactive_state_counter, 1);
+            soa_params.output_rng[output_index] = rng;
+            $return();
+        }*/
 
         // handle intersected light
 
