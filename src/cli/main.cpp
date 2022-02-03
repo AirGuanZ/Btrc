@@ -19,7 +19,7 @@
 using namespace btrc::core;
 
 constexpr int SPP = 128;
-constexpr int STATE_COUNT = 1000;
+constexpr int STATE_COUNT = 2000000;
 
 constexpr int WIDTH = 512;
 constexpr int HEIGHT = 512;

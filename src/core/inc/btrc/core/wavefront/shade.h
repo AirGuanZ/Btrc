@@ -5,25 +5,6 @@
 #include <btrc/core/utils/uncopyable.h>
 #include <btrc/core/wavefront/scene.h>
 
-/*
-r = generate ray
-beta = 1
-beta_di = 1
-loop
-{
-    inct = trace r
-    if !inct
-        result += env * beta_di
-        exit
-    sample light
-    eval bsdf
-    generate shadow ray
-    r = sample bsdf
-    update beta_di
-    update beta
-}
-*/
-
 BTRC_WAVEFRONT_BEGIN
 
 namespace shade_pipeline_detail
@@ -158,7 +139,6 @@ public:
 
     operator bool() const;
 
-    // returns active state count
     StateCounters shade(
         int total_state_count,
         const SOAParams &soa);

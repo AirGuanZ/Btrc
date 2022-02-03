@@ -225,21 +225,6 @@ void ShadePipeline::initialize(
         CIntersection inct = get_intersection(
             inct_t, ray_o, ray_d, instance, geometry, inct_uv_id.z, uv);
 
-        /*{
-            CVec3f nc = CVec3f(pixel_coord.x, pixel_coord.y, 0);
-            path_radiance = CSpectrum::from_rgb(nc.x, nc.y, nc.z);
-            $if(depth == 0)
-            {
-                film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-            };
-            film.splat_atomic(
-                pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-            var output_index = total_state_count - 1
-                - cstd::atomic_add(inactive_state_counter, 1);
-            soa_params.output_rng[output_index] = rng;
-            $return();
-        }*/
-
         // handle intersected light
 
         auto handle_intersected_light = [&](int light_id)
@@ -399,10 +384,18 @@ void ShadePipeline::initialize(
                         var shadow_soa_index =
                             cstd::atomic_add(shadow_ray_counter, 1);
 
-                        save_aligned(pixel_coord, soa_params.output_shadow_pixel_coord + shadow_soa_index);
-                        save_aligned(CVec4f(inct.position, EPS), soa_params.output_shadow_ray_o_t0 + shadow_soa_index);
-                        save_aligned(CVec4f(shadow_d, shadow_t1), soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
-                        save_aligned(CVec2u(bitcast<u32>(ray_time), RAY_MASK_ALL), soa_params.output_shadow_ray_time_mask + shadow_soa_index);
+                        save_aligned(
+                            pixel_coord,
+                            soa_params.output_shadow_pixel_coord + shadow_soa_index);
+                        save_aligned(
+                            CVec4f(inct.position, EPS),
+                            soa_params.output_shadow_ray_o_t0 + shadow_soa_index);
+                        save_aligned(
+                            CVec4f(shadow_d, shadow_t1),
+                            soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
+                        save_aligned(
+                            CVec2u(bitcast<u32>(ray_time), RAY_MASK_ALL),
+                            soa_params.output_shadow_ray_time_mask + shadow_soa_index);
 
                         var cos = cstd::abs(dot(shadow_d, inct.frame.z));
                         var bsdf_pdf = shader->pdf(

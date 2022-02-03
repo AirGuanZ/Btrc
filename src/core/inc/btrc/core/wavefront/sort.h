@@ -20,8 +20,6 @@ public:
 
     void swap(SortPipeline &other) noexcept;
 
-    // returns new active_state_count
-    // TODO: doesn't need this return value
     void sort(
         int          current_active_state_count,
         const float *inct_t,
