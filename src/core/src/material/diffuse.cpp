@@ -108,7 +108,7 @@ RC<Shader> Diffuse::create_shader(const CIntersection &inct) const
     impl.frame.geometry = inct.frame;
     impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_normal);
     impl.albedo_val = CSpectrum(albedo_);
-    return newRC<ShaderClosure<DiffuseShaderImpl>>(as_shared<>(), impl);
+    return newRC<ShaderClosure<DiffuseShaderImpl>>(as_shared(), impl);
 }
 
 BTRC_CORE_END

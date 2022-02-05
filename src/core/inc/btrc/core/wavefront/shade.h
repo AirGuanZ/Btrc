@@ -135,8 +135,6 @@ public:
 
     void swap(ShadePipeline &other) noexcept;
 
-    void link(const std::vector<std::string_view> &library);
-
     operator bool() const;
 
     StateCounters shade(

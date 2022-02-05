@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <btrc/core/camera/pinhole.h>
+#include <btrc/core/compile/context.h>
 #include <btrc/core/light/gradient_sky.h>
 #include <btrc/core/light_sampler/uniform_light_sampler.h>
 #include <btrc/core/material/diffuse.h>
@@ -107,6 +108,12 @@ Scene build_scene(optix::Context &optix_ctx)
     scene.camera.set_fov_y_deg(60);
     scene.camera.set_w_over_h(static_cast<float>(WIDTH) / HEIGHT);
 
+    /*scene.camera.set_eye({ -4, 0, 0 });
+    scene.camera.set_dst({ 0, 0, 0 });
+    scene.camera.set_up({ 0, 0, 1 });
+    scene.camera.set_fov_y_deg(60);
+    scene.camera.set_w_over_h(static_cast<float>(WIDTH) / HEIGHT);*/
+
     {
         const wf::InstanceInfo inst = {
             .geometry_id = 0,
@@ -166,10 +173,8 @@ Scene build_scene(optix::Context &optix_ctx)
             geometry_ez_tex_coord_u_ca.push_back(Vec4f(ez, uv_c.x - uv_a.x));
 
             shading_normals_tex_coord_v_a.push_back(Vec4f(sz_a, uv_a.y));
-            shading_normals_tex_coord_v_ba.push_back(
-                Vec4f(normalize(sz_b - sz_a), uv_b.y - uv_a.y));
-            shading_normals_tex_coord_v_ca.push_back(
-                Vec4f(normalize(sz_c - sz_a), uv_c.y - uv_a.y));
+            shading_normals_tex_coord_v_ba.push_back(Vec4f(sz_b - sz_a, uv_b.y - uv_a.y));
+            shading_normals_tex_coord_v_ca.push_back(Vec4f(sz_c - sz_a, uv_c.y - uv_a.y));
         }
 
         CUDABuffer<Vec4f> device_geometry_ex_tex_coord_u_a(geometry_ex_tex_coord_u_a);
@@ -199,11 +204,55 @@ Scene build_scene(optix::Context &optix_ctx)
 
         const int32_t mat_id_data[] = { 0 };
         scene.inst_id_to_mat_id = newRC<CUDABuffer<int32_t>>(1, mat_id_data);
+
+        /*const std::vector geometry_info_data = {
+            Vec4f(0, 1, 0, 0),
+            Vec4f(0, 0, -1, 0),
+            Vec4f(-1, 0, 0, 1),
+            Vec4f(-1, 0, 0, 0),
+            Vec4f(-1, 0, 0, 0.5f),
+            Vec4f(-1, 0, 0, 0),
+        };
+        auto vec4_buf = CUDABuffer(std::span(geometry_info_data));
+
+        wf::GeometryInfo geometry;
+        geometry.geometry_ex_tex_coord_u_a = vec4_buf.get();
+        geometry.geometry_ey_tex_coord_u_ba = vec4_buf.get() + 1;
+        geometry.geometry_ez_tex_coord_u_ca = vec4_buf.get() + 2;
+        geometry.shading_normal_tex_coord_v_a = vec4_buf.get() + 3;
+        geometry.shading_normal_tex_coord_v_ba = vec4_buf.get() + 4;
+        geometry.shading_normal_tex_coord_v_ca = vec4_buf.get() + 5;
+
+        scene.geometries = newRC<CUDABuffer<wf::GeometryInfo>>(1, &geometry);
+        scene.owned_data.emplace_back(
+            newRC<CUDABuffer<Vec4f>>(std::move(vec4_buf)));
+
+        const Vec3f positions[] = {
+            { 0, -1, -1 },
+            { 0, 0, 1 },
+            { 0, 1, -1 }
+        };
+        auto blas = optix_ctx.create_triangle_as(positions);
+        optix::Context::Instance inst = {
+            .local_to_world = std::array{
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f
+            },
+            .id     = 0,
+            .mask   = 0xff,
+            .handle = blas
+        };
+        scene.tlas = optix_ctx.create_instance_as(std::span(&inst, 1));
+        scene.blas.push_back(std::move(blas));
+
+        const int32_t mat_id_data[] = { 0 };
+        scene.inst_id_to_mat_id = newRC<CUDABuffer<int32_t>>(1, mat_id_data);*/
     }
 
     {
         auto diffuse = newRC<Diffuse>();
-        diffuse->set_albedo(Spectrum::from_rgb(0.6f, 0.6f, 0.6f));
+        diffuse->set_albedo(Spectrum::from_rgb(0.8f, 0.8f, 0.8f));
         scene.materials.push_back(std::move(diffuse));
     }
 
@@ -247,7 +296,7 @@ Pipeline build_pipeline(
             .min_depth    = 5,
             .max_depth    = 10,
             .rr_threshold = 0.1f,
-            .rr_cont_prob = 0.3f
+            .rr_cont_prob = 0.5f
         });
 
     pipeline.shadow = wf::ShadowPipeline(
@@ -311,11 +360,7 @@ void run()
     cuda::Context cuda_ctx(0);
     optix::Context optix_ctx(cuda_ctx);
 
-    PropertyManager props;
-    PropertyManager::push_manager(&props);
-    BTRC_SCOPE_EXIT{ PropertyManager::pop_manager(); };
-
-    CompileContext cc(false);
+    CompileContext cc;
     CompileContext::push_context(&cc);
     BTRC_SCOPE_EXIT{ CompileContext::pop_context(); };
 
@@ -323,13 +368,11 @@ void run()
 
     Film film(WIDTH, HEIGHT);
     film.add_output(Film::OUTPUT_RADIANCE, Film::Float3);
-    film.add_output(Film::OUTPUT_WEIGHT, Film::Float);
-
-    film.clear_output(Film::OUTPUT_RADIANCE);
-    film.clear_output(Film::OUTPUT_WEIGHT);
+    film.add_output(Film::OUTPUT_ALBEDO,   Film::Float3);
+    film.add_output(Film::OUTPUT_NORMAL,   Film::Float3);
+    film.add_output(Film::OUTPUT_WEIGHT,   Film::Float);
 
     auto pipeline = build_pipeline(optix_ctx, film, scene);
-    pipeline.shade.link(cc.generate_separate_codes());
 
     auto soa = build_soa_state(STATE_COUNT);
 
@@ -433,29 +476,58 @@ void run()
     throw_on_error(cudaStreamSynchronize(nullptr));
 
     std::vector<float> film_radiance(WIDTH * HEIGHT * 4);
-    std::vector<float> film_weight(WIDTH * HEIGHT);
+    std::vector<float> film_albedo  (WIDTH * HEIGHT * 4);
+    std::vector<float> film_normal  (WIDTH * HEIGHT * 4);
+    std::vector<float> film_weight  (WIDTH * HEIGHT);
 
     film.get_float3_output(Film::OUTPUT_RADIANCE).to_cpu(film_radiance.data());
-    film.get_float_output(Film::OUTPUT_WEIGHT).to_cpu(film_weight.data());
+    film.get_float3_output(Film::OUTPUT_ALBEDO)  .to_cpu(film_albedo.data());
+    film.get_float3_output(Film::OUTPUT_NORMAL)  .to_cpu(film_normal.data());
+    film.get_float_output (Film::OUTPUT_WEIGHT)  .to_cpu(film_weight.data());
 
-    Image<Vec3f> image(WIDTH, HEIGHT);
+    Image<Vec3f> image_radiance(WIDTH, HEIGHT);
+    Image<Vec3f> image_albedo  (WIDTH, HEIGHT);
+    Image<Vec3f> image_normal  (WIDTH, HEIGHT);
     for(int y = 0; y < HEIGHT; ++y)
     {
         for(int x = 0; x < WIDTH; ++x)
         {
             const int i = y * WIDTH + x;
-            const Vec3f radiance =
-            {
-                film_radiance[i * 4],
-                film_radiance[i * 4 + 1],
-                film_radiance[i * 4 + 2],
-            };
             const float weight = film_weight[i];
-            image(x, y) = weight > 0 ? radiance / weight : Vec3f(0);
+            if(weight > 0)
+            {
+                const Vec3f radiance =
+                {
+                    film_radiance[i * 4],
+                    film_radiance[i * 4 + 1],
+                    film_radiance[i * 4 + 2],
+                };
+                const Vec3f albedo =
+                {
+                    film_albedo[i * 4],
+                    film_albedo[i * 4 + 1],
+                    film_albedo[i * 4 + 2],
+                };
+                const Vec3f normal =
+                {
+                    film_normal[i * 4],
+                    film_normal[i * 4 + 1],
+                    film_normal[i * 4 + 2],
+                };
+                image_radiance(x, y) = radiance / weight;
+                image_normal(x, y) = (0.5f + 0.5f * normal) / weight;
+                image_albedo(x, y) = albedo / weight;
+            }
         }
     }
-    image.pow_(1 / 2.2f);
-    image.save("output.exr");
+
+    image_radiance.pow_(1 / 2.2f);
+    image_radiance.save("output.png");
+
+    image_albedo.pow_(1 / 2.2f);
+    image_albedo.save("output_albedo.png");
+
+    image_normal.save("output_normal.png");
 }
 
 int main()

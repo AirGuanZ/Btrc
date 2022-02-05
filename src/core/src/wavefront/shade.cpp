@@ -111,13 +111,6 @@ void ShadePipeline::swap(ShadePipeline &other) noexcept
     std::swap(shade_params_, other.shade_params_);
 }
 
-void ShadePipeline::link(const std::vector<std::string_view> &library)
-{
-    for(auto &code : library)
-        kernel_.load_ptx_from_memory(code.data(), code.size());
-    kernel_.link();
-}
-
 ShadePipeline::operator bool() const
 {
     return kernel_.is_linked();
@@ -253,7 +246,7 @@ void ShadePipeline::initialize(
                     path_radiance + beta_le * le / (bsdf_pdf + light_pdf);
             };
         };
-        
+
         var intersected_light_id = instance.light_id;
         $if(intersected_light_id >= 0)
         {
@@ -266,6 +259,7 @@ void ShadePipeline::initialize(
                         handle_intersected_light(i);
                     };
                 }
+                $default{ cstd::unreachable(); };
             };
         };
 
@@ -315,10 +309,10 @@ void ShadePipeline::initialize(
         auto select_light = scene_->light_sampler->sample(
             inct.position, ray_time, rng.uniform_float());
         var light_id = select_light.light_idx;
-        var select_light_pdf = select_light.pdf;
 
-        CVec3f shadow_d; f32 shadow_t1 = 1; f32 light_dir_pdf;
-        var li = CSpectrum::zero();
+        CVec3f shadow_d;
+        CSpectrum li;
+        f32 shadow_t1, light_dir_pdf;
         $if(light_id >= 0)
         {
             $switch(light_id)
@@ -342,7 +336,7 @@ void ShadePipeline::initialize(
                         {
                             assert(!light->is_area());
                             auto sample = light->as_envir()->sample_li(sam);
-                            shadow_d = sample.direction_to_light;
+                            shadow_d = normalize(sample.direction_to_light);
                             shadow_t1 = btrc_max_float;
                             light_dir_pdf = sample.pdf;
                             li = sample.radiance;
@@ -357,7 +351,12 @@ void ShadePipeline::initialize(
         Shader::SampleResult bsdf_sample;
 
         var is_bsdf_delta = false;
-        CVec3f gbuffer_albedo, gbuffer_normal;
+        CVec3f gbuffer_albedo;
+        CVec3f gbuffer_normal;
+
+        CSpectrum shadow_bsdf_val;
+        f32 shadow_bsdf_pdf;
+        var emit_shadow_ray = false;
 
         auto handle_material = [&](const Material *mat)
         {
@@ -371,39 +370,17 @@ void ShadePipeline::initialize(
                 gbuffer_normal = shader->normal();
             };
 
-            // emit shadow ray
+            // shadow ray
 
             $if(!shader->is_delta())
             {
-                $if(light_id >= 0 & shadow_t1 > EPS)
+                $if(light_id >= 0 & shadow_t1 > EPS & !li.is_zero())
                 {
-                    CSpectrum bsdf_val = shader->eval(
-                        shadow_d, -ray_d, TransportMode::Radiance);
-                    $if(!bsdf_val.is_zero())
+                    shadow_bsdf_val = shader->eval(shadow_d, -ray_d, TransportMode::Radiance);
+                    emit_shadow_ray = !shadow_bsdf_val.is_zero();
+                    $if(emit_shadow_ray)
                     {
-                        var shadow_soa_index =
-                            cstd::atomic_add(shadow_ray_counter, 1);
-
-                        save_aligned(
-                            pixel_coord,
-                            soa_params.output_shadow_pixel_coord + shadow_soa_index);
-                        save_aligned(
-                            CVec4f(inct.position, EPS),
-                            soa_params.output_shadow_ray_o_t0 + shadow_soa_index);
-                        save_aligned(
-                            CVec4f(shadow_d, shadow_t1),
-                            soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
-                        save_aligned(
-                            CVec2u(bitcast<u32>(ray_time), RAY_MASK_ALL),
-                            soa_params.output_shadow_ray_time_mask + shadow_soa_index);
-
-                        var cos = cstd::abs(dot(shadow_d, inct.frame.z));
-                        var bsdf_pdf = shader->pdf(
-                            shadow_d, -ray_d, TransportMode::Radiance);
-                        var light_pdf = select_light_pdf * light_dir_pdf;
-
-                        CSpectrum beta_li = li * beta * bsdf_val * cos / (bsdf_pdf + light_pdf);
-                        save_aligned(beta_li, soa_params.output_shadow_beta_li + shadow_soa_index);
+                        shadow_bsdf_pdf = shader->pdf(shadow_d, -ray_d, TransportMode::Radiance);
                     };
                 };
             };
@@ -425,6 +402,31 @@ void ShadePipeline::initialize(
                     handle_material(scene_->materials[i].get());
                 };
             }
+            $default{ cstd::unreachable(); };
+        };
+
+        $if(emit_shadow_ray)
+        {
+            var shadow_soa_index = cstd::atomic_add(shadow_ray_counter, 1);
+
+            save_aligned(
+                pixel_coord,
+                soa_params.output_shadow_pixel_coord + shadow_soa_index);
+            save_aligned(
+                CVec4f(inct.position, EPS),
+                soa_params.output_shadow_ray_o_t0 + shadow_soa_index);
+            save_aligned(
+                CVec4f(shadow_d, shadow_t1),
+                soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
+            save_aligned(
+                CVec2u(bitcast<u32>(ray_time), RAY_MASK_ALL),
+                soa_params.output_shadow_ray_time_mask + shadow_soa_index);
+
+            var cos = cstd::abs(dot(shadow_d, inct.frame.z));
+            var light_pdf = select_light.pdf * light_dir_pdf;
+            var beta_li = li * beta * shadow_bsdf_val * cos / (shadow_bsdf_pdf + light_pdf);
+
+            save_aligned(beta_li, soa_params.output_shadow_beta_li + shadow_soa_index);
         };
 
         $if(depth == 0)
@@ -444,7 +446,7 @@ void ShadePipeline::initialize(
             bsdf_sample.dir = normalize(bsdf_sample.dir);
             var cos = cstd::abs(dot(bsdf_sample.dir, inct.frame.z));
             
-            CSpectrum beta_le = beta * cos * bsdf_sample.bsdf;
+            var beta_le = beta * cos * bsdf_sample.bsdf;
             beta = beta_le / bsdf_sample.pdf;
 
             var next_ray_o    = inct.position;
@@ -463,9 +465,15 @@ void ShadePipeline::initialize(
             save_aligned(path_radiance, soa_params.output_path_radiance + output_index);
             save_aligned(beta, soa_params.output_beta + output_index);
 
-            save_aligned(CVec4f(next_ray_o, next_ray_t0), soa_params.output_new_ray_o_t0 + output_index);
-            save_aligned(CVec4f(next_ray_d, next_ray_t1), soa_params.output_new_ray_d_t1 + output_index);
-            save_aligned(CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)), soa_params.output_new_ray_time_mask + output_index);
+            save_aligned(
+                CVec4f(next_ray_o, next_ray_t0),
+                soa_params.output_new_ray_o_t0 + output_index);
+            save_aligned(
+                CVec4f(next_ray_d, next_ray_t1),
+                soa_params.output_new_ray_d_t1 + output_index);
+            save_aligned(
+                CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
+                soa_params.output_new_ray_time_mask + output_index);
 
             save_aligned(beta_le, soa_params.output_beta_le + output_index);
 
@@ -492,6 +500,7 @@ void ShadePipeline::initialize(
 
     const std::string &ptx = ptx_gen.get_ptx();
     kernel_.load_ptx_from_memory(ptx.data(), ptx.size());
+    kernel_.link();
 
     counters_ = CUDABuffer<int32_t>(3);
 
@@ -514,7 +523,7 @@ void ShadePipeline::handle_miss(
         var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
         $if(bsdf_pdf < 0) // delta
         {
-            CSpectrum rad = beta_le * le / -bsdf_pdf;
+            var rad = beta_le * le / -bsdf_pdf;
             path_rad = path_rad + rad;
         }
         $else
@@ -527,7 +536,7 @@ void ShadePipeline::handle_miss(
             var envir_light_pdf = envir_light->pdf_li(d);
             var light_pdf = select_light_pdf * envir_light_pdf;
 
-            CSpectrum rad = beta_le * le / (bsdf_pdf + light_pdf);
+            var rad = beta_le * le / (bsdf_pdf + light_pdf);
             path_rad = path_rad + rad;
         };
     }

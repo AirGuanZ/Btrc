@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/core/compile/object.h>
+#include <btrc/core/compile/context.h>
 #include <btrc/core/material/shader.h>
 
 BTRC_CORE_BEGIN
@@ -13,7 +13,7 @@ CUJ_CLASS_BEGIN(CIntersection)
     CUJ_MEMBER_VARIABLE(CVec2f, tex_coord)
 CUJ_CLASS_END
 
-class Material : public Object<Material>
+class Material : public Object
 {
 public:
 

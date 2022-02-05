@@ -2,14 +2,32 @@
 
 #include <format>
 #include <map>
+#include <string>
 
 #include <cuj.h>
 
-#include <btrc/core/compile/object_base.h>
 #include <btrc/core/utils/any.h>
+#include <btrc/core/utils/bind.h>
 #include <btrc/core/utils/scope_guard.h>
 
 BTRC_CORE_BEGIN
+
+class Object : public std::enable_shared_from_this<Object>
+{
+public:
+
+    virtual ~Object() = default;
+
+    RC<Object> as_shared() { return this->shared_from_this(); }
+
+    RC<const Object> as_shared() const { return this->shared_from_this(); }
+
+protected:
+
+    template<typename MemberFuncPtr, typename...Args>
+        requires std::is_member_function_pointer_v<MemberFuncPtr>
+    auto record(MemberFuncPtr ptr, std::string_view action_name, Args...args) const;
+};
 
 class CompileContext
 {
@@ -21,113 +39,100 @@ public:
 
     static void pop_context();
 
-    explicit CompileContext(bool offline);
-
-    bool is_offline() const;
-
-    bool should_inline(const RC<const ObjectBase> &object) const;
-
-    template<typename DerivedObject,
-             typename ObjectAction,
-             typename...Args>
-        requires std::is_base_of_v<ObjectBase, DerivedObject>
+    template<typename ObjectAction, typename...Args>
     auto record_object_action(
-        RC<const DerivedObject> object,
-        const std::string      &action_name,
-        const ObjectAction     &action,
-        Args                 ...args);
-    
-    template<typename DerivedObject,
-             typename ObjectAction,
-             typename...Args>
-        requires std::is_base_of_v<ObjectBase, DerivedObject>
-    auto record_object_action(
-        RC<DerivedObject>   object,
+        RC<const Object>    object,
         const std::string  &action_name,
         const ObjectAction &action,
         Args             ...args);
-
-    std::vector<std::string_view> generate_separate_codes() const;
+    
+    template<typename ObjectAction, typename...Args>
+    auto record_object_action(
+        RC<Object>          object,
+        const std::string  &action_name,
+        const ObjectAction &action,
+        Args             ...args);
 
 private:
 
     struct ActionRecord
     {
         Any cuj_func;
-        Any cuj_decl;
     };
 
     struct ObjectRecord
     {
-        mutable std::string cached_code;
-        cuj::Module cuj_module;
         std::map<std::string, ActionRecord, std::less<>> actions;
     };
 
-    bool offline_;
-
-    std::map<RC<const ObjectBase>, ObjectRecord> object_records_;
+    std::map<RC<const Object>, ObjectRecord> object_records_;
 };
 
 // ========================== impl ==========================
 
-template<typename DerivedObject, typename ObjectAction, typename...Args>
-    requires std::is_base_of_v<ObjectBase, DerivedObject>
+namespace object_detail
+{
+
+    template<typename F>
+    struct MemberFuncionToClassTypeAux;
+
+    template<typename C, typename F>
+    struct MemberFuncionToClassTypeAux<F C::*>
+    {
+        using Type = C;
+    };
+
+} // namespace object_detail
+
+template<typename MemberFuncPtr, typename...Args>
+    requires std::is_member_function_pointer_v<MemberFuncPtr>
+auto Object::record(MemberFuncPtr ptr, std::string_view action_name, Args...args) const
+{
+    using Class = typename object_detail::MemberFuncionToClassTypeAux<MemberFuncPtr>::Type;
+    static_assert(std::is_base_of_v<Object, Class>);
+    auto this_ptr = dynamic_cast<const Class *>(this);
+    return CompileContext::get_current_context()->record_object_action(
+        this->as_shared(), std::string(action_name), bind_this(ptr, this_ptr), args...);
+}
+
+template<typename ObjectAction, typename...Args>
 auto CompileContext::record_object_action(
-    RC<const DerivedObject> object,
-    const std::string      &action_name,
-    const ObjectAction     &action,
-    Args                ... args)
+    RC<const Object>    object,
+    const std::string  &action_name,
+    const ObjectAction &action,
+    Args             ...args)
 {
     using StdFunction = decltype(std::function{ action });
     using CujFunction = decltype(cuj::Function{ std::declval<StdFunction>() });
 
     auto &object_record = object_records_[object];
-    
+
     if(auto it = object_record.actions.find(action_name);
        it != object_record.actions.end())
     {
         Any &untyped_func = it->second.cuj_func;
-        Any &untyped_decl = it->second.cuj_decl;
         auto func = untyped_func.as<CujFunction>();
-        auto decl = untyped_decl.as<CujFunction>();
-        assert(func.get_module() == &object_record.cuj_module);
-        assert(decl.get_module() == nullptr);
-        return decl(args...);
+        return func(args...);
     }
 
     const auto func_symbol_name = std::format(
         "btrc_{}_of_object_{}", action_name, static_cast<const void*>(object.get()));
 
-    auto old_cuj_module = cuj::Module::get_current_module();
-    BTRC_SCOPE_EXIT{ cuj::Module::set_current_module(old_cuj_module); };
-
-    if(!this->should_inline(object))
-        cuj::Module::set_current_module(&object_record.cuj_module);
     auto func = cuj::function(func_symbol_name, action);
-
-    cuj::Module::set_current_module(nullptr);
-    CujFunction decl;
-    decl.set_name(func_symbol_name);
-
     auto &action_record = object_record.actions[action_name];
     action_record.cuj_func = func;
-    action_record.cuj_decl = decl;
-
-    cuj::Module::set_current_module(old_cuj_module);
-    return decl(args...);
+    return func(args...);
 }
 
-template<typename DerivedObject, typename ObjectAction, typename ... Args>
-    requires std::is_base_of_v<ObjectBase, DerivedObject>
+template<typename ObjectAction, typename...Args>
 auto CompileContext::record_object_action(
-    RC<DerivedObject>   object,
+    RC<Object>          object,
     const std::string  &action_name,
     const ObjectAction &action,
     Args             ...args)
 {
     return this->record_object_action(
-        RC<const DerivedObject>(object), action_name, action, args...);
+        RC<const Object>(object), action_name, action, args...);
 }
 
 BTRC_CORE_END

@@ -2,3 +2,5 @@
 build-release/
 output.png
 output.exr
+output_albedo.png
+output_normal.png

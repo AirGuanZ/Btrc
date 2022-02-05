@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/core/compile/object.h>
+#include <btrc/core/compile/context.h>
 #include <btrc/core/spectrum/spectrum.h>
 #include <btrc/core/utils/cmath/cmath.h>
 
@@ -9,11 +9,9 @@ BTRC_CORE_BEGIN
 class AreaLight;
 class EnvirLight;
 
-class Light
+class Light : public Object
 {
 public:
-
-    virtual ~Light() = default;
 
     virtual bool is_area() const noexcept = 0;
 
@@ -22,7 +20,7 @@ public:
     virtual const EnvirLight *as_envir() const { return nullptr; }
 };
 
-class AreaLight : public Light, public Object<AreaLight>
+class AreaLight : public Light
 {
 public:
 
@@ -31,8 +29,6 @@ public:
         CUJ_MEMBER_VARIABLE(CSpectrum, radiance)
         CUJ_MEMBER_VARIABLE(f32,       pdf)
     CUJ_CLASS_END
-
-    using Object::Object;
 
     bool is_area() const noexcept final { return true; }
 
@@ -86,7 +82,7 @@ public:
     }
 };
 
-class EnvirLight : public Light, public Object<EnvirLight>
+class EnvirLight : public Light
 {
 public:
 
@@ -95,8 +91,6 @@ public:
         CUJ_MEMBER_VARIABLE(CSpectrum, radiance)
         CUJ_MEMBER_VARIABLE(f32,       pdf)
     CUJ_CLASS_END
-        
-    using Object::Object;
 
     bool is_area() const noexcept final { return false; }
 
