@@ -192,6 +192,26 @@ void TriangleMeshLoader::remove_indices()
     indices_i32_.clear();
 }
 
+void TriangleMeshLoader::transform_to_unit_cube()
+{
+    Vec3f lower((std::numeric_limits<float>::max)());
+    Vec3f upper(std::numeric_limits<float>::lowest());
+    for(auto &p : positions_)
+    {
+        lower.x = (std::min)(lower.x, p.x);
+        lower.y = (std::min)(lower.y, p.y);
+        lower.z = (std::min)(lower.z, p.z);
+        upper.x = (std::max)(upper.x, p.x);
+        upper.y = (std::max)(upper.y, p.y);
+        upper.z = (std::max)(upper.z, p.z);
+    }
+    const Vec3f extent = upper - lower;
+    const float extent_max = (std::max)(extent.x, (std::max)(extent.y, extent.z));
+    const float scale = extent_max > 0 ? 1 / extent_max : 1.0f;
+    for(auto &p : positions_)
+        p = scale * (p - 0.5f * (lower + upper));
+}
+
 size_t TriangleMeshLoader::get_primitive_count() const
 {
     return (std::max)(

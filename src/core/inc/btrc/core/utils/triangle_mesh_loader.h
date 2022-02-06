@@ -26,6 +26,8 @@ public:
 
     void remove_indices();
 
+    void transform_to_unit_cube();
+
     size_t get_primitive_count() const;
 
     std::span<const Vec3f> get_positions() const;

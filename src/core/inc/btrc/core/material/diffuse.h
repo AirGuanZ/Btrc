@@ -14,7 +14,7 @@ public:
 
 private:
 
-    Spectrum albedo_;
+    Spectrum albedo_ = Spectrum::from_rgb(0.8f, 0.8f, 0.8f);
 };
 
 BTRC_CORE_END

@@ -163,6 +163,8 @@ int GeneratePipeline::generate(
     const int new_state_count = (std::min)(
         state_count_ - active_state_count,
         (spp_ - finished_spp_) * pixel_count_ - finished_pixel_);
+    if(!new_state_count)
+        return 0;
 
     constexpr int BLOCK_DIM = 256;
     const int thread_count = new_state_count;

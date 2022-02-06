@@ -7,6 +7,7 @@
 #include <btrc/core/light/gradient_sky.h>
 #include <btrc/core/light_sampler/uniform_light_sampler.h>
 #include <btrc/core/material/diffuse.h>
+#include <btrc/core/material/glass.h>
 #include <btrc/core/utils/cuda/context.h>
 #include <btrc/core/utils/optix/context.h>
 #include <btrc/core/utils/image.h>
@@ -19,7 +20,7 @@
 
 using namespace btrc::core;
 
-constexpr int SPP = 128;
+constexpr int SPP = 1024;
 constexpr int STATE_COUNT = 2000000;
 
 constexpr int WIDTH = 512;
@@ -102,7 +103,7 @@ Scene build_scene(optix::Context &optix_ctx)
 {
     Scene scene;
 
-    scene.camera.set_eye({ 0, 0, 3 });
+    scene.camera.set_eye({ 0, 0, 1.5f });
     scene.camera.set_dst({ 0, 0, 0 });
     scene.camera.set_up({ 0, 1, 0 });
     scene.camera.set_fov_y_deg(60);
@@ -129,10 +130,11 @@ Scene build_scene(optix::Context &optix_ctx)
     }
 
     {
-        TriangleMeshLoader mesh_loader("./asset/cbox.obj");
+        TriangleMeshLoader mesh_loader("./asset/teapot.obj");
+        mesh_loader.transform_to_unit_cube();
 
         auto blas = optix_ctx.create_triangle_as(
-            mesh_loader.get_positions(), mesh_loader.get_indices_i16());
+            mesh_loader.get_positions(), mesh_loader.get_indices_i32());
         optix::Context::Instance inst = {
             .local_to_world = std::array{
                 1.0f, 0.0f, 0.0f, 0.0f,
@@ -251,9 +253,13 @@ Scene build_scene(optix::Context &optix_ctx)
     }
 
     {
-        auto diffuse = newRC<Diffuse>();
-        diffuse->set_albedo(Spectrum::from_rgb(0.8f, 0.8f, 0.8f));
-        scene.materials.push_back(std::move(diffuse));
+        auto glass = newRC<Glass>();
+        glass->set_color(Spectrum::from_rgb(1, 1, 1));
+        glass->set_ior(1.43f);
+        scene.materials.push_back(std::move(glass));
+        //auto diffuse = newRC<Diffuse>();
+        //diffuse->set_albedo(Spectrum::from_rgb(0.8f, 0.8f, 0.8f));
+        //scene.materials.push_back(std::move(diffuse));
     }
 
     {
@@ -293,8 +299,8 @@ Pipeline build_pipeline(
             .light_sampler     = scene.light_sampler
         },
         wf::ShadePipeline::ShadeParams{
-            .min_depth    = 5,
-            .max_depth    = 10,
+            .min_depth    = 20,
+            .max_depth    = 20,
             .rr_threshold = 0.1f,
             .rr_cont_prob = 0.5f
         });
@@ -515,7 +521,7 @@ void run()
                     film_normal[i * 4 + 2],
                 };
                 image_radiance(x, y) = radiance / weight;
-                image_normal(x, y) = (0.5f + 0.5f * normal) / weight;
+                image_normal(x, y) = (0.5f + 0.5f * normal / weight);
                 image_albedo(x, y) = albedo / weight;
             }
         }
@@ -532,9 +538,9 @@ void run()
 
 int main()
 {
+    run();
     try
     {
-        run();
     }
     catch(const std::exception &err)
     {
