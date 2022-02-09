@@ -1,9 +1,9 @@
 #pragma once
 
 #include <btrc/core/film/film.h>
+#include <btrc/core/scene/scene.h>
 #include <btrc/core/utils/cuda/module.h>
 #include <btrc/core/utils/uncopyable.h>
-#include <btrc/core/wavefront/scene.h>
 
 BTRC_WAVEFRONT_BEGIN
 
@@ -126,7 +126,7 @@ public:
 
     ShadePipeline(
         Film              &film,
-        const SceneData   &scene,
+        const Scene       &scene,
         const ShadeParams &shade_params);
 
     ShadePipeline(ShadePipeline &&other) noexcept;
@@ -145,22 +145,21 @@ private:
 
     void initialize(
         Film              &film,
-        const SceneData   &scene,
+        const Scene       &scene,
         const ShadeParams &shade_params);
 
     void handle_miss(
-        ref<CSOAParams> soa_params, i32 soa_index, ref<CSpectrum> path_rad);
+        const LightSampler *light_sampler,
+        ref<CSOAParams>     soa_params,
+        i32                 soa_index,
+        ref<CSpectrum>      path_rad);
 
-    CUDAModule       kernel_;
-    const SceneData *scene_ = nullptr;
-
+    CUDAModule          kernel_;
+    const GeometryInfo *geo_info_;
+    const InstanceInfo *inst_info_;
+    const int32_t      *inst_to_mat_;
     CUDABuffer<int32_t> counters_;
-
-    RC<CUDABuffer<InstanceInfo>> instances_;
-    RC<CUDABuffer<GeometryInfo>> geometries_;
-    RC<CUDABuffer<int32_t>>      inst_id_to_mat_id_;
-
-    ShadeParams shade_params_;
+    ShadeParams         shade_params_;
 };
 
 BTRC_WAVEFRONT_END

@@ -1,22 +1,17 @@
 #pragma once
 
 #include <btrc/core/utils/cmath/cquaterion.h>
-#include <btrc/core/utils/cmath/cvec3.h>
+#include <btrc/core/utils/math/transform.h>
 
 BTRC_CORE_BEGIN
-
-struct Transform
-{
-    Vec3f     translate;
-    float     scale;
-    Quaterion rotate;
-};
 
 CUJ_PROXY_CLASS_EX(CTransform, Transform, translate, scale, rotate)
 {
     CUJ_BASE_CONSTRUCTORS
 
     CTransform(f32 scale, const CQuaterion &rotate, const CVec3f &translate);
+
+    CTransform(const Transform &t);
 
     CVec3f apply_to_point(const CVec3f &p) const;
 

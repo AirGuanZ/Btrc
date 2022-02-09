@@ -19,6 +19,9 @@ public:
     BTRC_XPU Vec3f apply_to_vector(const Vec3f &v) const;
 
     BTRC_XPU Quaterion operator*(const Quaterion &rhs) const;
+
+    // m: row-major 3x3 matrix
+    BTRC_XPU void to_rotation_matrix(float *m) const;
 };
 
 BTRC_XPU inline Quaterion normalize(const Quaterion &q);
@@ -68,6 +71,15 @@ BTRC_XPU inline Quaterion Quaterion::operator*(const Quaterion &rhs) const
         w * rhs.x + x * rhs.w + y * rhs.z - z * rhs.y,
         w * rhs.y + y * rhs.w + z * rhs.x - x * rhs.z,
         w * rhs.z + z * rhs.w + x * rhs.y - y * rhs.x);
+}
+
+BTRC_XPU inline void Quaterion::to_rotation_matrix(float *m) const
+{
+    const auto [qr, qi, qj, qk] = normalize(*this);
+    //const float qr = w, qi = x, qj = y, qk = z;
+    m[0] = 1 - 2 * (qj * qj + qk * qk); m[1] = 2 * (qi * qj - qk * qr);     m[2] = 2 * (qi * qk + qj * qr);
+    m[3] = 2 * (qi * qj + qk * qr);     m[4] = 1 - 2 * (qi * qi + qk * qk); m[5] = 2 * (qj * qk - qi * qr);
+    m[6] = 2 * (qi * qk - qj * qr);     m[7] = 2 * (qj * qk + qi * qr);     m[8] = 1 - 2 * (qi * qi + qj * qj);
 }
 
 BTRC_XPU inline Quaterion normalize(const Quaterion &q)

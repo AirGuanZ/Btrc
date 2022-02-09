@@ -12,6 +12,12 @@ CTransform::CTransform(
     translate = _translate;
 }
 
+CTransform::CTransform(const Transform &t)
+    : CTransform(t.scale, t.rotate, t.translate)
+{
+    
+}
+
 CVec3f CTransform::apply_to_point(const CVec3f &p) const
 {
     return rotate.apply_to_vector(scale * p) + translate;

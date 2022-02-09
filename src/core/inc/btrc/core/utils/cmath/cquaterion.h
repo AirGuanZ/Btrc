@@ -56,6 +56,12 @@ inline CQuaterion::CQuaterion(const CVec3f &axis, f32 rad)
     w = cos_angle;
 }
 
+inline CQuaterion::CQuaterion(const Quaterion &q)
+    : CQuaterion(q.w, q.x, q.y, q.z)
+{
+    
+}
+
 inline CVec3f CQuaterion::apply_to_vector(const CVec3f &v) const
 {
     CQuaterion vq(0, v.x, v.y, v.z);

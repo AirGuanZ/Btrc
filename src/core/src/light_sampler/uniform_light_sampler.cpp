@@ -8,11 +8,9 @@ void UniformLightSampler::add_light(RC<const Light> light)
     {
         assert(!envir_light_);
         envir_light_ = std::dynamic_pointer_cast<const EnvirLight>(light);
-        lights_.push_back(std::move(light));
         envir_light_index_ = static_cast<int>(lights_.size());
     }
-    else
-        lights_.push_back(std::move(light));
+    lights_.push_back(std::move(light));
 }
 
 LightSampler::SampleResult UniformLightSampler::sample(

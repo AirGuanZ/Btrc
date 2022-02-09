@@ -43,7 +43,7 @@ CVec3f sample_hemisphere_zweighted(f32 u1, f32 u2)
         $else
         {
             r = u2;
-            theta = 0.5f * btrc_pi - 0.5f * btrc_pi * (u1 / u2);
+            theta = 0.5f * btrc_pi - 0.25f * btrc_pi * (u1 / u2);
         };
         sam = r * CVec2f(cstd::cos(theta), cstd::sin(theta));
     };
@@ -64,6 +64,12 @@ CVec3f sample_hemisphere_zweighted(ref<cstd::LCG> rng)
 f32 pdf_sample_hemisphere_zweighted(ref<CVec3f> v)
 {
     return cstd::select(v.z >= 0, v.z / btrc_pi, f32(0));
+}
+
+CVec2f sample_triangle_uniform(f32 u1, f32 u2)
+{
+    f32 t = cstd::sqrt(u1);
+    return CVec2f(1.0f - t, t * u2);
 }
 
 BTRC_CORE_END

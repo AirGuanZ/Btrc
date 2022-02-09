@@ -26,6 +26,7 @@ public:
 
     CUJ_CLASS_BEGIN(SampleLiResult)
         CUJ_MEMBER_VARIABLE(CVec3f,    position)
+        CUJ_MEMBER_VARIABLE(CVec3f,    normal)
         CUJ_MEMBER_VARIABLE(CSpectrum, radiance)
         CUJ_MEMBER_VARIABLE(f32,       pdf)
     CUJ_CLASS_END

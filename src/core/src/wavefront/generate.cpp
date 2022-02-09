@@ -95,7 +95,7 @@ void GeneratePipeline::initialize(
         };
 
         i32 state_index = active_state_count + thread_idx;
-        i32 pixel_index = (initial_pixel_index + thread_idx) % pixel_count_;
+        i32 pixel_index = (initial_pixel_index + thread_idx) % static_cast<int>(pixel_count_);
 
         ref rng = soa_params.rng[state_index];
 
@@ -159,12 +159,14 @@ int GeneratePipeline::generate(
 {
     if(is_done())
         return 0;
-    
-    const int new_state_count = (std::min)(
-        state_count_ - active_state_count,
-        (spp_ - finished_spp_) * pixel_count_ - finished_pixel_);
-    if(!new_state_count)
+    const int64_t max_state_count = state_count_ - active_state_count;
+    if(!max_state_count)
         return 0;
+    const int64_t unfinished_path_count = (spp_ - finished_spp_) * pixel_count_ - finished_pixel_;
+    if(unfinished_path_count > max_state_count &&
+       max_state_count + max_state_count < state_count_)
+        return 0;
+    const int new_state_count = static_cast<int>((std::min)(max_state_count, unfinished_path_count));
 
     constexpr int BLOCK_DIM = 256;
     const int thread_count = new_state_count;
@@ -182,6 +184,8 @@ int GeneratePipeline::generate(
     finished_pixel_ += new_state_count;
     finished_spp_   += finished_pixel_ / pixel_count_;
     finished_pixel_ %= pixel_count_;
+
+    printf("%f\n", float(finished_spp_) / spp_);
 
     return new_state_count;
 }

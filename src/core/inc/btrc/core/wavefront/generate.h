@@ -74,12 +74,12 @@ private:
         const Camera &camera, const Vec2i &film_res, int spp, int state_count);
 
     Vec2i film_res_;
-    int   pixel_count_;
-    int   spp_;
-    int   state_count_;
+    int64_t pixel_count_;
+    int64_t spp_;
+    int64_t state_count_;
 
-    int finished_spp_;
-    int finished_pixel_;
+    int64_t finished_spp_;
+    int64_t finished_pixel_;
 
     CUDAModule kernel_;
 };

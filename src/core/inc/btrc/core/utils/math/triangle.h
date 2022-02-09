@@ -21,4 +21,14 @@ inline Vec3f triangle_dpdu(
     return normalize(m11 * inv_det * B_A - m01 * inv_det * C_A);
 }
 
+inline float triangle_area(const Vec3f &b_a, const Vec3f &c_a) noexcept
+{
+    return 0.5f * length(cross(b_a, c_a));
+}
+
+inline float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c)
+{
+    return triangle_area(b - a, c - a);
+}
+
 BTRC_CORE_END

@@ -1,17 +1,18 @@
-#include <any>
 #include <chrono>
 #include <iostream>
 
 #include <btrc/core/camera/pinhole.h>
 #include <btrc/core/compile/context.h>
+#include <btrc/core/geometry/triangle_mesh.h>
 #include <btrc/core/light/gradient_sky.h>
-#include <btrc/core/light_sampler/uniform_light_sampler.h>
+#include <btrc/core/light/mesh_light.h>
+#include <btrc/core/material/black.h>
 #include <btrc/core/material/diffuse.h>
 #include <btrc/core/material/glass.h>
+#include <btrc/core/scene/scene.h>
 #include <btrc/core/utils/cuda/context.h>
 #include <btrc/core/utils/optix/context.h>
 #include <btrc/core/utils/image.h>
-#include <btrc/core/utils/triangle_mesh_loader.h>
 #include <btrc/core/wavefront/generate.h>
 #include <btrc/core/wavefront/shade.h>
 #include <btrc/core/wavefront/shadow.h>
@@ -25,21 +26,6 @@ constexpr int STATE_COUNT = 2000000;
 
 constexpr int WIDTH = 512;
 constexpr int HEIGHT = 512;
-
-struct Scene
-{
-    PinholeCamera                    camera;
-    RC<CUDABuffer<wf::InstanceInfo>> instances;
-    RC<CUDABuffer<wf::GeometryInfo>> geometries;
-    RC<CUDABuffer<int32_t>>          inst_id_to_mat_id;
-    std::vector<RC<const Material>>  materials;
-    RC<const LightSampler>           light_sampler;
-
-    std::vector<optix::TriangleAS> blas;
-    optix::InstanceAS              tlas;
-
-    std::vector<std::any> owned_data;
-};
 
 struct Pipeline
 {
@@ -103,177 +89,66 @@ Scene build_scene(optix::Context &optix_ctx)
 {
     Scene scene;
 
-    scene.camera.set_eye({ 0, 0, 1.5f });
-    scene.camera.set_dst({ 0, 0, 0 });
-    scene.camera.set_up({ 0, 1, 0 });
-    scene.camera.set_fov_y_deg(60);
-    scene.camera.set_w_over_h(static_cast<float>(WIDTH) / HEIGHT);
-
-    /*scene.camera.set_eye({ -4, 0, 0 });
-    scene.camera.set_dst({ 0, 0, 0 });
-    scene.camera.set_up({ 0, 0, 1 });
-    scene.camera.set_fov_y_deg(60);
-    scene.camera.set_w_over_h(static_cast<float>(WIDTH) / HEIGHT);*/
-
-    {
-        const wf::InstanceInfo inst = {
-            .geometry_id = 0,
-            .material_id = 0,
-            .light_id    = -1,
-            .transform   = Transform{
-                .translate = { 0, 0, 0 },
-                .scale     = 1,
-                .rotate    = Quaterion({ 1, 0, 0 }, 0)
+    auto camera = newRC<PinholeCamera>();
+    camera->set_eye({ 0, 0, 1.5f });
+    camera->set_dst({ 0, 0, 0 });
+    camera->set_up({ 0, 1, 0 });
+    camera->set_fov_y_deg(60);
+    camera->set_w_over_h(static_cast<float>(WIDTH) / HEIGHT);
+    scene.set_camera(std::move(camera));
+    
+    auto glass = newRC<Glass>();
+    glass->set_color(Spectrum::from_rgb(0.6f, 0.9f, 0.9f));
+    glass->set_ior(1.43f);
+    auto teapot = newRC<TriangleMesh>(optix_ctx, "./asset/teapot.obj", true);
+    scene.add_instance(
+        Scene::Instance{
+            .geometry = std::move(teapot),
+            .material = std::move(glass),
+            .transform = Transform{
+                .translate = { 0, -0.29f, 0 },
+                .scale = 0.5f,
+                .rotate = Quaterion({ 1, 0, 0 }, 0)
             }
-        };
-        scene.instances = newRC<CUDABuffer<wf::InstanceInfo>>(1, &inst);
-    }
+        });
 
-    {
-        TriangleMeshLoader mesh_loader("./asset/teapot.obj");
-        mesh_loader.transform_to_unit_cube();
+    auto black = newRC<Black>();
+    auto box = newRC<TriangleMesh>(optix_ctx, "./asset/box.obj", true);
+    auto box_trans = Transform{
+        .translate = { 0, 0.1f, 0 },
+        .scale = 0.1f,
+        .rotate = Quaterion({ 1, 1, 1 }, 0)
+    };
+    auto light = newRC<MeshLight>(box, box_trans, 8 * Spectrum::from_rgb(1, 1, 1));
+    scene.add_instance(
+        Scene::Instance{
+            .geometry = std::move(box),
+            .material = std::move(black),
+            .light = std::move(light),
+            .transform = box_trans
+        });
 
-        auto blas = optix_ctx.create_triangle_as(
-            mesh_loader.get_positions(), mesh_loader.get_indices_i32());
-        optix::Context::Instance inst = {
-            .local_to_world = std::array{
-                1.0f, 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f
-            },
-            .id     = 0,
-            .mask   = 0xff,
-            .handle = blas
-        };
-        scene.tlas = optix_ctx.create_instance_as(std::span(&inst, 1));
-        scene.blas.push_back(std::move(blas));
-        
-        std::vector<Vec4f> geometry_ex_tex_coord_u_a;
-        std::vector<Vec4f> geometry_ey_tex_coord_u_ba;
-        std::vector<Vec4f> geometry_ez_tex_coord_u_ca;
+    auto diffuse = newRC<Diffuse>();
+    diffuse->set_albedo(Spectrum::from_rgb(0.8f, 0.8f, 0.8f));
+    auto cbox = newRC<TriangleMesh>(optix_ctx, "./asset/cbox.obj", true);
+    scene.add_instance(
+        Scene::Instance{
+            .geometry = std::move(cbox),
+            .material = std::move(diffuse),
+            .transform = Transform{
+                .translate = {},
+                .scale = 1,
+                .rotate = Quaterion({ 1, 0, 0 }, 0)
+            }
+        });
 
-        std::vector<Vec4f> shading_normals_tex_coord_v_a;
-        std::vector<Vec4f> shading_normals_tex_coord_v_ba;
-        std::vector<Vec4f> shading_normals_tex_coord_v_ca;
+    auto sky = newRC<GradientSky>();
+    sky->set_up({ 0, 1, 0 });
+    sky->set_lower(Spectrum::zero());
+    sky->set_upper(Spectrum::one());
+    //scene.set_envir_light(std::move(sky));
 
-        for(size_t i = 0; i < mesh_loader.get_primitive_count(); ++i)
-        {
-            const Vec3f ex = mesh_loader.get_geometry_exs()[i];
-            const Vec3f ez = mesh_loader.get_geometry_ezs()[i];
-            const Vec3f ey = normalize(cross(ez, ex));
-
-            const Vec2f uv_a = mesh_loader.get_tex_coords()[i * 3];
-            const Vec2f uv_b = mesh_loader.get_tex_coords()[i * 3 + 1];
-            const Vec2f uv_c = mesh_loader.get_tex_coords()[i * 3 + 2];
-
-            const Vec3f sz_a = mesh_loader.get_interp_ezs()[i * 3];
-            const Vec3f sz_b = mesh_loader.get_interp_ezs()[i * 3 + 1];
-            const Vec3f sz_c = mesh_loader.get_interp_ezs()[i * 3 + 2];
-
-            geometry_ex_tex_coord_u_a.push_back(Vec4f(ex, uv_a.x));
-            geometry_ey_tex_coord_u_ba.push_back(Vec4f(ey, uv_b.x - uv_a.x));
-            geometry_ez_tex_coord_u_ca.push_back(Vec4f(ez, uv_c.x - uv_a.x));
-
-            shading_normals_tex_coord_v_a.push_back(Vec4f(sz_a, uv_a.y));
-            shading_normals_tex_coord_v_ba.push_back(Vec4f(sz_b - sz_a, uv_b.y - uv_a.y));
-            shading_normals_tex_coord_v_ca.push_back(Vec4f(sz_c - sz_a, uv_c.y - uv_a.y));
-        }
-
-        CUDABuffer<Vec4f> device_geometry_ex_tex_coord_u_a(geometry_ex_tex_coord_u_a);
-        CUDABuffer<Vec4f> device_geometry_ey_tex_coord_u_ba(geometry_ey_tex_coord_u_ba);
-        CUDABuffer<Vec4f> device_geometry_ez_tex_coord_u_ca(geometry_ez_tex_coord_u_ca);
-
-        CUDABuffer<Vec4f> device_shading_normal_tex_coord_v_a(shading_normals_tex_coord_v_a);
-        CUDABuffer<Vec4f> device_shading_normal_tex_coord_v_ba(shading_normals_tex_coord_v_ba);
-        CUDABuffer<Vec4f> device_shading_normal_tex_coord_v_ca(shading_normals_tex_coord_v_ca);
-
-        wf::GeometryInfo geometry_info = {
-            .geometry_ex_tex_coord_u_a     = device_geometry_ex_tex_coord_u_a,
-            .geometry_ey_tex_coord_u_ba    = device_geometry_ey_tex_coord_u_ba,
-            .geometry_ez_tex_coord_u_ca    = device_geometry_ez_tex_coord_u_ca,
-            .shading_normal_tex_coord_v_a  = device_shading_normal_tex_coord_v_a,
-            .shading_normal_tex_coord_v_ba = device_shading_normal_tex_coord_v_ba,
-            .shading_normal_tex_coord_v_ca = device_shading_normal_tex_coord_v_ca
-        };
-
-        scene.geometries = newRC<CUDABuffer<wf::GeometryInfo>>(1, &geometry_info);
-        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_geometry_ex_tex_coord_u_a)));
-        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_geometry_ey_tex_coord_u_ba)));
-        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_geometry_ez_tex_coord_u_ca)));
-        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_shading_normal_tex_coord_v_a)));
-        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_shading_normal_tex_coord_v_ba)));
-        scene.owned_data.push_back(newRC<CUDABuffer<Vec4f>>(std::move(device_shading_normal_tex_coord_v_ca)));
-
-        const int32_t mat_id_data[] = { 0 };
-        scene.inst_id_to_mat_id = newRC<CUDABuffer<int32_t>>(1, mat_id_data);
-
-        /*const std::vector geometry_info_data = {
-            Vec4f(0, 1, 0, 0),
-            Vec4f(0, 0, -1, 0),
-            Vec4f(-1, 0, 0, 1),
-            Vec4f(-1, 0, 0, 0),
-            Vec4f(-1, 0, 0, 0.5f),
-            Vec4f(-1, 0, 0, 0),
-        };
-        auto vec4_buf = CUDABuffer(std::span(geometry_info_data));
-
-        wf::GeometryInfo geometry;
-        geometry.geometry_ex_tex_coord_u_a = vec4_buf.get();
-        geometry.geometry_ey_tex_coord_u_ba = vec4_buf.get() + 1;
-        geometry.geometry_ez_tex_coord_u_ca = vec4_buf.get() + 2;
-        geometry.shading_normal_tex_coord_v_a = vec4_buf.get() + 3;
-        geometry.shading_normal_tex_coord_v_ba = vec4_buf.get() + 4;
-        geometry.shading_normal_tex_coord_v_ca = vec4_buf.get() + 5;
-
-        scene.geometries = newRC<CUDABuffer<wf::GeometryInfo>>(1, &geometry);
-        scene.owned_data.emplace_back(
-            newRC<CUDABuffer<Vec4f>>(std::move(vec4_buf)));
-
-        const Vec3f positions[] = {
-            { 0, -1, -1 },
-            { 0, 0, 1 },
-            { 0, 1, -1 }
-        };
-        auto blas = optix_ctx.create_triangle_as(positions);
-        optix::Context::Instance inst = {
-            .local_to_world = std::array{
-                1.0f, 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f
-            },
-            .id     = 0,
-            .mask   = 0xff,
-            .handle = blas
-        };
-        scene.tlas = optix_ctx.create_instance_as(std::span(&inst, 1));
-        scene.blas.push_back(std::move(blas));
-
-        const int32_t mat_id_data[] = { 0 };
-        scene.inst_id_to_mat_id = newRC<CUDABuffer<int32_t>>(1, mat_id_data);*/
-    }
-
-    {
-        auto glass = newRC<Glass>();
-        glass->set_color(Spectrum::from_rgb(1, 1, 1));
-        glass->set_ior(1.43f);
-        scene.materials.push_back(std::move(glass));
-        //auto diffuse = newRC<Diffuse>();
-        //diffuse->set_albedo(Spectrum::from_rgb(0.8f, 0.8f, 0.8f));
-        //scene.materials.push_back(std::move(diffuse));
-    }
-
-    {
-        auto sky = newRC<GradientSky>();
-        sky->set_up({ 0, 1, 0 });
-        sky->set_lower(Spectrum::zero());
-        sky->set_upper(Spectrum::one());
-
-        auto sampler = newRC<UniformLightSampler>();
-        sampler->add_light(std::move(sky));
-
-        scene.light_sampler = std::move(sampler);
-    }
-
+    scene.preprocess(optix_ctx);
     return scene;
 }
 
@@ -283,7 +158,7 @@ Pipeline build_pipeline(
     Pipeline pipeline;
 
     pipeline.generate = wf::GeneratePipeline(
-        scene.camera, { film.width(), film.height() }, SPP, STATE_COUNT);
+        *scene.get_camera(), { film.width(), film.height() }, SPP, STATE_COUNT);
 
     pipeline.trace = wf::TracePipeline(optix_ctx, false, true, 2);
 
@@ -291,16 +166,10 @@ Pipeline build_pipeline(
 
     pipeline.shade = wf::ShadePipeline(
         film,
-        wf::SceneData{
-            .instances         = scene.instances,
-            .geometries        = scene.geometries,
-            .inst_id_to_mat_id = scene.inst_id_to_mat_id,
-            .materials         = scene.materials,
-            .light_sampler     = scene.light_sampler
-        },
+        scene,
         wf::ShadePipeline::ShadeParams{
-            .min_depth    = 20,
-            .max_depth    = 20,
+            .min_depth    = 100,
+            .max_depth    = 100,
             .rr_threshold = 0.1f,
             .rr_cont_prob = 0.5f
         });
@@ -403,7 +272,7 @@ void run()
         active_state_count += generated_state_count;
 
         pipeline.trace.trace(
-            scene.tlas,
+            scene.get_tlas(),
             active_state_count,
             wf::TracePipeline::SOAParams{
                 .ray_o_t0      = soa.ray_o_t0,
@@ -454,7 +323,7 @@ void run()
         if(shade_counters.shadow_ray_counter)
         {
             pipeline.shadow.test(
-                scene.tlas,
+                scene.get_tlas(),
                 shade_counters.shadow_ray_counter,
                 wf::ShadowPipeline::SOAParams{
                     .pixel_coord   = soa.shadow_pixel_coord,

@@ -4,6 +4,8 @@
 
 BTRC_OPTIX_BEGIN
 
+constexpr uint8_t RAY_MASK_ALL = 0xff;
+
 u32 get_launch_index_x();
 
 u32 get_launch_dimension_x();

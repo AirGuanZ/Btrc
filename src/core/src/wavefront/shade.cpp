@@ -1,6 +1,8 @@
 #include <array>
 
 #include <btrc/core/film/film.h>
+#include <btrc/core/utils/intersection.h>
+#include <btrc/core/utils/optix/device_funcs.h>
 #include <btrc/core/wavefront/shade.h>
 
 BTRC_WAVEFRONT_BEGIN
@@ -78,7 +80,7 @@ namespace
 
 ShadePipeline::ShadePipeline(
     Film              &film,
-    const SceneData   &scene,
+    const Scene       &scene,
     const ShadeParams &shade_params)
     : ShadePipeline()
 {
@@ -99,15 +101,11 @@ ShadePipeline &ShadePipeline::operator=(ShadePipeline &&other) noexcept
 
 void ShadePipeline::swap(ShadePipeline &other) noexcept
 {
-    std::swap(kernel_, other.kernel_);
-    std::swap(scene_, other.scene_);
-    
-    std::swap(counters_, other.counters_);
-
-    std::swap(instances_, other.instances_);
-    std::swap(geometries_, other.geometries_);
-    std::swap(inst_id_to_mat_id_, other.inst_id_to_mat_id_);
-    
+    std::swap(kernel_,       other.kernel_);
+    std::swap(geo_info_,     other.geo_info_);
+    std::swap(inst_info_,    other.inst_info_);
+    std::swap(inst_to_mat_,  other.inst_to_mat_);
+    std::swap(counters_,     other.counters_);
     std::swap(shade_params_, other.shade_params_);
 }
 
@@ -136,12 +134,12 @@ ShadePipeline::StateCounters ShadePipeline::shade(
         { block_count, 1, 1 },
         { BLOCK_DIM, 1, 1 },
         total_state_count,
-        instances_->get(),
-        geometries_->get(),
+        inst_info_,
+        geo_info_,
         active_state_counter,
         inactive_state_counter,
         shadow_ray_counter,
-        inst_id_to_mat_id_->get(),
+        inst_to_mat_,
         soa);
 
     throw_on_error(cudaStreamSynchronize(nullptr));
@@ -153,11 +151,12 @@ ShadePipeline::StateCounters ShadePipeline::shade(
 
 void ShadePipeline::initialize(
     Film              &film,
-    const SceneData   &scene,
+    const Scene       &scene,
     const ShadeParams &shade_params)
 {
-    scene_ = &scene;
     shade_params_ = shade_params;
+
+    auto light_sampler = scene.get_light_sampler();
 
     ScopedModule cuj_module;
 
@@ -193,7 +192,7 @@ void ShadePipeline::initialize(
         var<f32> inct_t = soa_params.inct_t[soa_index];
         $if(inct_t < 0)
         {
-            handle_miss(soa_params, soa_index, path_radiance);
+            handle_miss(light_sampler, soa_params, soa_index, path_radiance);
             $if(depth == 0)
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
@@ -222,13 +221,12 @@ void ShadePipeline::initialize(
 
         auto handle_intersected_light = [&](int light_id)
         {
-            auto light = scene_->light_sampler->get_light(light_id);
+            auto light = light_sampler->get_light(light_id);
             const AreaLight *area = light->as_area();
             if(!area)
                 return;
 
-            var le = area->eval_le(
-                inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
+            var le = area->eval_le(inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
             var beta_le = load_aligned(soa_params.beta_le + soa_index);
             var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
             $if(bsdf_pdf < 0)
@@ -237,13 +235,12 @@ void ShadePipeline::initialize(
             }
             $else
             {
-                var select_light_pdf = scene_->light_sampler->pdf(
+                var select_light_pdf = light_sampler->pdf(
                     ray_o, ray_time, light_id);
                 var light_dir_pdf = area->pdf_li(
                     ray_o, inct.position, inct.frame.z);
                 var light_pdf = select_light_pdf * light_dir_pdf;
-                path_radiance =
-                    path_radiance + beta_le * le / (bsdf_pdf + light_pdf);
+                path_radiance = path_radiance + beta_le * le / (bsdf_pdf + light_pdf);
             };
         };
 
@@ -252,7 +249,7 @@ void ShadePipeline::initialize(
         {
             $switch(intersected_light_id)
             {
-                for(int i = 0; i < scene_->light_sampler->get_light_count(); ++i)
+                for(int i = 0; i < light_sampler->get_light_count(); ++i)
                 {
                     $case(i)
                     {
@@ -306,29 +303,31 @@ void ShadePipeline::initialize(
 
         // sample light
 
-        auto select_light = scene_->light_sampler->sample(
+        auto select_light = light_sampler->sample(
             inct.position, ray_time, rng.uniform_float());
         var light_id = select_light.light_idx;
-
-        CVec3f shadow_d;
-        CSpectrum li;
+        
+        CVec3f shadow_o, shadow_d;
         f32 shadow_t1, light_dir_pdf;
+        CSpectrum li;
         $if(light_id >= 0)
         {
             $switch(light_id)
             {
-                for(int i = 0; i < scene_->light_sampler->get_light_count(); ++i)
+                for(int i = 0; i < light_sampler->get_light_count(); ++i)
                 {
                     $case(i)
                     {
-                        auto light = scene_->light_sampler->get_light(i);
+                        auto light = light_sampler->get_light(i);
                         var sam = CVec3f(rng);
                         if(auto area = light->as_area())
                         {
                             auto sample = area->sample_li(inct.position, sam);
                             var diff = sample.position - inct.position;
-                            shadow_d = normalize(diff);
-                            shadow_t1 = length(diff) - EPS;
+                            var shadow_dst = intersection_offset(sample.position, sample.normal, -diff);
+                            shadow_o = intersection_offset(inct.position, inct.frame.z, diff);
+                            shadow_d = shadow_dst - shadow_o;
+                            shadow_t1 = 1;
                             light_dir_pdf = sample.pdf;
                             li = sample.radiance;
                         }
@@ -336,7 +335,8 @@ void ShadePipeline::initialize(
                         {
                             assert(!light->is_area());
                             auto sample = light->as_envir()->sample_li(sam);
-                            shadow_d = normalize(sample.direction_to_light);
+                            shadow_o = intersection_offset(inct.position, inct.frame.z, sample.direction_to_light);
+                            shadow_d = sample.direction_to_light;
                             shadow_t1 = btrc_max_float;
                             light_dir_pdf = sample.pdf;
                             li = sample.radiance;
@@ -395,11 +395,11 @@ void ShadePipeline::initialize(
         var mat_id = instance_id_to_material_id[inst_id];
         $switch(mat_id)
         {
-            for(size_t i = 0; i < scene_->materials.size(); ++i)
+            for(int i = 0; i < scene.get_material_count(); ++i)
             {
                 $case(i)
                 {
-                    handle_material(scene_->materials[i].get());
+                    handle_material(scene.get_material(i));
                 };
             }
             $default{ cstd::unreachable(); };
@@ -413,16 +413,16 @@ void ShadePipeline::initialize(
                 pixel_coord,
                 soa_params.output_shadow_pixel_coord + shadow_soa_index);
             save_aligned(
-                CVec4f(inct.position, EPS),
+                CVec4f(shadow_o, 0),
                 soa_params.output_shadow_ray_o_t0 + shadow_soa_index);
             save_aligned(
                 CVec4f(shadow_d, shadow_t1),
                 soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
             save_aligned(
-                CVec2u(bitcast<u32>(ray_time), RAY_MASK_ALL),
+                CVec2u(bitcast<u32>(ray_time), optix::RAY_MASK_ALL),
                 soa_params.output_shadow_ray_time_mask + shadow_soa_index);
 
-            var cos = cstd::abs(dot(shadow_d, inct.frame.z));
+            var cos = cstd::abs(dot(normalize(shadow_d), inct.frame.z));
             var light_pdf = select_light.pdf * light_dir_pdf;
             var beta_li = li * beta * shadow_bsdf_val * cos / (shadow_bsdf_pdf + light_pdf);
 
@@ -449,12 +449,12 @@ void ShadePipeline::initialize(
             var beta_le = beta * cos * bsdf_sample.bsdf;
             beta = beta_le / bsdf_sample.pdf;
 
-            var next_ray_o    = inct.position;
-            var next_ray_t0   = EPS;
+            var next_ray_o    = intersection_offset(inct.position, inct.frame.z, bsdf_sample.dir);
+            var next_ray_t0   = 0.0f;
             var next_ray_d    = bsdf_sample.dir;
             var next_ray_t1   = btrc_max_float;
             var next_ray_time = ray_time;
-            var next_ray_mask = RAY_MASK_ALL;
+            var next_ray_mask = optix::RAY_MASK_ALL;
 
             var output_index = cstd::atomic_add(active_state_counter, 1);
 
@@ -502,18 +502,21 @@ void ShadePipeline::initialize(
     kernel_.load_ptx_from_memory(ptx.data(), ptx.size());
     kernel_.link();
 
-    counters_ = CUDABuffer<int32_t>(3);
+    geo_info_ = scene.get_device_geometry_info();
+    inst_info_ = scene.get_device_instance_info();
+    inst_to_mat_ = scene.get_device_instance_to_material();
 
-    instances_ = scene.instances;
-    geometries_ = scene.geometries;
-    inst_id_to_mat_id_ = scene.inst_id_to_mat_id;
+    counters_ = CUDABuffer<int32_t>(3);
 }
 
 void ShadePipeline::handle_miss(
-    ref<CSOAParams> soa_params, i32 soa_index, ref<CSpectrum> path_rad)
+    const LightSampler *light_sampler,
+    ref<CSOAParams>     soa_params,
+    i32                 soa_index,
+    ref<CSpectrum>      path_rad)
 {
     var time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
-    auto envir_light = scene_->light_sampler->get_envir_light();
+    auto envir_light = light_sampler->get_envir_light();
     if(envir_light)
     {
         var ray_dir = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
@@ -531,8 +534,8 @@ void ShadePipeline::handle_miss(
             var o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_t0 + soa_index));
             var d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
 
-            var select_light_pdf = scene_->light_sampler->pdf(
-                o, time, scene_->light_sampler->get_envir_light_index());
+            var select_light_pdf = light_sampler->pdf(
+                o, time, light_sampler->get_envir_light_index());
             var envir_light_pdf = envir_light->pdf_li(d);
             var light_pdf = select_light_pdf * envir_light_pdf;
 
