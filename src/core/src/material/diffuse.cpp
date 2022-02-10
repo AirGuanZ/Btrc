@@ -97,9 +97,9 @@ CUJ_CLASS_BEGIN(DiffuseShaderImpl)
 
 CUJ_CLASS_END
 
-void Diffuse::set_albedo(const Spectrum &albedo)
+void Diffuse::set_albedo(RC<const Texture2D> albedo)
 {
-    albedo_ = albedo;
+    albedo_ = std::move(albedo);
 }
 
 RC<Shader> Diffuse::create_shader(const SurfacePoint &inct) const
@@ -107,7 +107,7 @@ RC<Shader> Diffuse::create_shader(const SurfacePoint &inct) const
     DiffuseShaderImpl impl;
     impl.frame.geometry = inct.frame;
     impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
-    impl.albedo_val = CSpectrum(albedo_);
+    impl.albedo_val = albedo_->sample_spectrum(inct);
     return newRC<ShaderClosure<DiffuseShaderImpl>>(as_shared(), impl);
 }
 

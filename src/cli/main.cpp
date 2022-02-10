@@ -10,6 +10,7 @@
 #include <btrc/core/material/diffuse.h>
 #include <btrc/core/material/glass.h>
 #include <btrc/core/scene/scene.h>
+#include <btrc/core/texture2d/constant2d.h>
 #include <btrc/core/utils/cuda/context.h>
 #include <btrc/core/utils/optix/context.h>
 #include <btrc/core/utils/image.h>
@@ -128,8 +129,10 @@ Scene build_scene(optix::Context &optix_ctx)
             .transform = box_trans
         });
 
+    auto diffuse_albedo = newRC<Constant2D>();
+    diffuse_albedo->set_value(0.8f);
     auto diffuse = newRC<Diffuse>();
-    diffuse->set_albedo(Spectrum::from_rgb(0.8f, 0.8f, 0.8f));
+    diffuse->set_albedo(std::move(diffuse_albedo));
     auto cbox = newRC<TriangleMesh>(optix_ctx, "./asset/cbox.obj", true);
     scene.add_instance(
         Scene::Instance{
