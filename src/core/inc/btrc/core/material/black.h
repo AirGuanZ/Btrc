@@ -8,7 +8,7 @@ class Black : public Material
 {
 public:
 
-    RC<Shader> create_shader(const CIntersection &inct) const override;
+    RC<Shader> create_shader(const SurfacePoint &inct) const override;
 };
 
 BTRC_CORE_END

@@ -39,8 +39,8 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
     CTransform ctrans = local_to_world_;
 
     var surface_sample = geometry_->sample(sam);
-    var spos = ctrans.apply_to_point(surface_sample.pos);
-    var snor = normalize(ctrans.apply_to_vector(surface_sample.frame.z));
+    var spos = ctrans.apply_to_point(surface_sample.point.position);
+    var snor = normalize(ctrans.apply_to_vector(surface_sample.point.frame.z));
     var pos_to_ref = ref_pos - spos;
     var dist2 = length_square(pos_to_ref);
     var pdf_sa = 1 / (local_to_world_.scale * local_to_world_.scale)

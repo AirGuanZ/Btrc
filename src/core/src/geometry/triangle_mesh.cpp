@@ -197,13 +197,12 @@ Geometry::SampleResult TriangleMesh::sample(ref<CVec3f> sam) const
     var interp_z = normalize(sz_v_a.xyz() + sz_v_ba.xyz() * uv.x + sz_v_ca.xyz() * uv.y);
 
     SampleResult result;
-    result.pos       = pos;
-    result.pdf       = 1 / total_area_;
-    result.uv        = uv;
-    result.tex_coord = tex_coord;
-    result.frame     = CFrame(ex, ey, ez);
-    result.interp_z  = interp_z;
-
+    result.point.position  = pos;
+    result.point.uv        = uv;
+    result.point.tex_coord = tex_coord;
+    result.point.frame     = CFrame(ex, ey, ez);
+    result.point.interp_z  = interp_z;
+    result.pdf             = 1 / total_area_;
     return result;
 }
 

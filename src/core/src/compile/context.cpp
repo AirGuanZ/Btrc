@@ -1,6 +1,6 @@
 #include <stack>
 
-#include <btrc/core/compile/context.h>
+#include <btrc/core/common/context.h>
 #include <btrc/core/utils/unreachable.h>
 
 BTRC_CORE_BEGIN

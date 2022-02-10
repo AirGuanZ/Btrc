@@ -18,6 +18,8 @@ namespace trace_pipeline_detail
 
         float *inct_t;
         Vec4u *inct_uv_id;
+
+        int32_t *state_index;
     };
 
     struct LaunchParams
@@ -34,11 +36,15 @@ namespace trace_pipeline_detail
 
         float *inct_t;
         Vec4u *inct_uv_id;
+
+        // index
+
+        int32_t *state_index;
     };
 
     CUJ_PROXY_CLASS(
         CLaunchParams, LaunchParams,
-        handle, ray_o_t0, ray_d_t1, ray_time_mask, inct_t, inct_uv_id);
+        handle, ray_o_t0, ray_d_t1, ray_time_mask, inct_t, inct_uv_id, state_index);
 
 } // namespace trace_pipeline_detail
 

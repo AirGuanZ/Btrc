@@ -10,7 +10,7 @@ public:
 
     void set_albedo(const Spectrum &albedo);
     
-    RC<Shader> create_shader(const CIntersection &inct) const override;
+    RC<Shader> create_shader(const SurfacePoint &inct) const override;
 
 private:
 

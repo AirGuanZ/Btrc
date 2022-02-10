@@ -55,7 +55,7 @@ public:
     }
 };
 
-RC<Shader> Black::create_shader(const CIntersection &inct) const
+RC<Shader> Black::create_shader(const SurfacePoint &inct) const
 {
     return newRC<BlackShader>(inct.frame.z);
 }

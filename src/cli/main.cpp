@@ -2,7 +2,7 @@
 #include <iostream>
 
 #include <btrc/core/camera/pinhole.h>
-#include <btrc/core/compile/context.h>
+#include <btrc/core/common/context.h>
 #include <btrc/core/geometry/triangle_mesh.h>
 #include <btrc/core/light/gradient_sky.h>
 #include <btrc/core/light/mesh_light.h>
@@ -21,7 +21,7 @@
 
 using namespace btrc::core;
 
-constexpr int SPP = 1024;
+constexpr int SPP = 128;
 constexpr int STATE_COUNT = 2000000;
 
 constexpr int WIDTH = 512;
@@ -117,7 +117,7 @@ Scene build_scene(optix::Context &optix_ctx)
     auto box_trans = Transform{
         .translate = { 0, 0.1f, 0 },
         .scale = 0.1f,
-        .rotate = Quaterion({ 1, 1, 1 }, 0)
+        .rotate = Quaterion({ 1, 1, 1 }, 2.7f)
     };
     auto light = newRC<MeshLight>(box, box_trans, 8 * Spectrum::from_rgb(1, 1, 1));
     scene.add_instance(
@@ -142,10 +142,10 @@ Scene build_scene(optix::Context &optix_ctx)
             }
         });
 
-    auto sky = newRC<GradientSky>();
-    sky->set_up({ 0, 1, 0 });
-    sky->set_lower(Spectrum::zero());
-    sky->set_upper(Spectrum::one());
+    //auto sky = newRC<GradientSky>();
+    //sky->set_up({ 0, 1, 0 });
+    //sky->set_lower(Spectrum::zero());
+    //sky->set_upper(Spectrum::one());
     //scene.set_envir_light(std::move(sky));
 
     scene.preprocess(optix_ctx);
@@ -279,11 +279,12 @@ void run()
                 .ray_d_t1      = soa.ray_d_t1,
                 .ray_time_mask = soa.ray_time_mask,
                 .inct_t        = soa.inct_t,
-                .inct_uv_id    = soa.inct_uv_id
+                .inct_uv_id    = soa.inct_uv_id,
+                .state_index   = soa.sorted_state_indices
             });
 
-        pipeline.sort.sort(
-            active_state_count, soa.inct_t, soa.sorted_state_indices);
+        //pipeline.sort.sort(
+        //    active_state_count, soa.inct_t, soa.inct_uv_id, soa.sorted_state_indices);
 
         const auto shade_counters = pipeline.shade.shade(
             active_state_count,
@@ -396,8 +397,8 @@ void run()
         }
     }
 
-    image_radiance.pow_(1 / 2.2f);
-    image_radiance.save("output.png");
+    //image_radiance.pow_(1 / 2.2f);
+    image_radiance.save("output.exr");
 
     image_albedo.pow_(1 / 2.2f);
     image_albedo.save("output_albedo.png");

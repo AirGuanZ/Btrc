@@ -102,11 +102,11 @@ void Diffuse::set_albedo(const Spectrum &albedo)
     albedo_ = albedo;
 }
 
-RC<Shader> Diffuse::create_shader(const CIntersection &inct) const
+RC<Shader> Diffuse::create_shader(const SurfacePoint &inct) const
 {
     DiffuseShaderImpl impl;
     impl.frame.geometry = inct.frame;
-    impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_normal);
+    impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
     impl.albedo_val = CSpectrum(albedo_);
     return newRC<ShaderClosure<DiffuseShaderImpl>>(as_shared(), impl);
 }

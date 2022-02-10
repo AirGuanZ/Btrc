@@ -17,7 +17,7 @@ namespace
 
     constexpr char SHADE_KERNEL_NAME[] = "shade";
 
-    CIntersection get_intersection(
+    SurfacePoint get_intersection(
         f32                inct_t,
         ref<CVec3f>        ray_o,
         ref<CVec3f>        ray_d,
@@ -66,12 +66,12 @@ namespace
 
         // intersection
 
-        CIntersection material_inct;
-        material_inct.position      = position;
-        material_inct.frame         = geometry_frame;
-        material_inct.interp_normal = interp_normal;
-        material_inct.uv            = uv;
-        material_inct.tex_coord     = tex_coord;
+        SurfacePoint material_inct;
+        material_inct.position  = position;
+        material_inct.frame     = geometry_frame;
+        material_inct.interp_z  = interp_normal;
+        material_inct.uv        = uv;
+        material_inct.tex_coord = tex_coord;
 
         return material_inct;
     }
@@ -214,8 +214,7 @@ void ShadePipeline::initialize(
         ref instance = instances[inst_id];
         ref geometry = geometries[instance.geometry_id];
         var uv = CVec2f(bitcast<f32>(inct_uv_id.x), bitcast<f32>(inct_uv_id.y));
-        CIntersection inct = get_intersection(
-            inct_t, ray_o, ray_d, instance, geometry, inct_uv_id.z, uv);
+        var inct = get_intersection(inct_t, ray_o, ray_d, instance, geometry, inct_uv_id.z, uv);
 
         // handle intersected light
 

@@ -12,7 +12,7 @@ public:
 
     void set_ior(float ior);
 
-    RC<Shader> create_shader(const CIntersection &inct) const override;
+    RC<Shader> create_shader(const SurfacePoint &inct) const override;
 
 private:
 

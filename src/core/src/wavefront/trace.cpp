@@ -42,6 +42,8 @@ namespace
             var time = bitcast<f32>(time_mask.x);
             var mask = time_mask.y;
 
+            launch_params.state_index[launch_idx] = i32(launch_idx);
+
             optix::trace(
                 launch_params.handle,
                 o, d, t0, t1, time, mask, OPTIX_RAY_FLAG_NONE,
@@ -132,7 +134,8 @@ void TracePipeline::trace(
         .ray_d_t1      = soa_params.ray_d_t1,
         .ray_time_mask = soa_params.ray_time_mask,
         .inct_t        = soa_params.inct_t,
-        .inct_uv_id    = soa_params.inct_uv_id
+        .inct_uv_id    = soa_params.inct_uv_id,
+        .state_index   = soa_params.state_index
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(

@@ -118,11 +118,11 @@ void Glass::set_ior(float ior)
     ior_ = ior;
 }
 
-RC<Shader> Glass::create_shader(const CIntersection &inct) const
+RC<Shader> Glass::create_shader(const SurfacePoint &inct) const
 {
     GlassShaderImpl impl;
     impl.frame.geometry = inct.frame;
-    impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_normal);
+    impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
     impl.color = CSpectrum(color_);
     impl.ior = ior_;
     return newRC<ShaderClosure<GlassShaderImpl>>(as_shared(), impl);

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <btrc/core/compile/context.h>
-#include <btrc/core/material/shader_frame.h>
+#include <btrc/core/common/context.h>
+#include <btrc/core/common/surface_point.h>
 #include <btrc/core/utils/cmath/cmath.h>
 #include <btrc/core/utils/optix/context.h>
 
@@ -33,12 +33,8 @@ class Geometry : public Object
 public:
 
     CUJ_CLASS_BEGIN(SampleResult)
-        CUJ_MEMBER_VARIABLE(CVec3f, pos)
-        CUJ_MEMBER_VARIABLE(f32,    pdf)
-        CUJ_MEMBER_VARIABLE(CVec2f, uv)
-        CUJ_MEMBER_VARIABLE(CVec2f, tex_coord)
-        CUJ_MEMBER_VARIABLE(CFrame, frame)
-        CUJ_MEMBER_VARIABLE(CVec3f, interp_z)
+        CUJ_MEMBER_VARIABLE(SurfacePoint, point)
+        CUJ_MEMBER_VARIABLE(f32,          pdf)
     CUJ_CLASS_END
 
     virtual OptixTraversableHandle get_blas() const = 0;
