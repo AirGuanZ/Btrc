@@ -2,6 +2,8 @@
 
 #include <variant>
 
+#include <cuj/utils/variant.h>
+
 #include <btrc/core/common.h>
 
 BTRC_CORE_BEGIN

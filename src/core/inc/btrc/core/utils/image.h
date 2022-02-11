@@ -1,12 +1,13 @@
 #pragma once
 
+#include <array>
 #include <cassert>
-#include <cctype>
 #include <filesystem>
 #include <vector>
 
 #include <btrc/core/utils/math/math.h>
 #include <btrc/core/utils/unreachable.h>
+#include <btrc/core/utils/variant.h>
 
 BTRC_CORE_BEGIN
 
@@ -73,13 +74,90 @@ public:
         ImageFormat        format = ImageFormat::Auto) const;
 
     static Image load(
-        const std::string &filename, ImageFormat format = ImageFormat::Auto);
+        const std::string &filename,
+        ImageFormat        format = ImageFormat::Auto);
 
 private:
 
     int width_;
     int height_;
     std::vector<Texel> data_;
+};
+
+class ImageDynamic
+{
+public:
+
+    enum TexelType
+    {
+        U8x1,
+        U8x3,
+        U8x4,
+        F32x1,
+        F32x3,
+        F32x4
+    };
+
+    ImageDynamic() = default;
+
+    template<typename T>
+    ImageDynamic(const Image<T> &image);
+
+    template<typename T>
+    ImageDynamic(Image<T> &&image);
+
+    void swap(ImageDynamic &other) noexcept;
+
+    operator bool() const;
+
+    template<typename T>
+    bool is() const;
+
+    template<typename T>
+    T &as();
+
+    template<typename T>
+    const T &as() const;
+
+    template<typename T>
+    T *as_if();
+
+    template<typename T>
+    const T *as_if() const;
+
+    ImageDynamic to(TexelType new_texel_type) const;
+
+    template<typename T>
+    ImageDynamic to() const;
+
+    int width() const;
+
+    int height() const;
+
+    template<typename...Vs>
+    auto match(Vs &&...vs) const;
+
+    template<typename...Vs>
+    auto match(Vs &&...vs);
+
+    void save(
+        const std::string &filename,
+        ImageFormat        format = ImageFormat::Auto) const;
+
+    static ImageDynamic load(
+        const std::string &filename,
+        ImageFormat        format = ImageFormat::Auto);
+
+private:
+
+    Variant<
+        std::monostate,
+        Image<uint8_t>,
+        Image<Vec3b>,
+        Image<Vec4b>,
+        Image<float>,
+        Image<Vec3f>,
+        Image<Vec4f>> image_ = std::monostate{};
 };
 
 // ========================== impl ==========================
@@ -276,6 +354,25 @@ namespace image_detail
         int                height,
         const float       *data);
 
+    std::vector<uint8_t> load_png(
+        const std::string &filename,
+        int               *width,
+        int               *height,
+        int               *channels);
+
+    std::vector<uint8_t> load_jpg(
+        const std::string &filename,
+        int               *width,
+        int               *height,
+        int               *channels);
+
+    std::vector<Vec3f> load_hdr(
+        const std::string &filename,
+        int               *width,
+        int               *height);
+
+    ImageFormat infer_format(const std::string &filename);
+
 } // namespace image_detail
 
 template<typename T>
@@ -400,24 +497,7 @@ void Image<T>::save(const std::string &filename, ImageFormat format) const
     using namespace image_detail;
 
     if(format == ImageFormat::Auto)
-    {
-        auto ext = std::filesystem::path(filename).extension().string();
-        for(auto &a : ext)
-        {
-            if('a' <= a && a <= 'z')
-                a += 'A' - 'a';
-        }
-        if(ext == ".PNG")
-            format = ImageFormat::PNG;
-        else if(ext == ".JPG" || ext == ".JPEG")
-            format = ImageFormat::JPG;
-        else if(ext == ".HDR")
-            format = ImageFormat::HDR;
-        else if(ext == ".EXR")
-            format = ImageFormat::EXR;
-        else
-            throw BtrcException("unknown image format: " + ext);
-    }
+        format = infer_format(filename);
 
     switch(format)
     {
@@ -474,8 +554,44 @@ void Image<T>::save(const std::string &filename, ImageFormat format) const
 template<typename T>
 Image<T> Image<T>::load(const std::string &filename, ImageFormat format)
 {
-    // TODO
-    throw BtrcException("not implemented");
+    auto image_dynamic = ImageDynamic::load(filename, format);
+    if(auto result = image_dynamic.as_if<Image<T>>())
+        return std::move(*result);
+    return image_dynamic.match(
+        [&](std::monostate) -> Image<T>
+        {
+            throw BtrcException("failed to load image from " + filename);
+        },
+        [](auto &image)
+        {
+            return image.template to<T>();
+        });
+}
+
+template<typename T>
+ImageDynamic::ImageDynamic(const Image<T> &image)
+    : image_(image)
+{
+    
+}
+
+template<typename T>
+ImageDynamic::ImageDynamic(Image<T> &&image)
+    : image_(std::move(image))
+{
+    
+}
+
+template<typename...Vs>
+auto ImageDynamic::match(Vs &&...vs) const
+{
+    return image_.match(std::forward<Vs>(vs)...);
+}
+
+template<typename ... Vs>
+auto ImageDynamic::match(Vs &&... vs)
+{
+    return image_.match(std::forward<Vs>(vs)...);
 }
 
 BTRC_CORE_END

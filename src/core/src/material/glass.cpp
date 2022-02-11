@@ -108,14 +108,14 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
 
 CUJ_CLASS_END
 
-void Glass::set_color(const Spectrum &color)
+void Glass::set_color(RC<const Texture2D> color)
 {
-    color_ = color;
+    color_ = std::move(color);
 }
 
-void Glass::set_ior(float ior)
+void Glass::set_ior(RC<const Texture2D> ior)
 {
-    ior_ = ior;
+    ior_ = std::move(ior);
 }
 
 RC<Shader> Glass::create_shader(const SurfacePoint &inct) const
@@ -123,8 +123,8 @@ RC<Shader> Glass::create_shader(const SurfacePoint &inct) const
     GlassShaderImpl impl;
     impl.frame.geometry = inct.frame;
     impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
-    impl.color = CSpectrum(color_);
-    impl.ior = ior_;
+    impl.color = color_->sample_spectrum(inct);
+    impl.ior = ior_->sample_float(inct);
     return newRC<ShaderClosure<GlassShaderImpl>>(as_shared(), impl);
 }
 

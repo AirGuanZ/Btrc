@@ -97,10 +97,14 @@ Scene build_scene(optix::Context &optix_ctx)
     camera->set_fov_y_deg(60);
     camera->set_w_over_h(static_cast<float>(WIDTH) / HEIGHT);
     scene.set_camera(std::move(camera));
-    
+
+    auto glass_color = newRC<Constant2D>();
+    glass_color->set_value(Spectrum::from_rgb(0.6f, 0.9f, 0.9f));
+    auto glass_ior = newRC<Constant2D>();
+    glass_ior->set_value(1.45f);
     auto glass = newRC<Glass>();
-    glass->set_color(Spectrum::from_rgb(0.6f, 0.9f, 0.9f));
-    glass->set_ior(1.43f);
+    glass->set_color(std::move(glass_color));
+    glass->set_ior(std::move(glass_ior));
     auto teapot = newRC<TriangleMesh>(optix_ctx, "./asset/teapot.obj", true);
     scene.add_instance(
         Scene::Instance{
@@ -120,7 +124,7 @@ Scene build_scene(optix::Context &optix_ctx)
         .scale = 0.1f,
         .rotate = Quaterion({ 1, 1, 1 }, 2.7f)
     };
-    auto light = newRC<MeshLight>(box, box_trans, 8 * Spectrum::from_rgb(1, 1, 1));
+    auto light = newRC<MeshLight>(box, box_trans, 4 * Spectrum::from_rgb(1, 1, 1));
     scene.add_instance(
         Scene::Instance{
             .geometry = std::move(box),
@@ -145,11 +149,11 @@ Scene build_scene(optix::Context &optix_ctx)
             }
         });
 
-    //auto sky = newRC<GradientSky>();
-    //sky->set_up({ 0, 1, 0 });
-    //sky->set_lower(Spectrum::zero());
-    //sky->set_upper(Spectrum::one());
-    //scene.set_envir_light(std::move(sky));
+    auto sky = newRC<GradientSky>();
+    sky->set_up({ 0, 1, 0 });
+    sky->set_lower(Spectrum::zero());
+    sky->set_upper(Spectrum::one());
+    scene.set_envir_light(std::move(sky));
 
     scene.preprocess(optix_ctx);
     return scene;
