@@ -2,7 +2,7 @@
 #include <btrc/core/utils/cuda/buffer.h>
 #include <btrc/core/utils/cuda/error.h>
 #include <btrc/core/utils/optix/device_funcs.h>
-#include <btrc/core/wavefront/trace.h>
+#include <btrc/core/renderer/wavefront/trace.h>
 
 BTRC_WAVEFRONT_BEGIN
 

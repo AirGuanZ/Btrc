@@ -10,19 +10,20 @@
 #include <btrc/core/material/diffuse.h>
 #include <btrc/core/material/glass.h>
 #include <btrc/core/scene/scene.h>
+#include <btrc/core/texture2d/array2d.h>
 #include <btrc/core/texture2d/constant2d.h>
 #include <btrc/core/utils/cuda/context.h>
 #include <btrc/core/utils/optix/context.h>
 #include <btrc/core/utils/image.h>
-#include <btrc/core/wavefront/generate.h>
-#include <btrc/core/wavefront/shade.h>
-#include <btrc/core/wavefront/shadow.h>
-#include <btrc/core/wavefront/sort.h>
-#include <btrc/core/wavefront/trace.h>
+#include <btrc/core/renderer/wavefront/generate.h>
+#include <btrc/core/renderer/wavefront/shade.h>
+#include <btrc/core/renderer/wavefront/shadow.h>
+#include <btrc/core/renderer/wavefront/sort.h>
+#include <btrc/core/renderer/wavefront/trace.h>
 
 using namespace btrc::core;
 
-constexpr int SPP = 128;
+constexpr int SPP = 512;
 constexpr int STATE_COUNT = 2000000;
 
 constexpr int WIDTH = 512;
@@ -118,19 +119,43 @@ Scene build_scene(optix::Context &optix_ctx)
         });
 
     auto black = newRC<Black>();
-    auto box = newRC<TriangleMesh>(optix_ctx, "./asset/box.obj", true);
+    auto box = newRC<TriangleMesh>(optix_ctx, "./asset/cube.obj", true);
     auto box_trans = Transform{
-        .translate = { 0, 0.1f, 0 },
+        .translate = { 0, 0, 0 },
         .scale = 0.1f,
-        .rotate = Quaterion({ 1, 1, 1 }, 2.7f)
+        .rotate = Quaterion({ -1, 1, -1 }, 1.6f)
     };
-    auto light = newRC<MeshLight>(box, box_trans, 4 * Spectrum::from_rgb(1, 1, 1));
+    auto light = newRC<MeshLight>(box, box_trans, 12 * Spectrum::from_rgb(1, 1, 1));
     scene.add_instance(
         Scene::Instance{
             .geometry = std::move(box),
             .material = std::move(black),
             .light = std::move(light),
             .transform = box_trans
+        });
+
+    auto tex_arr2d = newRC<Array2D>();
+    tex_arr2d->initialize("./asset/tex.png", Texture::Description{
+        .address_modes = {
+            Texture::AddressMode::Clamp,
+            Texture::AddressMode::Clamp,
+            Texture::AddressMode::Clamp
+        },
+        .filter_mode = Texture::FilterMode::Point,
+        .srgb_to_linear = false
+    });
+    auto tex_diffuse = newRC<Diffuse>();
+    tex_diffuse->set_albedo(std::move(tex_arr2d));
+    auto tex_box = newRC<TriangleMesh>(optix_ctx, "./asset/cube.obj", true);
+    scene.add_instance(
+        Scene::Instance{
+            .geometry = std::move(tex_box),
+            .material = std::move(tex_diffuse),
+            .transform = Transform{
+                .translate = { 0, 0.25f, 0 },
+                .scale = 0.2f,
+                .rotate = Quaterion({ 1, 1, 1 }, 0.6f)
+            }
         });
 
     auto diffuse_albedo = newRC<Constant2D>();
@@ -153,7 +178,7 @@ Scene build_scene(optix::Context &optix_ctx)
     sky->set_up({ 0, 1, 0 });
     sky->set_lower(Spectrum::zero());
     sky->set_upper(Spectrum::one());
-    scene.set_envir_light(std::move(sky));
+    //scene.set_envir_light(std::move(sky));
 
     scene.preprocess(optix_ctx);
     return scene;
@@ -415,9 +440,9 @@ void run()
 
 int main()
 {
-    run();
     try
     {
+        run();
     }
     catch(const std::exception &err)
     {

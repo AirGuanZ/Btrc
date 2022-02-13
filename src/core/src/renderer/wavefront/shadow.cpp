@@ -1,5 +1,5 @@
 #include <btrc/core/utils/optix/device_funcs.h>
-#include <btrc/core/wavefront/shadow.h>
+#include <btrc/core/renderer/wavefront/shadow.h>
 
 BTRC_WAVEFRONT_BEGIN
 

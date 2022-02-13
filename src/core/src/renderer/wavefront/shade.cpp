@@ -3,7 +3,7 @@
 #include <btrc/core/film/film.h>
 #include <btrc/core/utils/intersection.h>
 #include <btrc/core/utils/optix/device_funcs.h>
-#include <btrc/core/wavefront/shade.h>
+#include <btrc/core/renderer/wavefront/shade.h>
 
 BTRC_WAVEFRONT_BEGIN
 

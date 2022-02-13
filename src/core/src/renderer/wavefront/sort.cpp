@@ -1,4 +1,4 @@
-#include <btrc/core/wavefront/sort.h>
+#include <btrc/core/renderer/wavefront/sort.h>
 
 #include "sort/sort_kernel.h"
 

@@ -11,6 +11,8 @@ public:
 
     void initialize(RC<const Texture> cuda_texture);
 
+    void initialize(const std::string &filename, const Texture::Description &desc);
+
     CSpectrum sample_spectrum_inline(ref<CVec2f> uv) const override;
 
     f32 sample_float_inline(ref<CVec2f> uv) const override;

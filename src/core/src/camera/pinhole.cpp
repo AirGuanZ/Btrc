@@ -34,8 +34,8 @@ void PinholeCamera::set_duration(float beg, float end)
     end_time_ = end;
 }
 
-Camera::SampleWeResult PinholeCamera::generate_ray(
-    const CVec2f &film_coord, f32 time_sample) const
+Camera::SampleWeResult PinholeCamera::generate_ray_inline(
+    ref<CVec2f> film_coord, f32 time_sample) const
 {
     const auto generate_data = preprocess();
 
@@ -48,7 +48,7 @@ Camera::SampleWeResult PinholeCamera::generate_ray(
 
     SampleWeResult result;
     result.throughput = CSpectrum::one();
-    result.pos = eye_;
+    result.pos = CVec3f(eye_);
     result.dir = dir;
     result.time = time;
     return result;

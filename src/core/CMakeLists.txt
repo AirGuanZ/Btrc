@@ -7,7 +7,7 @@ FILE(GLOB_RECURSE CPP_SRC
 		"${CMAKE_CURRENT_SOURCE_DIR}/*.inl"
 		"${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
-SET(CU_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/wavefront/sort/sort_kernel.cu")
+SET(CU_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/renderer/wavefront/sort/sort_kernel.cu")
 
 SET(SRC ${CPP_SRC} ${CU_SRC})
 

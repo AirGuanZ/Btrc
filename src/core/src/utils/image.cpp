@@ -324,13 +324,13 @@ ImageDynamic ImageDynamic::load(const std::string &filename, ImageFormat format)
         if(channels == 3)
         {
             auto image = Image<Vec3b>(width, height);
-            std::memcpy(image.data(), data.data(), sizeof(Vec3b) * data.size());
+            std::memcpy(image.data(), data.data(), sizeof(uint8_t) * data.size());
             return ImageDynamic(std::move(image));
         }
         if(channels == 4)
         {
             auto image = Image<Vec4b>(width, height);
-            std::memcpy(image.data(), data.data(), sizeof(Vec4b) * data.size());
+            std::memcpy(image.data(), data.data(), sizeof(uint8_t) * data.size());
             return ImageDynamic(std::move(image));
         }
         throw BtrcException(

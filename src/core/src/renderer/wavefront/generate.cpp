@@ -1,5 +1,5 @@
 #include <btrc/core/utils/cmath/cmath.h>
-#include <btrc/core/wavefront/generate.h>
+#include <btrc/core/renderer/wavefront/generate.h>
 
 BTRC_WAVEFRONT_BEGIN
 

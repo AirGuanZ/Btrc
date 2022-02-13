@@ -20,8 +20,8 @@ public:
 
     void set_duration(float beg, float end);
 
-    SampleWeResult generate_ray(
-        const CVec2f &film_coord, f32 time_sample) const override;
+    SampleWeResult generate_ray_inline(
+        ref<CVec2f> film_coord, f32 time_sample) const override;
 
 private:
 

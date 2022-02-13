@@ -73,6 +73,7 @@ void Texture::initialize(RC<const Array> arr, const Description &desc)
     cu_desc.filterMode =
         desc.filter_mode == FilterMode::Point ?
         cudaFilterModePoint : cudaFilterModeLinear;
+    cu_desc.normalizedCoords = 1;
 
     const auto format = arr_->get_format();
     if(format == Array::Format::UNorm8x1 ||

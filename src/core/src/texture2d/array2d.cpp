@@ -7,6 +7,13 @@ void Array2D::initialize(RC<const Texture> cuda_texture)
     tex_ = std::move(cuda_texture);
 }
 
+void Array2D::initialize(const std::string &filename, const Texture::Description &desc)
+{
+    auto tex = newRC<Texture>();
+    tex->initialize(filename, desc);
+    tex_ = std::move(tex);
+}
+
 CSpectrum Array2D::sample_spectrum_inline(ref<CVec2f> uv) const
 {
     f32 r, g, b;

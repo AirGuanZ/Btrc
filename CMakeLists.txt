@@ -68,7 +68,12 @@ ADD_SUBDIRECTORY(lib/tinyexr)
 
 SET_TARGET_PROPERTIES(stb tinyexr PROPERTIES FOLDER "ThirdParty")
 
+############## json
+
+ADD_SUBDIRECTORY(lib/nlohmann)
+
 ############## components
 
 ADD_SUBDIRECTORY(src/core)
 ADD_SUBDIRECTORY(src/cli)
+ADD_SUBDIRECTORY(src/factory)
