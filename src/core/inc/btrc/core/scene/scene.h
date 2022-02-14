@@ -71,6 +71,10 @@ public:
 
     const Camera *get_camera() const;
 
+    bool has_motion_blur() const;
+
+    bool is_triangle_only() const;
+
 private:
 
     std::vector<Instance>  instances_;

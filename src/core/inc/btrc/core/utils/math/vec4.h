@@ -20,6 +20,8 @@ public:
     BTRC_XPU Vec4(T x, T y, T z, T w);
 
     BTRC_XPU Vec4(const Vec3<T> &xyz, T w);
+
+    BTRC_XPU Vec3<T> xyz() const;
 };
 
 using Vec4f = Vec4<float>;
@@ -82,6 +84,12 @@ BTRC_XPU Vec4<T>::Vec4(const Vec3<T> &xyz, T w)
     : Vec4(xyz.x, xyz.y, xyz.z, w)
 {
     
+}
+
+template<typename T>
+BTRC_XPU Vec3<T> Vec4<T>::xyz() const
+{
+    return Vec3<T>(x, y, z);
 }
 
 template<typename T>

@@ -25,7 +25,7 @@ public:
         bool normal = false;
     };
 
-    WavefrontPathTracer();
+    explicit WavefrontPathTracer(optix::Context &optix_ctx);
 
     ~WavefrontPathTracer() override;
 
@@ -37,7 +37,7 @@ public:
 
 private:
 
-    void build_pipeline();
+    void build_pipeline() const;
 
     struct Impl;
 

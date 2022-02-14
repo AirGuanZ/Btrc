@@ -10,6 +10,8 @@ struct PathState
 {
     void initialize(int state_count);
 
+    void clear();
+
     void next_iteration();
 
     CUDABuffer<cstd::LCGData> rng;

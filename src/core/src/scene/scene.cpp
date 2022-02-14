@@ -133,4 +133,14 @@ const Camera *Scene::get_camera() const
     return camera_.get();
 }
 
+bool Scene::has_motion_blur() const
+{
+    return false;
+}
+
+bool Scene::is_triangle_only() const
+{
+    return true;
+}
+
 BTRC_CORE_END

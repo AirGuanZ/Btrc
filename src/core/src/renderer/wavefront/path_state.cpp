@@ -15,15 +15,9 @@ namespace
 
 void PathState::initialize(int state_count)
 {
-    {
-        std::vector<cstd::LCGData> rng_init_data(state_count);
-        for(int i = 0; i < state_count; ++i)
-            rng_init_data[i].state = static_cast<uint32_t>(i + 1);
-        rng.initialize(state_count, rng_init_data.data());
-    }
-
     init(
         state_count,
+        rng,
         o_t0,
         d_t1,
         time_mask,
@@ -51,6 +45,17 @@ void PathState::initialize(int state_count)
         next_time_mask,
         next_beta_le,
         next_bsdf_pdf);
+
+    clear();
+}
+
+void PathState::clear()
+{
+    const int state_count = static_cast<int>(rng.get_size());
+    std::vector<cstd::LCGData> rng_init_data(state_count);
+    for(int i = 0; i < state_count; ++i)
+        rng_init_data[i].state = static_cast<uint32_t>(i + 1);
+    rng.from_cpu(rng_init_data.data());
 }
 
 void PathState::next_iteration()

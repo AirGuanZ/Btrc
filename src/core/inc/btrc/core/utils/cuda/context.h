@@ -12,7 +12,7 @@ public:
 
     Context();
 
-    Context(int device_index);
+    explicit Context(int device_index);
 
     Context(Context &&other) noexcept;
 
