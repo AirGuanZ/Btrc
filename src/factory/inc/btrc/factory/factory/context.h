@@ -1,7 +1,7 @@
 #pragma once
 
 #include <btrc/core/common/context.h>
-#include <btrc/core/utils/uncopyable.h>
+#include <btrc/utils/uncopyable.h>
 #include <btrc/factory/node/node.h>
 
 #include <btrc/core/camera/camera.h>
@@ -65,6 +65,9 @@ public:
     template<typename T>
     RC<T> create(RC<const Node> node);
 
+    template<typename T>
+    void add_creator(Box<Creator<T>> creator);
+
 private:
 
     template<typename...Ts>
@@ -116,6 +119,12 @@ RC<T> Context::create(RC<const Node> node)
     auto obj = std::get<Factory<T>>(factorys_).create(node, *this);
     object_pool_[node] = obj;
     return obj;
+}
+
+template<typename T>
+void Context::add_creator(Box<Creator<T>> creator)
+{
+    std::get<Factory<T>>(factorys_).add_creator(std::move(creator));
 }
 
 BTRC_FACTORY_END

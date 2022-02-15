@@ -24,15 +24,15 @@ namespace
                 const auto &val = it.value();
                 ret->insert(it.key(), json_to_node(val));
             }
+            return ret;
         }
-
         if(json.is_array())
         {
             auto ret = newRC<Array>();
             for(auto &elem : json)
                 ret->push_back(json_to_node(elem));
+            return ret;
         }
-
         auto ret = newRC<Value>();
         if(json.is_boolean())
             ret->set_string(json.get<bool>() ? "true" : "false");
@@ -64,9 +64,9 @@ void JSONParser::parse()
     const auto json = js::ordered_json::parse(src_);
     result_ = json_to_node(json)->as_group();
     if(!result_)
-        throw BtrcFactoryException("root node is not a group");
+        throw BtrcException("root node is not a group");
 
-    std::vector<RC<Node>> node_path;
+    std::vector<RC<Node>> node_path = { result_ };
     for(auto &[key, value] : *result_)
         resolve_references(node_path, value);
 }
@@ -93,7 +93,7 @@ path JSONParser::get_absolute_included_file_path(const path &included_file) cons
         }
         if(final_included_file.empty())
         {
-            throw BtrcFactoryException(std::format(
+            throw BtrcException(std::format(
                 "included file '{}' is not found", included_file.string()));
         }
         final_included_file = final_included_file.lexically_normal();
@@ -108,15 +108,15 @@ void JSONParser::process_includes()
 {
     for(;;)
     {
-        size_t beg = src_.find("$include{");
+        size_t beg = src_.find("\"$include{");
         if(beg == std::string::npos)
-            return;
+            break;
 
-        beg += 9;
-        const size_t end = src_.find('}', beg);
+        beg += 10;
+        const size_t end = src_.find("}\"", beg);
         if(end == std::string::npos)
         {
-            throw BtrcFactoryException(
+            throw BtrcException(
                 "failed to find the enclosing '}' of a '$include{'");
         }
 
@@ -124,8 +124,8 @@ void JSONParser::process_includes()
         const auto final_included_file = get_absolute_included_file_path(included_file);
         const auto included = read_txt_file(final_included_file.string());
 
-        const auto prefix = src_.substr(0, beg - 9);
-        const auto suffix = src_.substr(end + 1);
+        const auto prefix = src_.substr(0, beg - 10);
+        const auto suffix = src_.substr(end + 2);
 
         src_ = prefix;
         src_ += included;
@@ -157,7 +157,7 @@ void JSONParser::resolve_references(std::vector<RC<Node>> &current_path, RC<Node
         if(str.find("$reference{") == 0)
         {
             if(str[str.length() - 1] != '}')
-                throw BtrcFactoryException("'}' for '$reference{' is not found");
+                throw BtrcException("'}' for '$reference{' is not found");
             const auto path = str.substr(11, str.length() - 12);
             node = find_node(current_path, path);
         }
@@ -171,16 +171,11 @@ RC<Node> JSONParser::find_node(std::vector<RC<Node>> &current_path, const std::s
         | std::ranges::views::transform(
             [](auto &&s) { return std::string_view(s); });
 
-    auto throw_invalid_node_path = [&]
-    {
-        throw BtrcFactoryException("invalid node path: " + path);
-    };
-
     std::vector<std::string_view> secs;
     for(auto s : ss)
         secs.push_back(s);
     if(secs.empty())
-        throw_invalid_node_path();
+        throw BtrcException("invalid node path: " + path);
 
     auto &start_sec = secs.front();
     int start_index;
@@ -214,21 +209,24 @@ RC<Node> JSONParser::find_node(std::vector<RC<Node>> &current_path, const std::s
         }
     }
     if(start_index < 0)
-        throw_invalid_node_path();
+        throw BtrcException("invalid node path: " + path);
 
     std::vector<RC<Node>> new_path;
     for(int j = 0; j < start_index; ++j)
         new_path.push_back(current_path[j]);
 
     auto node = current_path[start_index];
-    for(auto sec : secs)
+    for(size_t i = 0; i < secs.size(); ++i)
     {
+        auto sec = secs[i];
+        if(i == 0 && sec == "$root")
+            continue;
         new_path.push_back(node);
         if(auto grp = node->as_group())
         {
             node = grp->find_child_node(sec);
             if(!node)
-                throw_invalid_node_path();
+                throw BtrcException("invalid node path: " + path);
         }
         else if(auto arr = node->as_array())
         {
@@ -239,14 +237,14 @@ RC<Node> JSONParser::find_node(std::vector<RC<Node>> &current_path, const std::s
             }
             catch(...)
             {
-                throw_invalid_node_path();
+                throw BtrcException("invalid node path: " + path);
             }
             if(index >= arr->get_size())
-                throw_invalid_node_path();
+                throw BtrcException("invalid node path: " + path);
             node = arr->get_element(index);
         }
         else
-            throw_invalid_node_path();
+            throw BtrcException("invalid node path: " + path);
     }
 
     if(auto val = node->as_value();
@@ -254,7 +252,7 @@ RC<Node> JSONParser::find_node(std::vector<RC<Node>> &current_path, const std::s
     {
         auto &str = val->get_string();
         if(str[str.length() - 1] != '}')
-            throw BtrcFactoryException("'}' for '$reference{' is not found");
+            throw BtrcException("'}' for '$reference{' is not found");
         node = find_node(current_path, str.substr(11, str.length() - 12));
     }
 

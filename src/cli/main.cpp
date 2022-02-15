@@ -1,22 +1,23 @@
 #include <chrono>
 #include <iostream>
 
-#include <btrc/core/camera/pinhole.h>
-#include <btrc/core/common/context.h>
-#include <btrc/core/geometry/triangle_mesh.h>
-#include <btrc/core/light/gradient_sky.h>
-#include <btrc/core/light/mesh_light.h>
-#include <btrc/core/material/black.h>
-#include <btrc/core/material/diffuse.h>
-#include <btrc/core/material/glass.h>
-#include <btrc/core/scene/scene.h>
-#include <btrc/core/texture2d/array2d.h>
-#include <btrc/core/texture2d/constant2d.h>
-#include <btrc/core/utils/cuda/context.h>
-#include <btrc/core/utils/optix/context.h>
-#include <btrc/core/renderer/wavefront.h>
+#include <btrc/builtin/camera/pinhole.h>
+#include <btrc/builtin/geometry/triangle_mesh.h>
+#include <btrc/builtin/light/gradient_sky.h>
+#include <btrc/builtin/light/mesh_light.h>
+#include <btrc/builtin/light_sampler/uniform_light_sampler.h>
+#include <btrc/builtin/material/black.h>
+#include <btrc/builtin/material/diffuse.h>
+#include <btrc/builtin/material/glass.h>
+#include <btrc/builtin/texture2d/array2d.h>
+#include <btrc/builtin/texture2d/constant2d.h>
+#include <btrc/builtin/renderer/wavefront.h>
+#include <btrc/core/scene.h>
+#include <btrc/utils/cuda/context.h>
+#include <btrc/utils/optix/context.h>
 
-using namespace btrc::core;
+using namespace btrc;
+using namespace builtin;
 
 RC<Scene> build_scene(optix::Context &optix_ctx, int width, int height)
 {
@@ -29,6 +30,8 @@ RC<Scene> build_scene(optix::Context &optix_ctx, int width, int height)
     camera->set_fov_y_deg(60);
     camera->set_w_over_h(static_cast<float>(width) / height);
     scene->set_camera(std::move(camera));
+
+    scene->set_light_sampler(newRC<UniformLightSampler>());
 
     auto glass_color = newRC<Constant2D>();
     glass_color->set_value(Spectrum::from_rgb(0.6f, 0.9f, 0.9f));

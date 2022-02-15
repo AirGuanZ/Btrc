@@ -2,9 +2,10 @@
 
 #include <format>
 #include <map>
+#include <span>
 #include <vector>
 
-#include <btrc/factory/common.h>
+#include <btrc/common.h>
 
 BTRC_FACTORY_BEGIN
 
@@ -57,6 +58,8 @@ public:
 
     auto begin() const { return children_.begin(); }
     auto end() const { return children_.end(); }
+
+    auto &get_ordered_keys() const { return ordered_keys_; }
 
 private:
 
@@ -114,13 +117,13 @@ T Node::parse_child(std::string_view name) const
     auto child = this->as_group()->find_child_node(name);
     if(!child)
     {
-        throw BtrcFactoryException(std::format(
+        throw BtrcException(std::format(
             "child {} is not found", name));
     }
     auto value = child->as_value();
     if(!value)
     {
-        throw BtrcFactoryException(std::format(
+        throw BtrcException(std::format(
             "child {} is expected to be of 'value' type", name));
     }
     return value->parse<T>();
@@ -135,7 +138,7 @@ T Node::parse_child_or(std::string_view name, T default_value) const
     auto value = child->as_value();
     if(!value)
     {
-        throw BtrcFactoryException(std::format(
+        throw BtrcException(std::format(
             "child {} is expected to be of 'value' type", name));
     }
     return value->parse<T>();

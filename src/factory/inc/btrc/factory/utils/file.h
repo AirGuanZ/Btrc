@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/factory/common.h>
+#include <btrc/common.h>
 
 BTRC_FACTORY_BEGIN
 
