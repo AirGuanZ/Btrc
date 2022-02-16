@@ -2,8 +2,8 @@
 
 #include <nlohmann/json.hpp>
 
-#include <btrc/factory/utils/file.h>
 #include <btrc/factory/node/parser.h>
+#include <btrc/utils/file.h>
 
 BTRC_FACTORY_BEGIN
 
@@ -61,7 +61,7 @@ void JSONParser::parse()
 {
     process_includes();
 
-    const auto json = js::ordered_json::parse(src_);
+    const auto json = js::ordered_json::parse(src_, nullptr, true, true);
     result_ = json_to_node(json)->as_group();
     if(!result_)
         throw BtrcException("root node is not a group");

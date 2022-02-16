@@ -13,11 +13,6 @@ void Scene::set_envir_light(RC<const EnvirLight> env)
     env_light_ = std::move(env);
 }
 
-void Scene::set_camera(RC<const Camera> camera)
-{
-    camera_ = std::move(camera);
-}
-
 void Scene::set_light_sampler(RC<LightSampler> light_sampler)
 {
     light_sampler_ = std::move(light_sampler);
@@ -129,11 +124,6 @@ int Scene::get_material_count() const
 const Material *Scene::get_material(int id) const
 {
     return materials_[id].get();
-}
-
-const Camera *Scene::get_camera() const
-{
-    return camera_.get();
 }
 
 bool Scene::has_motion_blur() const

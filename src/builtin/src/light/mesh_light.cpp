@@ -2,15 +2,16 @@
 
 BTRC_BUILTIN_BEGIN
 
-MeshLight::MeshLight(
-    RC<const Geometry> geometry,
-    const Transform   &local_to_world,
-    const Spectrum    &intensity)
-    : geometry_(std::move(geometry)),
-      local_to_world_(local_to_world),
-      intensity_(intensity)
+MeshLight::MeshLight(const Spectrum &intensity)
+    : intensity_(intensity)
 {
     
+}
+
+void MeshLight::set_geometry(RC<const Geometry> geometry, const Transform &local_to_world)
+{
+    geometry_ = std::move(geometry);
+    local_to_world_ = local_to_world;
 }
 
 CSpectrum MeshLight::eval_le_inline(
@@ -84,6 +85,12 @@ f32 MeshLight::pdf_li_inline(
                * pdf_area * dist3 / cstd::abs(dot(nor, spt_to_ref));
     };
     return result;
+}
+
+RC<Light> MeshLightCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    auto intensity = node->parse_child<Spectrum>("intensity");
+    return newRC<MeshLight>(intensity);
 }
 
 BTRC_BUILTIN_END

@@ -1,3 +1,5 @@
+#include <random>
+
 #include "./path_state.h"
 
 BTRC_WFPT_BEGIN
@@ -55,6 +57,9 @@ void PathState::clear()
     std::vector<cstd::LCGData> rng_init_data(state_count);
     for(int i = 0; i < state_count; ++i)
         rng_init_data[i].state = static_cast<uint32_t>(i + 1);
+
+    std::default_random_engine random_engine{ std::random_device{}() };
+    std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
     rng.from_cpu(rng_init_data.data());
 }
 

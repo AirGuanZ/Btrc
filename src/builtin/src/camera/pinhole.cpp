@@ -70,4 +70,24 @@ PinholeCamera::GenerateData PinholeCamera::preprocess() const
     return ret;
 }
 
+RC<Camera> PinholeCameraCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    const Vec3f eye = node->parse_child<Vec3f>("eye");
+    const Vec3f dst = node->parse_child<Vec3f>("dst");
+    const Vec3f up  = node->parse_child<Vec3f>("up");
+
+    const float fov_y_deg = node->parse_child<factory::Degree>("fov_y").value;
+    const float beg_time = node->parse_child_or<float>("beg_time", 0);
+    const float end_time = node->parse_child_or<float>("end_time", 0);
+
+    auto camera = newRC<PinholeCamera>();
+    camera->set_eye(eye);
+    camera->set_dst(dst);
+    camera->set_up(up);
+    camera->set_fov_y_deg(fov_y_deg);
+    camera->set_duration(beg_time, end_time);
+
+    return camera;
+}
+
 BTRC_BUILTIN_END

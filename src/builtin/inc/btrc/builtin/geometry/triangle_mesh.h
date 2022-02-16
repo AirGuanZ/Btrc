@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/geometry.h>
+#include <btrc/factory/context.h>
 #include <btrc/utils/cmath/calias.h>
 
 BTRC_BUILTIN_BEGIN
@@ -37,6 +38,15 @@ private:
 
     CAliasTable alias_table_;
     float       total_area_ = 0;
+};
+
+class TriangleMeshCreator : public factory::Creator<Geometry>
+{
+public:
+
+    std::string get_name() const override { return "triangle_mesh"; }
+
+    RC<Geometry> create(RC<const factory::Node> node, factory::Context &context) override;
 };
 
 BTRC_BUILTIN_END

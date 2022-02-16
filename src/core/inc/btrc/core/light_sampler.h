@@ -4,7 +4,7 @@
 
 BTRC_BEGIN
 
-class LightSampler
+class LightSampler : public Object
 {
 public:
 

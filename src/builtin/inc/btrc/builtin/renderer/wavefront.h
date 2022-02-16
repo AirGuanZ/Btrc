@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/renderer.h>
+#include <btrc/factory/context.h>
 
 BTRC_BUILTIN_BEGIN
 
@@ -11,8 +12,6 @@ public:
     struct Params
     {
         int spp    = 128;
-        int width  = 512;
-        int height = 512;
 
         int   min_depth    = 5;
         int   max_depth    = 100;
@@ -33,6 +32,10 @@ public:
 
     void set_scene(RC<const Scene> scene) override;
 
+    void set_film(int width, int height) override;
+
+    void set_camera(RC<const Camera> camera) override;
+
     RenderResult render() const override;
 
 private:
@@ -42,6 +45,15 @@ private:
     struct Impl;
 
     Box<Impl> impl_;
+};
+
+class WavefrontPathTracerCreator : public factory::Creator<Renderer>
+{
+public:
+
+    std::string get_name() const override { return "wfpt"; }
+
+    RC<Renderer> create(RC<const factory::Node> node, factory::Context &context) override;
 };
 
 BTRC_BUILTIN_END

@@ -13,6 +13,9 @@ class Group;
 class Array;
 class Value;
 
+struct Degree { float value; };
+struct Radian { float value; };
+
 class Node : public std::enable_shared_from_this<Node>
 {
 public:
@@ -35,6 +38,15 @@ public:
     RC<const Value> as_value() const;
     RC<Value>       as_value();
 
+    RC<Node>       find_child_node(std::string_view name);
+    RC<const Node> find_child_node(std::string_view name) const;
+
+    RC<Node>       child_node(std::string_view name);
+    RC<const Node> child_node(std::string_view name) const;
+
+    template<typename T>
+    T parse() const;
+
     template<typename T>
     T parse_child(std::string_view name) const;
 
@@ -52,6 +64,9 @@ public:
 
     RC<Node>       find_child_node(std::string_view name);
     RC<const Node> find_child_node(std::string_view name) const;
+
+    RC<Node>       child_node(std::string_view name);
+    RC<const Node> child_node(std::string_view name) const;
 
     auto begin() { return children_.begin(); }
     auto end() { return children_.end(); }
@@ -101,9 +116,6 @@ public:
 
     const std::string &get_string() const;
 
-    template<typename T>
-    T parse() const;
-
 private:
 
     std::string str_;
@@ -120,13 +132,7 @@ T Node::parse_child(std::string_view name) const
         throw BtrcException(std::format(
             "child {} is not found", name));
     }
-    auto value = child->as_value();
-    if(!value)
-    {
-        throw BtrcException(std::format(
-            "child {} is expected to be of 'value' type", name));
-    }
-    return value->parse<T>();
+    return child->parse<T>();
 }
 
 template<typename T>
@@ -135,13 +141,7 @@ T Node::parse_child_or(std::string_view name, T default_value) const
     auto child = this->as_group()->find_child_node(name);
     if(!child)
         return default_value;
-    auto value = child->as_value();
-    if(!value)
-    {
-        throw BtrcException(std::format(
-            "child {} is expected to be of 'value' type", name));
-    }
-    return value->parse<T>();
+    return child->parse<T>();
 }
 
 BTRC_FACTORY_END

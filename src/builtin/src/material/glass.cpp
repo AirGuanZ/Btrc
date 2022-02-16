@@ -128,4 +128,14 @@ RC<Shader> Glass::create_shader(const SurfacePoint &inct) const
     return newRC<ShaderClosure<GlassShaderImpl>>(as_shared(), impl);
 }
 
+RC<Material> GlassCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    auto color = context.create<Texture2D>(node->child_node("color"));
+    auto ior = context.create<Texture2D>(node->child_node("ior"));
+    auto glass = newRC<Glass>();
+    glass->set_color(std::move(color));
+    glass->set_ior(std::move(ior));
+    return glass;
+}
+
 BTRC_BUILTIN_END

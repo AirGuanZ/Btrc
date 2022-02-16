@@ -43,4 +43,16 @@ f32 GradientSky::pdf_li_inline(ref<CVec3f> to_light) const
     return pdf_sample_sphere_uniform();
 }
 
+RC<Light> GradientSkyCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    const Spectrum upper = node->parse_child<Spectrum>("upper");
+    const Spectrum lower = node->parse_child<Spectrum>("lower");
+    const Vec3f up = node->parse_child<Vec3f>("up");
+    auto sky = newRC<GradientSky>();
+    sky->set_upper(upper);
+    sky->set_lower(lower);
+    sky->set_up(up);
+    return sky;
+}
+
 BTRC_BUILTIN_END

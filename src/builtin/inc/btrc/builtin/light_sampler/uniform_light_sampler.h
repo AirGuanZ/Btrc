@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/light_sampler.h>
+#include <btrc/factory/context.h>
 
 BTRC_BUILTIN_BEGIN
 
@@ -30,6 +31,15 @@ private:
 
     int envir_light_index_ = -1;
     RC<const EnvirLight> envir_light_;
+};
+
+class UniformLightSamplerCreator : public factory::Creator<LightSampler>
+{
+public:
+
+    std::string get_name() const override { return "uniform"; }
+
+    RC<LightSampler> create(RC<const factory::Node> node, factory::Context &context) override;
 };
 
 BTRC_BUILTIN_END

@@ -221,4 +221,11 @@ f32 TriangleMesh::pdf(ref<CVec3f> dst_pos, ref<CVec3f> pos) const
     return pdf(pos);
 }
 
+RC<Geometry> TriangleMeshCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    const auto filename = context.resolve_path(node->parse_child<std::string>("filename")).string();
+    const bool transform_to_unit_cube = node->parse_child_or<bool>("transform_to_unit_cube", false);
+    return newRC<TriangleMesh>(context.get_optix_context(), filename, transform_to_unit_cube);
+}
+
 BTRC_BUILTIN_END

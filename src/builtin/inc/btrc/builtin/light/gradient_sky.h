@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/light.h>
+#include <btrc/factory/context.h>
 
 BTRC_BUILTIN_BEGIN
 
@@ -25,6 +26,15 @@ public:
     SampleLiResult sample_li_inline(ref<CVec3f> sam) const override;
 
     f32 pdf_li_inline(ref<CVec3f> to_light) const override;
+};
+
+class GradientSkyCreator : public factory::Creator<Light>
+{
+public:
+
+    std::string get_name() const override { return "gradient_sky"; }
+
+    RC<Light> create(RC<const factory::Node> node, factory::Context &context) override;
 };
 
 BTRC_BUILTIN_END

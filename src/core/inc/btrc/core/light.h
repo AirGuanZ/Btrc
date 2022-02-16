@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/context.h>
+#include <btrc/core/geometry.h>
 #include <btrc/core/spectrum.h>
 #include <btrc/utils/cmath/cmath.h>
 
@@ -34,6 +35,9 @@ public:
     bool is_area() const noexcept final { return true; }
 
     const AreaLight *as_area() const final { return this; }
+
+    virtual void set_geometry(
+        RC<const Geometry> geometry, const Transform &local_to_world) = 0;
 
     virtual CSpectrum eval_le_inline(
         ref<CVec3f> pos,

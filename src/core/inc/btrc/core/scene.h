@@ -51,8 +51,6 @@ public:
 
     void set_envir_light(RC<const EnvirLight> env);
 
-    void set_camera(RC<const Camera> camera);
-
     void set_light_sampler(RC<LightSampler> light_sampler);
 
     void preprocess(optix::Context &optix_ctx);
@@ -71,8 +69,6 @@ public:
 
     const Material *get_material(int id) const;
 
-    const Camera *get_camera() const;
-
     bool has_motion_blur() const;
 
     bool is_triangle_only() const;
@@ -81,7 +77,6 @@ private:
 
     std::vector<Instance>  instances_;
     RC<const EnvirLight>   env_light_;
-    RC<const Camera>       camera_;
 
     optix::InstanceAS               tlas_;
     std::vector<RC<const Material>> materials_;

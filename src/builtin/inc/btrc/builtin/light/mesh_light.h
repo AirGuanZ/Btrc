@@ -2,6 +2,7 @@
 
 #include <btrc/core/geometry.h>
 #include <btrc/core/light.h>
+#include <btrc/factory/context.h>
 
 BTRC_BUILTIN_BEGIN
 
@@ -9,10 +10,9 @@ class MeshLight : public AreaLight
 {
 public:
 
-    explicit MeshLight(
-        RC<const Geometry> geometry,
-        const Transform   &local_to_world,
-        const Spectrum    &intensity);
+    explicit MeshLight(const Spectrum &intensity);
+
+    void set_geometry(RC<const Geometry> geometry, const Transform &local_to_world) override;
 
     CSpectrum eval_le_inline(
         ref<CVec3f> pos,
@@ -35,6 +35,15 @@ private:
     RC<const Geometry> geometry_;
     Transform          local_to_world_;
     Spectrum           intensity_;
+};
+
+class MeshLightCreator : public factory::Creator<Light>
+{
+public:
+
+    std::string get_name() const override { return "mesh_light"; }
+
+    RC<Light> create(RC<const factory::Node> node, factory::Context &context) override;
 };
 
 BTRC_BUILTIN_END

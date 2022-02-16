@@ -13,8 +13,12 @@ struct WavefrontPathTracer::Impl
 {
     optix::Context *optix_ctx = nullptr;
 
-    Params          params;
-    RC<const Scene> scene;
+    Params           params;
+    RC<const Scene>  scene;
+    RC<const Camera> camera;
+
+    int width = 512;
+    int height = 512;
 
     bool is_dirty = true;
 
@@ -47,6 +51,18 @@ void WavefrontPathTracer::set_params(const Params &params)
 void WavefrontPathTracer::set_scene(RC<const Scene> scene)
 {
     impl_->scene = scene;
+    impl_->is_dirty = true;
+}
+
+void WavefrontPathTracer::set_camera(RC<const Camera> camera)
+{
+    impl_->camera = std::move(camera);
+}
+
+void WavefrontPathTracer::set_film(int width, int height)
+{
+    impl_->width = width;
+    impl_->height = height;
     impl_->is_dirty = true;
 }
 
@@ -149,10 +165,10 @@ Renderer::RenderResult WavefrontPathTracer::render() const
 
     throw_on_error(cudaStreamSynchronize(nullptr));
 
-    auto value = Image<Vec4f>(params.width, params.height);
-    auto weight = Image<float>(params.width, params.height);
-    auto albedo = params.albedo ? Image<Vec4f>(params.width, params.height) : Image<Vec4f>();
-    auto normal = params.normal ? Image<Vec4f>(params.width, params.height) : Image<Vec4f>();
+    auto value = Image<Vec4f>(impl_->width, impl_->height);
+    auto weight = Image<float>(impl_->width, impl_->height);
+    auto albedo = params.albedo ? Image<Vec4f>(impl_->width, impl_->height) : Image<Vec4f>();
+    auto normal = params.normal ? Image<Vec4f>(impl_->width, impl_->height) : Image<Vec4f>();
 
     impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).to_cpu(&value(0, 0).x);
     impl_->film.get_float_output(Film::OUTPUT_WEIGHT).to_cpu(&weight(0, 0));
@@ -161,7 +177,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     if(params.normal)
         impl_->film.get_float3_output(Film::OUTPUT_NORMAL).to_cpu(&normal(0, 0).x);
 
-    for(int i = 0; i < params.width * params.height; ++i)
+    for(int i = 0; i < impl_->width * impl_->height; ++i)
     {
         float &f = weight.data()[i];
         if(f > 0)
@@ -169,8 +185,8 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     }
 
     RenderResult result;
-    result.value = Image<Vec3f>(params.width, params.height);
-    for(int i = 0; i < params.width * params.height; ++i)
+    result.value = Image<Vec3f>(impl_->width, impl_->height);
+    for(int i = 0; i < impl_->width * impl_->height; ++i)
     {
         const Vec4f &sum = value.data()[i];
         const float ratio = weight.data()[i];
@@ -179,8 +195,8 @@ Renderer::RenderResult WavefrontPathTracer::render() const
 
     if(params.albedo)
     {
-        result.albedo = Image<Vec3f>(params.width, params.height);
-        for(int i = 0; i < params.width * params.height; ++i)
+        result.albedo = Image<Vec3f>(impl_->width, impl_->height);
+        for(int i = 0; i < impl_->width * impl_->height; ++i)
         {
             const Vec4f &sum = albedo.data()[i];
             const float ratio = weight.data()[i];
@@ -189,8 +205,8 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     }
     if(params.normal)
     {
-        result.normal = Image<Vec3f>(params.width, params.height);
-        for(int i = 0; i < params.width * params.height; ++i)
+        result.normal = Image<Vec3f>(impl_->width, impl_->height);
+        for(int i = 0; i < impl_->width * impl_->height; ++i)
         {
             const Vec4f &sum = normal.data()[i];
             const float ratio = weight.data()[i];
@@ -210,7 +226,7 @@ void WavefrontPathTracer::build_pipeline() const
 
     // film
 
-    impl_->film = Film(params.width, params.height);
+    impl_->film = Film(impl_->width, impl_->height);
     impl_->film.add_output(Film::OUTPUT_RADIANCE, Film::Float3);
     impl_->film.add_output(Film::OUTPUT_WEIGHT, Film::Float);
     if(params.albedo)
@@ -221,8 +237,8 @@ void WavefrontPathTracer::build_pipeline() const
     // pipelines
 
     impl_->generate = wfpt::GeneratePipeline(
-        *impl_->scene->get_camera(),
-        { params.width, params.height },
+        *impl_->camera,
+        { impl_->width, impl_->height },
         params.spp, params.state_count);
 
     impl_->trace = wfpt::TracePipeline(
@@ -250,6 +266,22 @@ void WavefrontPathTracer::build_pipeline() const
     // path state
 
     impl_->path_state.initialize(params.state_count);
+}
+
+RC<Renderer> WavefrontPathTracerCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    WavefrontPathTracer::Params params;
+    params.spp          = node->parse_child_or("spp", params.spp);
+    params.min_depth    = node->parse_child_or("min_depth", params.min_depth);
+    params.max_depth    = node->parse_child_or("max_depth", params.max_depth);
+    params.rr_threshold = node->parse_child_or("rr_threshold", params.rr_threshold);
+    params.rr_cont_prob = node->parse_child_or("rr_cont_prob", params.rr_cont_prob);
+    params.state_count  = node->parse_child_or("state_count", params.state_count);
+    params.albedo       = node->parse_child_or("albedo", params.albedo);
+    params.normal       = node->parse_child_or("normal", params.normal);
+    auto wfpt = newRC<WavefrontPathTracer>(context.get_optix_context());
+    wfpt->set_params(params);
+    return wfpt;
 }
 
 BTRC_BUILTIN_END

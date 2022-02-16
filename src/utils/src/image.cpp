@@ -6,6 +6,7 @@
 
 #include <btrc/utils/image.h>
 #include <btrc/utils/scope_guard.h>
+#include <btrc/utils/string.h>
 
 BTRC_BEGIN
 
@@ -176,11 +177,7 @@ namespace image_detail
     ImageFormat infer_format(const std::string &filename)
     {
         auto ext = std::filesystem::path(filename).extension().string();
-        for(auto &a : ext)
-        {
-            if('a' <= a && a <= 'z')
-                a += 'A' - 'a';
-        }
+        to_upper_(ext);
         if(ext == ".PNG")
             return ImageFormat::PNG;
         if(ext == ".JPG" || ext == ".JPEG")

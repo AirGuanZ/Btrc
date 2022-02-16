@@ -60,4 +60,9 @@ RC<Shader> Black::create_shader(const SurfacePoint &inct) const
     return newRC<BlackShader>(inct.frame.z);
 }
 
+RC<Material> BlackCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    return newRC<Black>();
+}
+
 BTRC_BUILTIN_END

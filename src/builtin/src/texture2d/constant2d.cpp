@@ -31,4 +31,12 @@ f32 Constant2D::sample_float_inline(ref<CVec2f> uv) const
         [](const Spectrum &v) { return f32(v.get_lum()); });
 }
 
+RC<Texture2D> Constant2DCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    auto value = node->parse_child<Spectrum>("value");
+    auto result = newRC<Constant2D>();
+    result->set_value(value);
+    return result;
+}
+
 BTRC_BUILTIN_END

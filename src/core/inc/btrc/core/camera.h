@@ -18,11 +18,11 @@ public:
 
     virtual ~Camera() = default;
 
-    virtual SampleWeResult generate_ray_inline(
-        ref<CVec2f> film_coord, f32 time_sample) const = 0;
+    virtual void set_w_over_h(float ratio) = 0;
 
-    SampleWeResult generate_ray(
-        ref<CVec2f> film_record, f32 time_sample) const
+    virtual SampleWeResult generate_ray_inline(ref<CVec2f> film_coord, f32 time_sample) const = 0;
+
+    SampleWeResult generate_ray(ref<CVec2f> film_record, f32 time_sample) const
     {
         return record(
             &Camera::generate_ray_inline, "generate_ray",

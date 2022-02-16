@@ -67,4 +67,9 @@ int UniformLightSampler::get_envir_light_index() const
     return envir_light_index_;
 }
 
+RC<LightSampler> UniformLightSamplerCreator::create(RC<const factory::Node> node, factory::Context &context)
+{
+    return newRC<UniformLightSampler>();
+}
+
 BTRC_BUILTIN_END

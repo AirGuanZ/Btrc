@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/texture2d.h>
+#include <btrc/factory/context.h>
 #include <btrc/utils/cuda/texture.h>
 
 BTRC_BUILTIN_BEGIN
@@ -20,6 +21,15 @@ public:
 private:
 
     RC<const Texture> tex_;
+};
+
+class Array2DCreator : public factory::Creator<Texture2D>
+{
+public:
+
+    std::string get_name() const override { return "array"; }
+
+    RC<Texture2D> create(RC<const factory::Node> node, factory::Context &context) override;
 };
 
 BTRC_BUILTIN_END
