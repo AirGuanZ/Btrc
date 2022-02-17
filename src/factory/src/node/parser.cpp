@@ -1,9 +1,8 @@
-#include <ranges>
-
 #include <nlohmann/json.hpp>
 
 #include <btrc/factory/node/parser.h>
 #include <btrc/utils/file.h>
+#include <btrc/utils/string.h>
 
 BTRC_FACTORY_BEGIN
 
@@ -166,14 +165,7 @@ void JSONParser::resolve_references(std::vector<RC<Node>> &current_path, RC<Node
 
 RC<Node> JSONParser::find_node(std::vector<RC<Node>> &current_path, const std::string &path)
 {
-    auto ss = path
-        | std::ranges::views::split('/')
-        | std::ranges::views::transform(
-            [](auto &&s) { return std::string_view(s); });
-
-    std::vector<std::string_view> secs;
-    for(auto s : ss)
-        secs.push_back(s);
+    const auto secs = split(path, '/');
     if(secs.empty())
         throw BtrcException("invalid node path: " + path);
 
@@ -196,7 +188,7 @@ RC<Node> JSONParser::find_node(std::vector<RC<Node>> &current_path, const std::s
             {
                 try
                 {
-                    const size_t index = std::stoul(std::string(start_sec));
+                    const size_t index = std::stoul(start_sec);
                     if(index < arr->get_size())
                         break;
                 }
@@ -233,7 +225,7 @@ RC<Node> JSONParser::find_node(std::vector<RC<Node>> &current_path, const std::s
             size_t index = 0;
             try
             {
-                index = std::stoul(std::string(sec));
+                index = std::stoul(sec);
             }
             catch(...)
             {
