@@ -8,6 +8,12 @@ CFrame::CFrame()
     
 }
 
+CFrame::CFrame(const Frame &f)
+    : CFrame(f.x, f.y, f.z)
+{
+    
+}
+
 CFrame::CFrame(const CVec3f &_x, const CVec3f &_y, const CVec3f &_z)
 {
     x = _x;

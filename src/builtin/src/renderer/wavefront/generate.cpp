@@ -186,9 +186,12 @@ int GeneratePipeline::generate(
     finished_spp_   += finished_pixel_ / pixel_count_;
     finished_pixel_ %= pixel_count_;
 
-    printf("%f\n", float(finished_spp_) / spp_);
-
     return new_state_count;
+}
+
+float GeneratePipeline::get_generated_percentage() const
+{
+    return 100.0f * finished_spp_ / spp_;
 }
 
 BTRC_WFPT_END

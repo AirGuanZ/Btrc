@@ -11,6 +11,8 @@ CUJ_PROXY_CLASS_EX(CFrame, Frame, x, y, z)
 
     CFrame();
 
+    CFrame(const Frame &f);
+
     CFrame(const CVec3f &x, const CVec3f &y, const CVec3f &z);
 
     static CFrame from_x(const CVec3f &x);

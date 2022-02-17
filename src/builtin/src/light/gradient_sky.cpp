@@ -14,7 +14,7 @@ void GradientSky::set_upper(const Spectrum &upper)
 
 void GradientSky::set_up(const Vec3f &up)
 {
-    up_ = up;
+    up_ = normalize(up);
 }
 
 CSpectrum GradientSky::eval_le_inline(ref<CVec3f> to_light) const

@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <btrc/builtin/register.h>
+#include <btrc/builtin/reporter/console.h>
 #include <btrc/core/scene.h>
 #include <btrc/factory/context.h>
 #include <btrc/factory/node/parser.h>
@@ -11,10 +12,10 @@
 #include <btrc/utils/exception.h>
 #include <btrc/utils/file.h>
 
-using namespace btrc;
-
 void run(const std::string &scene_filename)
 {
+    using namespace btrc;
+
     const auto scene_dir = std::filesystem::path(scene_filename).parent_path();
 
     cuda::Context cuda_context(0);
@@ -49,6 +50,7 @@ void run(const std::string &scene_filename)
     renderer->set_camera(camera);
     renderer->set_film(width, height);
     renderer->set_scene(scene);
+    renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
     auto result = renderer->render();
     result.value.save("output.exr");
@@ -56,16 +58,22 @@ void run(const std::string &scene_filename)
     result.normal.save("output_normal.png");
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+    if(argc != 2)
+    {
+        std::cout << "usage: BtrcCLI config.json" << std::endl;
+        return 0;
+    }
+
     try
     {
-        run("./asset/test.json");
+        run(argv[1]);
     }
     catch(const std::exception &err)
     {
         std::vector<std::string> err_msgs;
-        extract_hierarchy_exceptions(err, std::back_inserter(err_msgs));
+        btrc::extract_hierarchy_exceptions(err, std::back_inserter(err_msgs));
         for(auto &s : err_msgs)
             std::cerr << s << std::endl;
         return -1;

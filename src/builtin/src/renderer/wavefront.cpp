@@ -16,6 +16,7 @@ struct WavefrontPathTracer::Impl
     Params           params;
     RC<const Scene>  scene;
     RC<const Camera> camera;
+    RC<Reporter>     reporter;
 
     int width = 512;
     int height = 512;
@@ -66,6 +67,11 @@ void WavefrontPathTracer::set_film(int width, int height)
     impl_->is_dirty = true;
 }
 
+void WavefrontPathTracer::set_reporter(RC<Reporter> reporter)
+{
+    impl_->reporter = std::move(reporter);
+}
+
 Renderer::RenderResult WavefrontPathTracer::render() const
 {
     if(impl_->is_dirty)
@@ -77,6 +83,12 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     auto &scene = *impl_->scene;
     auto &soa = impl_->path_state;
     auto &params = impl_->params;
+    auto &reporter = *impl_->reporter;
+
+    reporter.new_stage();
+
+    const uint64_t total_path_count = static_cast<uint64_t>(params.spp) * impl_->width * impl_->height;
+    uint64_t finished_path_count = 0;
 
     int active_state_count = 0;
     while(!impl_->generate.is_done() || active_state_count > 0)
@@ -109,7 +121,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .state_index   = soa.active_state_indices
             });
 
-        // sort
+        // TODO: sort
 
         const auto shade_counters = impl_->shade.shade(
             active_state_count,
@@ -144,8 +156,10 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .output_bsdf_pdf             = soa.next_bsdf_pdf
             });
 
+        finished_path_count += active_state_count - shade_counters.active_state_counter;
+        reporter.progress(100.0f * finished_path_count / total_path_count);
         active_state_count = shade_counters.active_state_counter;
-        
+
         if(shade_counters.shadow_ray_counter)
         {
             impl_->shadow.test(
@@ -164,6 +178,8 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     }
 
     throw_on_error(cudaStreamSynchronize(nullptr));
+
+    reporter.complete_stage();
 
     auto value = Image<Vec4f>(impl_->width, impl_->height);
     auto weight = Image<float>(impl_->width, impl_->height);

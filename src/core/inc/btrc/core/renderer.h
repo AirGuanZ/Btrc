@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/context.h>
+#include <btrc/core/reporter.h>
 #include <btrc/core/scene.h>
 #include <btrc/utils/image.h>
 
@@ -22,6 +23,8 @@ public:
     virtual void set_camera(RC<const Camera> camera) = 0;
 
     virtual void set_film(int width, int height) = 0;
+
+    virtual void set_reporter(RC<Reporter> reporter) = 0;
 
     virtual RenderResult render() const = 0;
 };

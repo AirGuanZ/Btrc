@@ -169,7 +169,7 @@ namespace image_detail
         if(height)
             *height = y;
 
-        std::vector<Vec3f> result(x * y * 3);
+        std::vector<Vec3f> result(x * y);
         std::memcpy(result.data(), floats, sizeof(float) * x * y * 3);
         return result;
     }

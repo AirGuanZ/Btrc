@@ -32,9 +32,11 @@ public:
 
     void set_scene(RC<const Scene> scene) override;
 
+    void set_camera(RC<const Camera> camera) override;
+
     void set_film(int width, int height) override;
 
-    void set_camera(RC<const Camera> camera) override;
+    void set_reporter(RC<Reporter> reporter) override;
 
     RenderResult render() const override;
 

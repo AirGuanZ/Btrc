@@ -70,6 +70,8 @@ public:
         int active_state_count,
         const SOAParams &launch_params);
 
+    float get_generated_percentage() const;
+
 private:
 
     void initialize(

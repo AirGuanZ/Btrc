@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/core/common.h>
+#include <btrc/common.h>
 
 BTRC_BEGIN
 
