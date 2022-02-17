@@ -1,6 +1,7 @@
 #include <btrc/builtin/camera/pinhole.h>
 #include <btrc/builtin/geometry/triangle_mesh.h>
 #include <btrc/builtin/light/gradient_sky.h>
+#include <btrc/builtin/light/ibl.h>
 #include <btrc/builtin/light/mesh_light.h>
 #include <btrc/builtin/light_sampler/uniform_light_sampler.h>
 #include <btrc/builtin/material/black.h>
@@ -26,6 +27,7 @@ void register_builtin_creators(factory::Factory<Geometry> &factory)
 void register_builtin_creators(factory::Factory<Light> &factory)
 {
     factory.add_creator(newBox<GradientSkyCreator>());
+    factory.add_creator(newBox<IBLCreator>());
     factory.add_creator(newBox<MeshLightCreator>());
 }
 
