@@ -100,9 +100,19 @@ Spectrum operator+(const Spectrum &a, const Spectrum &b)
     return Spectrum::from_rgb(a.r + b.r, a.g + b.g, a.b + b.b);
 }
 
+Spectrum operator-(const Spectrum &a, const Spectrum &b)
+{
+    return Spectrum::from_rgb(a.r - b.r, a.g - b.g, a.b - b.b);
+}
+
 Spectrum operator*(const Spectrum &a, const Spectrum &b)
 {
     return Spectrum::from_rgb(a.r * b.r, a.g * b.g, a.b * b.b);
+}
+
+Spectrum operator/(const Spectrum &a, const Spectrum &b)
+{
+    return Spectrum::from_rgb(a.r / b.r, a.g / b.g, a.b / b.b);
 }
 
 Spectrum operator+(const Spectrum &a, float b)
@@ -135,9 +145,19 @@ CSpectrum operator+(const CSpectrum &a, const CSpectrum &b)
     return CSpectrum::from_rgb(a.r + b.r, a.g + b.g, a.b + b.b);
 }
 
+CSpectrum operator-(const CSpectrum &a, const CSpectrum &b)
+{
+    return CSpectrum::from_rgb(a.r - b.r, a.g - b.g, a.b - b.b);
+}
+
 CSpectrum operator*(const CSpectrum &a, const CSpectrum &b)
 {
     return CSpectrum::from_rgb(a.r * b.r, a.g * b.g, a.b * b.b);
+}
+
+CSpectrum operator/(const CSpectrum &a, const CSpectrum &b)
+{
+    return CSpectrum::from_rgb(a.r / b.r, a.g / b.g, a.b / b.b);
 }
 
 CSpectrum operator+(const CSpectrum &a, f32 b)

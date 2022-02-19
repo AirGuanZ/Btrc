@@ -1,7 +1,6 @@
 #pragma once
 
-#include <btrc/utils/cmath/cmath.h>
-#include <btrc/core/shader/shader.h>
+#include <btrc/core/material.h>
 
 BTRC_BEGIN
 

@@ -54,8 +54,10 @@ void run(const std::string &scene_filename)
 
     auto result = renderer->render();
     result.value.save("output.exr");
-    result.albedo.save("output_albedo.png");
-    result.normal.save("output_normal.png");
+    if(result.albedo)
+        result.albedo.save("output_albedo.png");
+    if(result.normal)
+        result.normal.save("output_normal.png");
 }
 
 int main(int argc, char *argv[])

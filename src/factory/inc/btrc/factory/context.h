@@ -101,6 +101,21 @@ private:
 
 // ========================== impl ==========================
 
+class Constant2DCreator : public Creator<Texture2D>
+{
+public:
+
+    std::string get_name() const override { return "constant"; }
+
+    RC<Texture2D> create(RC<const Node> node, Context &context) override
+    {
+        auto value = node->parse_child<Spectrum>("value");
+        auto result = newRC<Constant2D>();
+        result->set_value(value);
+        return result;
+    }
+};
+
 template<typename T>
 void Factory<T>::add_creator(Box<Creator<T>> creator)
 {
@@ -127,7 +142,7 @@ RC<T> Factory<T>::create(RC<const Node> node, Context &ctx)
 inline Context::Context(optix::Context &optix_ctx)
     : optix_ctx_(optix_ctx)
 {
-    
+    std::get<Factory<Texture2D>>(factorys_).add_creator(newBox<Constant2DCreator>());
 }
 
 template<typename T>
@@ -143,6 +158,16 @@ RC<T> Context::create(RC<const Node> node)
 
     if(auto it = object_pool_.find(node); it != object_pool_.end())
         return std::dynamic_pointer_cast<T>(it->second);
+    if constexpr(std::is_same_v<T, Texture2D>)
+    {
+        if(node->get_type() == Node::Type::Value || node->get_type() == Node::Type::Array)
+        {
+            auto result = newRC<Constant2D>();
+            auto value = node->parse<Spectrum>();
+            result->set_value(value);
+            return result;
+        }
+    }
     auto obj = std::get<Factory<T>>(factorys_).create(node, *this);
     object_pool_[node] = obj;
     return obj;

@@ -1,6 +1,6 @@
-#include <btrc/builtin/texture2d/constant2d.h>
+#include <btrc/core/texture2d.h>
 
-BTRC_BUILTIN_BEGIN
+BTRC_BEGIN
 
 Constant2D::Constant2D()
 {
@@ -31,12 +31,4 @@ f32 Constant2D::sample_float_inline(ref<CVec2f> uv) const
         [](const Spectrum &v) { return f32(v.get_lum()); });
 }
 
-RC<Texture2D> Constant2DCreator::create(RC<const factory::Node> node, factory::Context &context)
-{
-    auto value = node->parse_child<Spectrum>("value");
-    auto result = newRC<Constant2D>();
-    result->set_value(value);
-    return result;
-}
-
-BTRC_BUILTIN_END
+BTRC_END

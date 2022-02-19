@@ -4,6 +4,7 @@
 #include <btrc/core/surface_point.h>
 #include <btrc/core/spectrum.h>
 #include <btrc/utils/cmath/cmath.h>
+#include <btrc/utils/variant.h>
 
 BTRC_BEGIN
 
@@ -50,6 +51,23 @@ public:
         using T = f32(Texture2D::*)(ref<SurfacePoint>)const;
         return record(T(&Texture2D::sample_float_inline), "sample_float_spt", spt);
     }
+};
+
+class Constant2D : public Texture2D
+{
+    Variant<float, Spectrum> value_;
+
+public:
+
+    Constant2D();
+
+    void set_value(float value);
+
+    void set_value(const Spectrum &value);
+
+    f32 sample_float_inline(ref<CVec2f> uv) const override;
+
+    CSpectrum sample_spectrum_inline(ref<CVec2f> uv) const override;
 };
 
 BTRC_END

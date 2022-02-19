@@ -9,7 +9,6 @@
 #include <btrc/builtin/material/glass.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
-#include <btrc/builtin/texture2d/constant2d.h>
 #include <btrc/builtin/register.h>
 
 BTRC_BUILTIN_BEGIN
@@ -51,7 +50,6 @@ void register_builtin_creators(factory::Factory<Renderer> &factory)
 void register_builtin_creators(factory::Factory<Texture2D> &factory)
 {
     factory.add_creator(newBox<Array2DCreator>());
-    factory.add_creator(newBox<Constant2DCreator>());
 }
 
 void register_builtin_creators(factory::Context &context)

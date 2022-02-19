@@ -59,6 +59,13 @@ namespace local_angle
         return result;
     }
 
+    // w and n must be normalized
+    // w: from reflection point to 
+    inline CVec3f reflect(ref<CVec3f> w, ref<CVec3f> n)
+    {
+        return 2.0f * dot(w, n) * n - w;
+    }
+
 } // namespace local_angle
 
 BTRC_END

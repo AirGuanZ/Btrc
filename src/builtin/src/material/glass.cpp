@@ -1,7 +1,7 @@
 #include <btrc/builtin/material/glass.h>
-#include <btrc/core/shader/shader_closure.h>
-#include <btrc/core/shader/shader_frame.h>
-#include <btrc/core/shader/shader_utils.h>
+#include <btrc/builtin/material/utils/fresnel.h>
+#include <btrc/builtin/material/utils/shader_closure.h>
+#include <btrc/builtin/material/utils/shader_frame.h>
 
 BTRC_BUILTIN_BEGIN
 

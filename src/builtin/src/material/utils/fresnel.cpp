@@ -1,29 +1,8 @@
-#pragma once
+#include <btrc/builtin/material/utils/fresnel.h>
 
-#include <btrc/utils/cmath/cmath.h>
+BTRC_BUILTIN_BEGIN
 
-BTRC_BEGIN
-
-// w and n must be normalized
-// w: from reflection point to 
-inline CVec3f reflect(ref<CVec3f> w, ref<CVec3f> n);
-
-/**
- * @brief compute fresnel value of dielectric surface
- *
- * @param eta_i inner IOR
- * @param eta_o outer IOR
- */
-inline f32 dielectric_fresnel(f32 eta_i, f32 eta_o, f32 cos_theta_i);
-
-// ========================== impl ==========================
-
-inline CVec3f reflect(ref<CVec3f> w, ref<CVec3f> n)
-{
-    return 2.0f * dot(w, n) * n - w;
-}
-
-inline f32 dielectric_fresnel(f32 eta_i, f32 eta_o, f32 cos_theta_i)
+f32 dielectric_fresnel(f32 eta_i, f32 eta_o, f32 cos_theta_i)
 {
     $if(cos_theta_i < 0)
     {
@@ -53,4 +32,12 @@ inline f32 dielectric_fresnel(f32 eta_i, f32 eta_o, f32 cos_theta_i)
     return result;
 }
 
-BTRC_END
+CSpectrum schlick_approx(ref<CSpectrum> R0, f32 cos_theta_i)
+{
+    var t = 1.0f - cos_theta_i;
+    var t2 = t * t;
+    var t5 = t2 * t2 * t;
+    return R0 + (CSpectrum::from_rgb(1, 1, 1) - R0) * t5;
+}
+
+BTRC_BUILTIN_END

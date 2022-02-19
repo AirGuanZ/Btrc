@@ -75,7 +75,6 @@ ADD_SUBDIRECTORY(lib/nlohmann)
 ############## components
 
 ADD_SUBDIRECTORY(src/common)
-ADD_SUBDIRECTORY(src/utils)
 ADD_SUBDIRECTORY(src/core)
 ADD_SUBDIRECTORY(src/factory)
 ADD_SUBDIRECTORY(src/builtin)

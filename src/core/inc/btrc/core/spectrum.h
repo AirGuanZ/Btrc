@@ -50,7 +50,9 @@ CSpectrum load_aligned(ptr<CSpectrum> addr);
 void save_aligned(ref<CSpectrum> spec, ptr<CSpectrum> addr);
 
 Spectrum operator+(const Spectrum &a, const Spectrum &b);
+Spectrum operator-(const Spectrum &a, const Spectrum &b);
 Spectrum operator*(const Spectrum &a, const Spectrum &b);
+Spectrum operator/(const Spectrum &a, const Spectrum &b);
 
 Spectrum operator+(const Spectrum &a, float b);
 Spectrum operator*(const Spectrum &a, float b);
@@ -60,7 +62,9 @@ Spectrum operator+(float a, const Spectrum &b);
 Spectrum operator*(float a, const Spectrum &b);
 
 CSpectrum operator+(const CSpectrum &a, const CSpectrum &b);
+CSpectrum operator-(const CSpectrum &a, const CSpectrum &b);
 CSpectrum operator*(const CSpectrum &a, const CSpectrum &b);
+CSpectrum operator/(const CSpectrum &a, const CSpectrum &b);
 
 CSpectrum operator+(const CSpectrum &a, f32 b);
 CSpectrum operator*(const CSpectrum &a, f32 b);
