@@ -53,11 +53,11 @@ void run(const std::string &scene_filename)
     renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
     auto result = renderer->render();
-    result.value.save("output.exr");
+    result.value.save(root_node->parse_child_or<std::string>("value_filename", "output.exr"));
     if(result.albedo)
-        result.albedo.save("output_albedo.png");
+        result.albedo.save(root_node->parse_child_or<std::string>("albedo_filename", "output_albedo.png"));
     if(result.normal)
-        result.normal.save("output_normal.png");
+        result.normal.save(root_node->parse_child_or<std::string>("normal_filename", "output_normal.png"));
 }
 
 int main(int argc, char *argv[])
