@@ -24,7 +24,7 @@ RC<Shader> Diffuse::create_shader(const SurfacePoint &inct) const
 
 RC<Material> DiffuseCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
-    auto albedo = context.create<Texture2D>(node->child_node("albedo"));
+    auto albedo = context.create<Texture2D>(node->child_node("color"));
     auto ret = newRC<Diffuse>();
     ret->set_albedo(std::move(albedo));
     return ret;

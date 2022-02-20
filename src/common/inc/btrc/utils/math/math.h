@@ -2,6 +2,7 @@
 
 #include <btrc/utils/math/alias.h>
 #include <btrc/utils/math/frame.h>
+#include <btrc/utils/math/hammersley.h>
 #include <btrc/utils/math/quaterion.h>
 #include <btrc/utils/math/scalar.h>
 #include <btrc/utils/math/transform.h>
