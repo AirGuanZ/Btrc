@@ -355,7 +355,7 @@ void ShadePipeline::initialize(
         CVec3f gbuffer_normal;
 
         CSpectrum shadow_bsdf_val;
-        f32 shadow_bsdf_pdf;
+        f32 shadow_bsdf_pdf = 0;
         var emit_shadow_ray = false;
 
         auto handle_material = [&](const Material *mat)

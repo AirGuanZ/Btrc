@@ -11082,8 +11082,22 @@ class parser
                 // comma -> next value
                 if (get_token() == token_type::value_separator)
                 {
-                    // parse a new value
-                    get_token();
+                    if(JSON_HEDLEY_LIKELY(get_token() == token_type::end_array))
+                    {
+                        if(JSON_HEDLEY_UNLIKELY(!sax->end_array()))
+                        {
+                            return false;
+                        }
+
+                        // We are done with this array. Before we can parse a
+                        // new value, we need to evaluate the new state first.
+                        // By setting skip_to_state_evaluation to false, we
+                        // are effectively jumping to the beginning of this if.
+                        JSON_ASSERT(!states.empty());
+                        states.pop_back();
+                        skip_to_state_evaluation = true;
+                    }
+
                     continue;
                 }
 
@@ -11115,8 +11129,25 @@ class parser
             // comma -> next value
             if (get_token() == token_type::value_separator)
             {
+                if(JSON_HEDLEY_LIKELY(get_token() == token_type::end_object))
+                {
+                    if(JSON_HEDLEY_UNLIKELY(!sax->end_object()))
+                    {
+                        return false;
+                    }
+
+                    // We are done with this object. Before we can parse a
+                    // new value, we need to evaluate the new state first.
+                    // By setting skip_to_state_evaluation to false, we
+                    // are effectively jumping to the beginning of this if.
+                    JSON_ASSERT(!states.empty());
+                    states.pop_back();
+                    skip_to_state_evaluation = true;
+                    continue;
+                }
+
                 // parse key
-                if (JSON_HEDLEY_UNLIKELY(get_token() != token_type::value_string))
+                if (JSON_HEDLEY_UNLIKELY(last_token != token_type::value_string))
                 {
                     return sax->parse_error(m_lexer.get_position(),
                                             m_lexer.get_token_string(),
