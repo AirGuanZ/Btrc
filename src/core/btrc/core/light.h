@@ -40,22 +40,26 @@ public:
         RC<const Geometry> geometry, const Transform &local_to_world) = 0;
 
     virtual CSpectrum eval_le_inline(
-        ref<CVec3f> pos,
-        ref<CVec3f> nor,
-        ref<CVec2f> uv,
-        ref<CVec2f> tex_coord,
-        ref<CVec3f> wr) const = 0;
+        CompileContext &cc,
+        ref<CVec3f>     pos,
+        ref<CVec3f>     nor,
+        ref<CVec2f>     uv,
+        ref<CVec2f>     tex_coord,
+        ref<CVec3f>     wr) const = 0;
 
     virtual SampleLiResult sample_li_inline(
-        ref<CVec3f> ref_pos,
-        ref<CVec3f> sam) const = 0;
+        CompileContext &cc,
+        ref<CVec3f>     ref_pos,
+        ref<CVec3f>     sam) const = 0;
 
     virtual f32 pdf_li_inline(
-        ref<CVec3f> ref_pos,
-        ref<CVec3f> pos,
-        ref<CVec3f> nor) const = 0;
+        CompileContext &cc,
+        ref<CVec3f>     ref_pos,
+        ref<CVec3f>     pos,
+        ref<CVec3f>     nor) const = 0;
 
     CSpectrum eval_le(
+        CompileContext &cc,
         ref<CVec3f> pos,
         ref<CVec3f> nor,
         ref<CVec2f> uv,
@@ -63,26 +67,28 @@ public:
         ref<CVec3f> wr) const
     {
         return record(
-            &AreaLight::eval_le_inline, "eval_le",
+            cc, &AreaLight::eval_le_inline, "eval_le",
             pos, nor, uv, tex_coord, wr);
     }
 
     SampleLiResult sample_li(
+        CompileContext &cc,
         ref<CVec3f> ref_pos,
         ref<CVec3f> sam) const
     {
         return record(
-            &AreaLight::sample_li_inline, "sample_li",
+            cc, &AreaLight::sample_li_inline, "sample_li",
             ref_pos, sam);
     }
 
     f32 pdf_li(
+        CompileContext &cc,
         ref<CVec3f> ref_pos,
         ref<CVec3f> pos,
         ref<CVec3f> nor) const
     {
         return record(
-            &AreaLight::pdf_li_inline, "pdf_li",
+            cc, &AreaLight::pdf_li_inline, "pdf_li",
             ref_pos, pos, nor);
     }
 };
@@ -101,25 +107,25 @@ public:
 
     const EnvirLight *as_envir() const final { return this; }
 
-    virtual CSpectrum eval_le_inline(ref<CVec3f> to_light) const = 0;
+    virtual CSpectrum eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const = 0;
 
-    virtual SampleLiResult sample_li_inline(ref<CVec3f> sam) const = 0;
+    virtual SampleLiResult sample_li_inline(CompileContext &cc, ref<CVec3f> sam) const = 0;
 
-    virtual f32 pdf_li_inline(ref<CVec3f> to_light) const = 0;
+    virtual f32 pdf_li_inline(CompileContext &cc, ref<CVec3f> to_light) const = 0;
 
-    CSpectrum eval_le(const CVec3f &to_light) const
+    CSpectrum eval_le(CompileContext &cc, const CVec3f &to_light) const
     {
-        return record(&EnvirLight::eval_le_inline, "eval_le", to_light);
+        return record(cc, &EnvirLight::eval_le_inline, "eval_le", to_light);
     }
 
-    SampleLiResult sample_li(ref<CVec3f> sam) const
+    SampleLiResult sample_li(CompileContext &cc, ref<CVec3f> sam) const
     {
-        return record(&EnvirLight::sample_li_inline, "sample_li", sam);
+        return record(cc, &EnvirLight::sample_li_inline, "sample_li", sam);
     }
 
-    f32 pdf_li(ref<CVec3f> to_light) const
+    f32 pdf_li(CompileContext &cc, ref<CVec3f> to_light) const
     {
-        return record(&EnvirLight::pdf_li_inline, "pdf_li", to_light);
+        return record(cc, &EnvirLight::pdf_li_inline, "pdf_li", to_light);
     }
 };
 

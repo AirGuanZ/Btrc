@@ -17,15 +17,15 @@ public:
 
     void preprocess(const Vec2i &lut_res);
 
-    CSpectrum eval_le_inline(ref<CVec3f> to_light) const override;
+    CSpectrum eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const override;
 
-    SampleLiResult sample_li_inline(ref<CVec3f> sam) const override;
+    SampleLiResult sample_li_inline(CompileContext &cc, ref<CVec3f> sam) const override;
 
-    f32 pdf_li_inline(ref<CVec3f> to_light) const override;
+    f32 pdf_li_inline(CompileContext &cc, ref<CVec3f> to_light) const override;
 
 private:
 
-    CSpectrum eval_local(ref<CVec3f> normalized_to_light) const;
+    CSpectrum eval_local(CompileContext &cc, ref<CVec3f> normalized_to_light) const;
 
     RC<const Texture2D>    tex_;
     Frame                  frame_;

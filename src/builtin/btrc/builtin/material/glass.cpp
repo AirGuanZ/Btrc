@@ -118,13 +118,13 @@ void Glass::set_ior(RC<const Texture2D> ior)
     ior_ = std::move(ior);
 }
 
-RC<Shader> Glass::create_shader(const SurfacePoint &inct) const
+RC<Shader> Glass::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     GlassShaderImpl impl;
     impl.frame.geometry = inct.frame;
     impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
-    impl.color = color_->sample_spectrum(inct);
-    impl.ior = ior_->sample_float(inct);
+    impl.color = color_->sample_spectrum(cc, inct);
+    impl.ior = ior_->sample_float(cc, inct);
     return newRC<ShaderClosure<GlassShaderImpl>>(as_shared(), impl);
 }
 

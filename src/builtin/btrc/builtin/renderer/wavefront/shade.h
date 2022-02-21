@@ -127,6 +127,7 @@ public:
     ShadePipeline() = default;
 
     ShadePipeline(
+        CompileContext    &cc,
         Film              &film,
         const Scene       &scene,
         const ShadeParams &shade_params);
@@ -146,11 +147,13 @@ public:
 private:
 
     void initialize(
+        CompileContext    &cc,
         Film              &film,
         const Scene       &scene,
         const ShadeParams &shade_params);
 
     void handle_miss(
+        CompileContext     &cc,
         const LightSampler *light_sampler,
         ref<CSOAParams>     soa_params,
         i32                 soa_index,

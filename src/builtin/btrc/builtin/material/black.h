@@ -9,7 +9,7 @@ class Black : public Material
 {
 public:
 
-    RC<Shader> create_shader(const SurfacePoint &inct) const override;
+    RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 };
 
 class BlackCreator : public factory::Creator<Material>

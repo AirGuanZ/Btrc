@@ -12,7 +12,7 @@ public:
 
     void set_albedo(RC<const Texture2D> albedo);
     
-    RC<Shader> create_shader(const SurfacePoint &inct) const override;
+    RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 
 private:
 

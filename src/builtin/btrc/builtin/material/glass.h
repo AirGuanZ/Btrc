@@ -14,7 +14,7 @@ public:
 
     void set_ior(RC<const Texture2D> ior);
 
-    RC<Shader> create_shader(const SurfacePoint &inct) const override;
+    RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 
 private:
 

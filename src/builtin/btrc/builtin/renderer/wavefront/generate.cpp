@@ -19,10 +19,14 @@ GeneratePipeline::GeneratePipeline()
 }
 
 GeneratePipeline::GeneratePipeline(
-    const Camera &camera, const Vec2i &film_res, int spp, int state_count)
+    CompileContext &cc,
+    const Camera   &camera,
+    const Vec2i    &film_res,
+    int             spp,
+    int             state_count)
     : GeneratePipeline()
 {
-    initialize(camera, film_res, spp, state_count);
+    initialize(cc, camera, film_res, spp, state_count);
 }
 
 GeneratePipeline::GeneratePipeline(GeneratePipeline &&other) noexcept
@@ -65,7 +69,11 @@ void GeneratePipeline::clear()
 }
 
 void GeneratePipeline::initialize(
-    const Camera &camera, const Vec2i &film_res, int spp, int state_count)
+    CompileContext &cc,
+    const Camera   &camera,
+    const Vec2i    &film_res,
+    int             spp,
+    int             state_count)
 {
     using namespace cuj;
 
@@ -83,7 +91,7 @@ void GeneratePipeline::initialize(
 
     auto generate_kernel = kernel(
         GENERATE_KERNEL_NAME,
-        [&camera, this](
+        [&cc, &camera, this](
             CSOAParams soa_params,
             i32        initial_pixel_index,
             i32        new_state_count,
@@ -112,7 +120,7 @@ void GeneratePipeline::initialize(
         f32 time_sample = rng.uniform_float();
 
         auto sample_we_result = camera.generate_ray(
-            CVec2f(film_x, film_y), time_sample);
+            cc, CVec2f(film_x, film_y), time_sample);
 
         soa_params.output_pixel_coord[state_index] = CVec2f(pixel_xf, pixel_yf);
 

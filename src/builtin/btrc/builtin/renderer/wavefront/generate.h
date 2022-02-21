@@ -51,7 +51,11 @@ public:
     GeneratePipeline();
 
     explicit GeneratePipeline(
-        const Camera &camera, const Vec2i &film_res, int spp, int state_count);
+        CompileContext &cc,
+        const Camera   &camera,
+        const Vec2i    &film_res,
+        int             spp,
+        int             state_count);
 
     GeneratePipeline(GeneratePipeline &&other) noexcept;
 
@@ -75,7 +79,11 @@ public:
 private:
 
     void initialize(
-        const Camera &camera, const Vec2i &film_res, int spp, int state_count);
+        CompileContext &cc,
+        const Camera   &camera,
+        const Vec2i    &film_res,
+        int             spp,
+        int             state_count);
 
     Vec2i film_res_;
     int64_t pixel_count_;

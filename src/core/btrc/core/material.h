@@ -16,6 +16,7 @@ class Shader
 public:
 
     CUJ_CLASS_BEGIN(SampleResult)
+
         CUJ_MEMBER_VARIABLE(CSpectrum, bsdf)
         CUJ_MEMBER_VARIABLE(CVec3f,    dir)
         CUJ_MEMBER_VARIABLE(f32,       pdf)
@@ -32,25 +33,28 @@ public:
     virtual ~Shader() = default;
 
     virtual SampleResult sample(
-        ref<CVec3f>   wo,
-        ref<CVec3f>   sam,
-        TransportMode mode) const = 0;
+        CompileContext &cc,
+        ref<CVec3f>     wo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const = 0;
 
     virtual CSpectrum eval(
-        ref<CVec3f>   wi,
-        ref<CVec3f>   wo,
-        TransportMode mode) const = 0;
+        CompileContext &cc,
+        ref<CVec3f>     wi,
+        ref<CVec3f>     wo,
+        TransportMode   mode) const = 0;
 
     virtual f32 pdf(
-        ref<CVec3f>   wi,
-        ref<CVec3f>   wo,
-        TransportMode mode) const = 0;
+        CompileContext &cc,
+        ref<CVec3f>     wi,
+        ref<CVec3f>     wo,
+        TransportMode   mode) const = 0;
 
-    virtual CSpectrum albedo() const = 0;
+    virtual CSpectrum albedo(CompileContext &cc) const = 0;
 
-    virtual CVec3f normal() const = 0;
+    virtual CVec3f normal(CompileContext &cc) const = 0;
 
-    virtual boolean is_delta() const = 0;
+    virtual boolean is_delta(CompileContext &cc) const = 0;
 };
 
 class Material : public Object
@@ -59,7 +63,7 @@ public:
 
     virtual ~Material() = default;
 
-    virtual RC<Shader> create_shader(const SurfacePoint &inct) const = 0;
+    virtual RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const = 0;
 };
 
 BTRC_END

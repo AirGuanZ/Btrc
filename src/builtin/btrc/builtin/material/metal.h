@@ -16,7 +16,7 @@ public:
 
     void set_anisotropic(RC<const Texture2D> anisoropic);
 
-    RC<Shader> create_shader(const SurfacePoint &inct) const override;
+    RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 
 private:
 

@@ -11,13 +11,25 @@ public:
 
     virtual ~BSDFComponent() = default;
 
-    virtual Shader::SampleResult sample(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const = 0;
+    virtual Shader::SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     lwo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const = 0;
 
-    virtual CSpectrum eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const = 0;
+    virtual CSpectrum eval(
+        CompileContext &cc,
+        ref<CVec3f>     lwi,
+        ref<CVec3f>     lwo,
+        TransportMode   mode) const = 0;
 
-    virtual f32 pdf(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const = 0;
+    virtual f32 pdf(
+        CompileContext &cc,
+        ref<CVec3f>     lwi,
+        ref<CVec3f>     lwo,
+        TransportMode   mode) const = 0;
 
-    virtual CSpectrum albedo() const = 0;
+    virtual CSpectrum albedo(CompileContext &cc) const = 0;
 };
 
 template<typename Impl>
@@ -31,13 +43,25 @@ public:
 
     BSDFComponentClosure(RC<const Object> material, std::string name, ref<Impl> impl);
 
-    Shader::SampleResult sample(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const override;
+    Shader::SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     lwo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const override;
 
-    CSpectrum eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override;
+    CSpectrum eval(
+        CompileContext &cc,
+        ref<CVec3f>     lwi,
+        ref<CVec3f>     lwo,
+        TransportMode   mode) const override;
 
-    f32 pdf(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override;
+    f32 pdf(
+        CompileContext &cc,
+        ref<CVec3f>     lwi,
+        ref<CVec3f>     lwo,
+        TransportMode   mode) const override;
 
-    CSpectrum albedo() const override;
+    CSpectrum albedo(CompileContext &cc) const override;
 };
 
 class BSDFAggregate : public Shader
@@ -51,21 +75,32 @@ public:
     template<typename Impl>
     void add_closure(f32 sample_weight, std::string name, const Impl &impl);
 
-    SampleResult sample(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const override;
+    SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     wo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const override;
 
-    CSpectrum eval(ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const override;
+    CSpectrum eval(
+        CompileContext &cc,
+        ref<CVec3f>     wi,
+        ref<CVec3f>     wo,
+        TransportMode   mode) const override;
 
-    f32 pdf(ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const override;
+    f32 pdf(CompileContext &cc,
+        ref<CVec3f>         wi,
+        ref<CVec3f>         wo,
+        TransportMode       mode) const override;
 
-    CSpectrum albedo() const override;
+    CSpectrum albedo(CompileContext &cc) const override;
 
-    CVec3f normal() const override;
+    CVec3f normal(CompileContext &cc) const override;
 
-    boolean is_delta() const override;
+    boolean is_delta(CompileContext &cc) const override;
 
 private:
 
-    void preprocess() const;
+    void preprocess(CompileContext &cc) const;
 
     struct Component
     {
@@ -85,54 +120,58 @@ private:
 // ========================== impl ==========================
 
 template<typename Impl>
-BSDFComponentClosure<Impl>::BSDFComponentClosure(RC<const Object> material, std::string name, ref<Impl> impl)
+BSDFComponentClosure<Impl>::BSDFComponentClosure(
+    RC<const Object> material, std::string name, ref<Impl> impl)
     : material_(std::move(material)), name_(std::move(name)), impl_(impl)
 {
     
 }
 
 template<typename Impl>
-Shader::SampleResult BSDFComponentClosure<Impl>::sample(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+Shader::SampleResult BSDFComponentClosure<Impl>::sample(
+    CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
 {
     const std::string name = std::format(
         "sample_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
     auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<CVec3f> _sam)
     { return impl.sample(_lwo, _sam, mode); };
-    return CompileContext::get_current_context()->record_object_action(
+    return cc.record_object_action(
         material_, name, action, ref(impl_), lwo, sam);
 }
 
 template<typename Impl>
-CSpectrum BSDFComponentClosure<Impl>::eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+CSpectrum BSDFComponentClosure<Impl>::eval(
+    CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
 {
     const std::string name = std::format(
         "eval_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
     auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwi, ref<CVec3f> _lwo)
     { return impl.eval(_lwi, _lwo, mode); };
-    return CompileContext::get_current_context()->record_object_action(
+    return cc.record_object_action(
         material_, name, action, ref(impl_), lwi, lwo);
 }
 
 template<typename Impl>
-f32 BSDFComponentClosure<Impl>::pdf(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+f32 BSDFComponentClosure<Impl>::pdf(
+    CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
 {
     const std::string name = std::format(
         "pdf_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
     auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwi, ref<CVec3f> _lwo)
     { return impl.pdf(_lwi, _lwo, mode); };
-    return CompileContext::get_current_context()->record_object_action(
+    return cc.record_object_action(
         material_, name, action, ref(impl_), lwi, lwo);
 }
 
 template<typename Impl>
-CSpectrum BSDFComponentClosure<Impl>::albedo() const
+CSpectrum BSDFComponentClosure<Impl>::albedo(CompileContext &cc) const
 {
     const std::string name = std::format("albedo_component_{}", name_);
     auto action = [](ref<Impl> impl) { return impl.albedo(); };
-    return CompileContext::get_current_context()->record_object_action(
+    return cc.record_object_action(
         material_, name, action, ref(impl_));
 }
 

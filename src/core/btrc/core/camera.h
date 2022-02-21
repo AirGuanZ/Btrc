@@ -22,11 +22,9 @@ public:
 
     virtual SampleWeResult generate_ray_inline(ref<CVec2f> film_coord, f32 time_sample) const = 0;
 
-    SampleWeResult generate_ray(ref<CVec2f> film_record, f32 time_sample) const
+    SampleWeResult generate_ray(CompileContext &cc, ref<CVec2f> film_record, f32 time_sample) const
     {
-        return record(
-            &Camera::generate_ray_inline, "generate_ray",
-            film_record, time_sample);
+        return record(cc, &Camera::generate_ray_inline, "generate_ray", film_record, time_sample);
     }
 };
 

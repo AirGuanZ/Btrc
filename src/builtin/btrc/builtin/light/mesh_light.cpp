@@ -15,11 +15,12 @@ void MeshLight::set_geometry(RC<const Geometry> geometry, const Transform &local
 }
 
 CSpectrum MeshLight::eval_le_inline(
-    ref<CVec3f> pos,
-    ref<CVec3f> nor,
-    ref<CVec2f> uv,
-    ref<CVec2f> tex_coord,
-    ref<CVec3f> wr) const
+    CompileContext &cc,
+    ref<CVec3f>     pos,
+    ref<CVec3f>     nor,
+    ref<CVec2f>     uv,
+    ref<CVec2f>     tex_coord,
+    ref<CVec3f>     wr) const
 {
     CSpectrum result;
     $if(dot(nor, wr) >= 0)
@@ -34,8 +35,9 @@ CSpectrum MeshLight::eval_le_inline(
 }
 
 AreaLight::SampleLiResult MeshLight::sample_li_inline(
-    ref<CVec3f> ref_pos,
-    ref<CVec3f> sam) const
+    CompileContext &cc,
+    ref<CVec3f>     ref_pos,
+    ref<CVec3f>     sam) const
 {
     CTransform ctrans = local_to_world_;
 
@@ -66,9 +68,10 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
 }
 
 f32 MeshLight::pdf_li_inline(
-    ref<CVec3f> ref_pos,
-    ref<CVec3f> pos,
-    ref<CVec3f> nor) const
+    CompileContext &cc,
+    ref<CVec3f>     ref_pos,
+    ref<CVec3f>     pos,
+    ref<CVec3f>     nor) const
 {
     f32 result;
     $if(dot(nor, ref_pos - pos) <= 0)

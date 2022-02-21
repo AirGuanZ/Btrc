@@ -16,12 +16,9 @@ namespace
         const RC<const Texture2D> &tex, const Vec2i &lut_res, int n_samples)
     {
         CompileContext cc;
-        CompileContext::push_context(&cc);
-        BTRC_SCOPE_EXIT{ CompileContext::pop_context(); };
-
         cuj::ScopedModule cuj_module;
 
-        cuj::kernel(KERNEL, [&tex, lut_res, n_samples](ptr<f32> table)
+        cuj::kernel(KERNEL, [&cc, &tex, lut_res, n_samples](ptr<f32> table)
         {
             $declare_scope;
 
@@ -50,7 +47,7 @@ namespace
                 i = i + 1;
                 var x = lerp(x0, x1, local_sample.x);
                 var y = lerp(y0, y1, local_sample.y);
-                var value = tex->sample_spectrum(CVec2f(x, y));
+                var value = tex->sample_spectrum(cc, CVec2f(x, y));
                 lum_sum = lum_sum + value.get_lum();
             };
 

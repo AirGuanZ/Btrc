@@ -80,12 +80,13 @@ namespace
 } // namespace anonymous
 
 ShadePipeline::ShadePipeline(
+    CompileContext    &cc,
     Film              &film,
     const Scene       &scene,
     const ShadeParams &shade_params)
     : ShadePipeline()
 {
-    initialize(film, scene, shade_params);
+    initialize(cc, film, scene, shade_params);
 }
 
 ShadePipeline::ShadePipeline(ShadePipeline &&other) noexcept
@@ -151,6 +152,7 @@ ShadePipeline::StateCounters ShadePipeline::shade(
 }
 
 void ShadePipeline::initialize(
+    CompileContext    &cc,
     Film              &film,
     const Scene       &scene,
     const ShadeParams &shade_params)
@@ -193,7 +195,7 @@ void ShadePipeline::initialize(
         var<f32> inct_t = soa_params.inct_t[soa_index];
         $if(inct_t < 0)
         {
-            handle_miss(light_sampler, soa_params, soa_index, path_radiance);
+            handle_miss(cc, light_sampler, soa_params, soa_index, path_radiance);
             $if(depth == 0)
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
@@ -226,7 +228,7 @@ void ShadePipeline::initialize(
             if(!area)
                 return;
 
-            var le = area->eval_le(inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
+            var le = area->eval_le(cc, inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
             var beta_le = load_aligned(soa_params.beta_le + soa_index);
             var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
             $if(bsdf_pdf < 0)
@@ -238,7 +240,7 @@ void ShadePipeline::initialize(
                 var select_light_pdf = light_sampler->pdf(
                     ray_o, ray_time, light_id);
                 var light_dir_pdf = area->pdf_li(
-                    ray_o, inct.position, inct.frame.z);
+                    cc, ray_o, inct.position, inct.frame.z);
                 var light_pdf = select_light_pdf * light_dir_pdf;
                 path_radiance = path_radiance + beta_le * le / (bsdf_pdf + light_pdf);
             };
@@ -322,7 +324,7 @@ void ShadePipeline::initialize(
                         var sam = CVec3f(rng);
                         if(auto area = light->as_area())
                         {
-                            auto sample = area->sample_li(inct.position, sam);
+                            auto sample = area->sample_li(cc, inct.position, sam);
                             var diff = sample.position - inct.position;
                             var shadow_dst = intersection_offset(sample.position, sample.normal, -diff);
                             shadow_o = intersection_offset(inct.position, inct.frame.z, diff);
@@ -334,7 +336,7 @@ void ShadePipeline::initialize(
                         else
                         {
                             assert(!light->is_area());
-                            auto sample = light->as_envir()->sample_li(sam);
+                            auto sample = light->as_envir()->sample_li(cc, sam);
                             shadow_o = intersection_offset(inct.position, inct.frame.z, sample.direction_to_light);
                             shadow_d = sample.direction_to_light;
                             shadow_t1 = btrc_max_float;
@@ -360,27 +362,27 @@ void ShadePipeline::initialize(
 
         auto handle_material = [&](const Material *mat)
         {
-            auto shader = mat->create_shader(inct);
+            auto shader = mat->create_shader(cc, inct);
 
             // gbuffer
 
             $if(depth == 0)
             {
-                gbuffer_albedo = shader->albedo().to_rgb();
-                gbuffer_normal = shader->normal();
+                gbuffer_albedo = shader->albedo(cc).to_rgb();
+                gbuffer_normal = shader->normal(cc);
             };
 
             // shadow ray
 
-            $if(!shader->is_delta())
+            $if(!shader->is_delta(cc))
             {
                 $if(light_id >= 0 & shadow_t1 > EPS & !li.is_zero())
                 {
-                    shadow_bsdf_val = shader->eval(shadow_d, -ray_d, TransportMode::Radiance);
+                    shadow_bsdf_val = shader->eval(cc, shadow_d, -ray_d, TransportMode::Radiance);
                     emit_shadow_ray = !shadow_bsdf_val.is_zero();
                     $if(emit_shadow_ray)
                     {
-                        shadow_bsdf_pdf = shader->pdf(shadow_d, -ray_d, TransportMode::Radiance);
+                        shadow_bsdf_pdf = shader->pdf(cc, shadow_d, -ray_d, TransportMode::Radiance);
                     };
                 };
             };
@@ -388,8 +390,8 @@ void ShadePipeline::initialize(
             // sample bsdf
 
             bsdf_sample = shader->sample(
-                -ray_d, CVec3f(rng), TransportMode::Radiance);
-            is_bsdf_delta = shader->is_delta();
+                cc, -ray_d, CVec3f(rng), TransportMode::Radiance);
+            is_bsdf_delta = shader->is_delta(cc);
         };
 
         var mat_id = instance_id_to_material_id[inst_id];
@@ -510,6 +512,7 @@ void ShadePipeline::initialize(
 }
 
 void ShadePipeline::handle_miss(
+    CompileContext     &cc,
     const LightSampler *light_sampler,
     ref<CSOAParams>     soa_params,
     i32                 soa_index,
@@ -520,7 +523,7 @@ void ShadePipeline::handle_miss(
     if(envir_light)
     {
         var ray_dir = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
-        var le = envir_light->eval_le(ray_dir);
+        var le = envir_light->eval_le(cc, ray_dir);
         var beta_le = load_aligned(soa_params.beta_le + soa_index);
 
         var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
@@ -536,7 +539,7 @@ void ShadePipeline::handle_miss(
 
             var select_light_pdf = light_sampler->pdf(
                 o, time, light_sampler->get_envir_light_index());
-            var envir_light_pdf = envir_light->pdf_li(d);
+            var envir_light_pdf = envir_light->pdf_li(cc, d);
             var light_pdf = select_light_pdf * envir_light_pdf;
 
             var rad = beta_le * le / (bsdf_pdf + light_pdf);

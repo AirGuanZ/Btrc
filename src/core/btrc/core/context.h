@@ -5,12 +5,16 @@
 #include <string>
 
 #include <cuj.h>
+#include <mem_fn_traits.h>
 
 #include <btrc/utils/any.h>
 #include <btrc/utils/bind.h>
 #include <btrc/utils/scope_guard.h>
 
+#include "context.h"
+
 BTRC_BEGIN
+    class CompileContext;
 
 class Object : public std::enable_shared_from_this<Object>
 {
@@ -26,18 +30,12 @@ protected:
 
     template<typename MemberFuncPtr, typename...Args>
         requires std::is_member_function_pointer_v<MemberFuncPtr>
-    auto record(MemberFuncPtr ptr, std::string_view action_name, Args...args) const;
+    auto record(CompileContext &cc, MemberFuncPtr ptr, std::string_view action_name, Args...args) const;
 };
 
 class CompileContext
 {
 public:
-
-    static CompileContext *get_current_context();
-
-    static void push_context(CompileContext *context);
-
-    static void pop_context();
 
     template<typename ObjectAction, typename...Args>
     auto record_object_action(
@@ -74,25 +72,134 @@ namespace object_detail
 {
 
     template<typename F>
-    struct MemberFuncionToClassTypeAux;
-
-    template<typename C, typename F>
-    struct MemberFuncionToClassTypeAux<F C::*>
+    struct BindThisAux { };
+    
+    template<typename Class, typename Ret, typename...Args>
+    struct BindThisAux<Ret(Class::*)(Args...)>
     {
-        using Type = C;
+        Class *class_ptr;
+        Ret(Class::*mem_func_ptr)(Args...);
+    
+        auto operator()(Args...args)
+        {
+            return ((*class_ptr).*mem_func_ptr)(args...);
+        }
     };
+    
+    template<typename Class, typename Ret, typename...Args>
+    struct BindThisAux<Ret(Class::*)(Args...)const>
+    {
+        const Class *class_ptr;
+        Ret(Class::*mem_func_ptr)(Args...)const;
+    
+        auto operator()(Args...args) const
+        {
+            return ((*class_ptr).*mem_func_ptr)(args...);
+        }
+    };
+    
+    template<typename F>
+    struct BindThisAndCCAux { };
+    
+    template<typename Class, typename Ret, typename...Args>
+    struct BindThisAndCCAux<Ret(Class::*)(CompileContext&, Args...)>
+    {
+        Class *class_ptr;
+        CompileContext *cc;
+        Ret(Class::*mem_func_ptr)(CompileContext&, Args...);
+    
+        auto operator()(Args...args)
+        {
+            return ((*class_ptr).*mem_func_ptr)(*cc, args...);
+        }
+    };
+    
+    template<typename Class, typename Ret, typename...Args>
+    struct BindThisAndCCAux<Ret(Class::*)(CompileContext&, Args...)const>
+    {
+        const Class *class_ptr;
+        CompileContext *cc;
+        Ret(Class::*mem_func_ptr)(CompileContext&, Args...)const;
+    
+        auto operator()(Args...args) const
+        {
+            return ((*class_ptr).*mem_func_ptr)(*cc, args...);
+        }
+    };
+
+    template<typename F, typename Class>
+        requires std::is_member_function_pointer_v<F>
+    auto bind_this(F f, Class *class_ptr)
+    {
+        BindThisAux<F> ret;
+        ret.class_ptr = class_ptr;
+        ret.mem_func_ptr = f;
+        return ret;
+    }
+
+    template<typename F, typename Class>
+    auto bind_this(F f, const Class *class_ptr)
+    {
+        BindThisAux<F> ret;
+        ret.class_ptr = class_ptr;
+        ret.mem_func_ptr = f;
+        return ret;
+    }
+
+    template<typename F, typename Class>
+        requires std::is_member_function_pointer_v<F>
+    auto bind_this(F f, Class *class_ptr, CompileContext &cc)
+    {
+        BindThisAndCCAux<F> ret;
+        ret.class_ptr = class_ptr;
+        ret.cc = &cc;
+        ret.mem_func_ptr = f;
+        return ret;
+    }
+
+    template<typename F, typename Class>
+    auto bind_this(F f, const Class *class_ptr, CompileContext &cc)
+    {
+        BindThisAndCCAux<F> ret;
+        ret.class_ptr = class_ptr;
+        ret.cc = &cc;
+        ret.mem_func_ptr = f;
+        return ret;
+    }
 
 } // namespace object_detail
 
 template<typename MemberFuncPtr, typename...Args>
     requires std::is_member_function_pointer_v<MemberFuncPtr>
-auto Object::record(MemberFuncPtr ptr, std::string_view action_name, Args...args) const
+auto Object::record(CompileContext &cc, MemberFuncPtr ptr, std::string_view action_name, Args...args) const
 {
-    using Class = typename object_detail::MemberFuncionToClassTypeAux<MemberFuncPtr>::Type;
+    using Class = typename member_function_pointer_trait<MemberFuncPtr>::class_type;
     static_assert(std::is_base_of_v<Object, Class>);
     auto this_ptr = dynamic_cast<const Class *>(this);
-    return CompileContext::get_current_context()->record_object_action(
-        this->as_shared(), std::string(action_name), bind_this(ptr, this_ptr), args...);
+
+    using MemFnTrait = member_function_pointer_trait<MemberFuncPtr>;
+    if constexpr(MemFnTrait::n_args > 0)
+    {
+        using Arg0 = typename MemFnTrait::template arg<0>;
+        if constexpr(std::is_same_v<std::remove_cvref_t<Arg0>, CompileContext>)
+        {
+            return cc.record_object_action(
+                this->as_shared(), std::string(action_name),
+                object_detail::bind_this(ptr, this_ptr, cc), args...);
+        }
+        else
+        {
+            return cc.record_object_action(
+                this->as_shared(), std::string(action_name),
+                object_detail::bind_this(ptr, this_ptr), args...);
+        }
+    }
+    else
+    {
+        return cc.record_object_action(
+            this->as_shared(), std::string(action_name),
+            object_detail::bind_this(ptr, this_ptr), args...);
+    }
 }
 
 template<typename ObjectAction, typename...Args>

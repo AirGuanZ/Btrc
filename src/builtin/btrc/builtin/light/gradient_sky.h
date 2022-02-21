@@ -21,11 +21,11 @@ public:
 
     void set_up(const Vec3f &up);
 
-    CSpectrum eval_le_inline(ref<CVec3f> to_light) const override;
+    CSpectrum eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const override;
 
-    SampleLiResult sample_li_inline(ref<CVec3f> sam) const override;
+    SampleLiResult sample_li_inline(CompileContext &cc, ref<CVec3f> sam) const override;
 
-    f32 pdf_li_inline(ref<CVec3f> to_light) const override;
+    f32 pdf_li_inline(CompileContext &cc, ref<CVec3f> to_light) const override;
 };
 
 class GradientSkyCreator : public factory::Creator<Light>

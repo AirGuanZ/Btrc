@@ -2,6 +2,8 @@
 
 PROJECT(Btrc)
 
+OPTION(BTRC_BUILD_GUI "build graphics user interface" OFF)
+
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
 
 SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -48,6 +50,15 @@ FIND_PACKAGE(CUDAToolkit REQUIRED)
 #    ADD_DEPENDENCIES(${TARGET_NAME} EmbedPTX_${PTX_TARGET})
 #ENDFUNCTION()
 
+############## opengl
+
+IF(BTRC_BUILD_GUI)
+    FIND_PACKAGE(OpenGL REQUIRED)
+    ADD_SUBDIRECTORY(lib/glfw)
+    ADD_SUBDIRECTORY(lib/glew/build/cmake)
+    SET_TARGET_PROPERTIES(glfw glew glew_s PROPERTIES FOLDER "ThirdParty")
+ENDIF()
+
 ############## cuj
 
 SET(CUJ_BUILD_TEST OFF)
@@ -58,19 +69,21 @@ SET_TARGET_PROPERTIES(cuj PROPERTIES FOLDER "ThirdParty")
 ############## tiny obj loader
 
 ADD_SUBDIRECTORY(lib/tinyobjloader)
-
 SET_TARGET_PROPERTIES(tinyobjloader PROPERTIES FOLDER "ThirdParty")
 
 ############## stb & exr
 
 ADD_SUBDIRECTORY(lib/stb)
 ADD_SUBDIRECTORY(lib/tinyexr)
-
 SET_TARGET_PROPERTIES(stb tinyexr PROPERTIES FOLDER "ThirdParty")
 
 ############## json
 
 ADD_SUBDIRECTORY(lib/nlohmann)
+
+############## member function trait
+
+ADD_SUBDIRECTORY(lib/cpp-member-function-trait)
 
 ############## components
 
@@ -79,3 +92,7 @@ ADD_SUBDIRECTORY(src/core)
 ADD_SUBDIRECTORY(src/factory)
 ADD_SUBDIRECTORY(src/builtin)
 ADD_SUBDIRECTORY(src/cli)
+
+IF(BTRC_BUILD_GUI)
+    ADD_SUBDIRECTORY(src/gui)
+ENDIF()

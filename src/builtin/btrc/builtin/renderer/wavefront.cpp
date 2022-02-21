@@ -12,6 +12,7 @@ BTRC_BUILTIN_BEGIN
 struct WavefrontPathTracer::Impl
 {
     optix::Context *optix_ctx = nullptr;
+    CompileContext *cc = nullptr;
 
     Params           params;
     RC<const Scene>  scene;
@@ -23,7 +24,7 @@ struct WavefrontPathTracer::Impl
 
     bool is_dirty = true;
 
-    Film                 film;
+    Film                   film;
     wfpt::PathState        path_state;
     wfpt::GeneratePipeline generate;
     wfpt::TracePipeline    trace;
@@ -46,6 +47,12 @@ WavefrontPathTracer::~WavefrontPathTracer()
 void WavefrontPathTracer::set_params(const Params &params)
 {
     impl_->params = params;
+    impl_->is_dirty = true;
+}
+
+void WavefrontPathTracer::set_compile_context(CompileContext &cc)
+{
+    impl_->cc = &cc;
     impl_->is_dirty = true;
 }
 
@@ -258,7 +265,7 @@ void WavefrontPathTracer::build_pipeline() const
     // pipelines
 
     impl_->generate = wfpt::GeneratePipeline(
-        *impl_->camera,
+        *impl_->cc, *impl_->camera,
         { impl_->width, impl_->height },
         params.spp, params.state_count);
 
@@ -271,7 +278,8 @@ void WavefrontPathTracer::build_pipeline() const
     impl_->sort = wfpt::SortPipeline();
 
     impl_->shade = wfpt::ShadePipeline(
-        impl_->film, *impl_->scene, wfpt::ShadePipeline::ShadeParams{
+        *impl_->cc, impl_->film, *impl_->scene,
+        wfpt::ShadePipeline::ShadeParams{
             .min_depth = params.min_depth,
             .max_depth = params.max_depth,
             .rr_threshold = params.rr_threshold,

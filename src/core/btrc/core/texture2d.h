@@ -28,28 +28,28 @@ public:
         return sample_float_inline(spt.tex_coord);
     }
 
-    CSpectrum sample_spectrum(ref<CVec2f> uv) const
+    CSpectrum sample_spectrum(CompileContext &cc, ref<CVec2f> uv) const
     {
         using T = CSpectrum(Texture2D::*)(ref<CVec2f>)const;
-        return record(T(&Texture2D::sample_spectrum_inline), "sample_spectrum_uv", uv);
+        return record(cc, T(&Texture2D::sample_spectrum_inline), "sample_spectrum_uv", uv);
     }
 
-    f32 sample_float(ref<CVec2f> uv) const
+    f32 sample_float(CompileContext &cc, ref<CVec2f> uv) const
     {
         using T = f32(Texture2D::*)(ref<CVec2f>)const;
-        return record(T(&Texture2D::sample_float_inline), "sample_float_uv", uv);
+        return record(cc, T(&Texture2D::sample_float_inline), "sample_float_uv", uv);
     }
 
-    CSpectrum sample_spectrum(ref<SurfacePoint> spt) const
+    CSpectrum sample_spectrum(CompileContext &cc, ref<SurfacePoint> spt) const
     {
         using T = CSpectrum(Texture2D::*)(ref<SurfacePoint>)const;
-        return record(T(&Texture2D::sample_spectrum_inline), "sample_spectrum_spt", spt);
+        return record(cc, T(&Texture2D::sample_spectrum_inline), "sample_spectrum_spt", spt);
     }
     
-    f32 sample_float(ref<SurfacePoint> spt) const
+    f32 sample_float(CompileContext &cc, ref<SurfacePoint> spt) const
     {
         using T = f32(Texture2D::*)(ref<SurfacePoint>)const;
-        return record(T(&Texture2D::sample_float_inline), "sample_float_spt", spt);
+        return record(cc, T(&Texture2D::sample_float_inline), "sample_float_spt", spt);
     }
 };
 

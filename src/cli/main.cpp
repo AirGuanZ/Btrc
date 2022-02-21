@@ -21,10 +21,6 @@ void run(const std::string &scene_filename)
     cuda::Context cuda_context(0);
     optix::Context optix_context(cuda_context);
 
-    CompileContext cc;
-    CompileContext::push_context(&cc);
-    BTRC_SCOPE_EXIT{ CompileContext::pop_context(); };
-
     factory::Context btrc_context(optix_context);
     builtin::register_builtin_creators(btrc_context);
     btrc_context.add_path_mapping("scene_directory", scene_dir.string());
@@ -52,7 +48,11 @@ void run(const std::string &scene_filename)
     renderer->set_scene(scene);
     renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
-    auto result = renderer->render();
+    CompileContext cc;
+    renderer->set_compile_context(cc);
+
+    renderer->render_async();
+    auto result = renderer->wait_async();
     result.value.save(root_node->parse_child_or<std::string>("value_filename", "output.exr"));
     if(result.albedo)
         result.albedo.save(root_node->parse_child_or<std::string>("albedo_filename", "output_albedo.png"));

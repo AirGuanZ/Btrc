@@ -14,16 +14,17 @@ void BSDFAggregate::add_component(f32 sample_weight, Box<const BSDFComponent> co
     is_dirty_ = true;
 }
 
-Shader::SampleResult BSDFAggregate::sample(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+Shader::SampleResult BSDFAggregate::sample(
+    CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
 {
-    preprocess();
+    preprocess(cc);
 
     $declare_scope;
     SampleResult result;
 
     $if(frame_.is_black_fringes(wo))
     {
-        result = frame_.sample_black_fringes(wo, sam, albedo());
+        result = frame_.sample_black_fringes(wo, sam, albedo(cc));
         $exit_scope;
     };
 
@@ -40,7 +41,7 @@ Shader::SampleResult BSDFAggregate::sample(ref<CVec3f> wo, ref<CVec3f> sam, Tran
             $if(comp_selector <= c.sample_weight)
             {
                 var new_sam = CVec3f(comp_selector / c.sample_weight, sam.y, sam.z);
-                result = c.component->sample(lwo, new_sam, mode);
+                result = c.component->sample(cc, lwo, new_sam, mode);
                 selected_comp = static_cast<int>(i);
                 selected_comp_weight = c.sample_weight;
                 $exit_scope;
@@ -54,7 +55,7 @@ Shader::SampleResult BSDFAggregate::sample(ref<CVec3f> wo, ref<CVec3f> sam, Tran
         var new_sam = CVec3f(comp_selector / c.sample_weight, sam.y, sam.z);
         selected_comp = static_cast<int>(components_.size() - 1);
         selected_comp_weight = c.sample_weight;
-        result = c.component->sample(lwo, new_sam, mode);
+        result = c.component->sample(cc, lwo, new_sam, mode);
     }
 
     $if(result.pdf <= 0)
@@ -72,8 +73,8 @@ Shader::SampleResult BSDFAggregate::sample(ref<CVec3f> wo, ref<CVec3f> sam, Tran
         auto &c = components_[i];
         $if(selected_comp != static_cast<int>(i))
         {
-            bsdf = bsdf + c.component->eval(lwi, lwo, mode);
-            pdf = pdf + c.sample_weight * c.component->pdf(lwi, lwo, mode);
+            bsdf = bsdf + c.component->eval(cc, lwi, lwo, mode);
+            pdf = pdf + c.sample_weight * c.component->pdf(cc, lwi, lwo, mode);
         };
     }
 
@@ -85,30 +86,32 @@ Shader::SampleResult BSDFAggregate::sample(ref<CVec3f> wo, ref<CVec3f> sam, Tran
     return result;
 }
 
-CSpectrum BSDFAggregate::eval(ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
+CSpectrum BSDFAggregate::eval(
+    CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
 {
-    preprocess();
+    preprocess(cc);
     $declare_scope;
     CSpectrum result;
 
     $if(frame_.is_black_fringes(wi, wo))
     {
-        result = frame_.eval_black_fringes(wi, wo, albedo());
+        result = frame_.eval_black_fringes(wi, wo, albedo(cc));
         $exit_scope;
     };
 
     var lwi = normalize(frame_.shading.global_to_local(wi));
     var lwo = normalize(frame_.shading.global_to_local(wo));
     for(auto &c : components_)
-        result = result + c.component->eval(lwi, lwo, mode);
+        result = result + c.component->eval(cc, lwi, lwo, mode);
     var corr_factor = frame_.correct_shading_energy(wi);
     result = result * corr_factor;
     return result;
 }
 
-f32 BSDFAggregate::pdf(ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
+f32 BSDFAggregate::pdf(
+    CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
 {
-    preprocess();
+    preprocess(cc);
     $declare_scope;
     f32 result;
 
@@ -122,27 +125,27 @@ f32 BSDFAggregate::pdf(ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
     var lwo = normalize(frame_.shading.global_to_local(wo));
     result = 0;
     for(auto &c : components_)
-        result = result + c.sample_weight * c.component->pdf(lwi, lwo, mode);
+        result = result + c.sample_weight * c.component->pdf(cc, lwi, lwo, mode);
     return result / sum_weight_;
 }
 
-CSpectrum BSDFAggregate::albedo() const
+CSpectrum BSDFAggregate::albedo(CompileContext &cc) const
 {
-    preprocess();
+    preprocess(cc);
     return albedo_;
 }
 
-CVec3f BSDFAggregate::normal() const
+CVec3f BSDFAggregate::normal(CompileContext &cc) const
 {
     return frame_.shading.z;
 }
 
-boolean BSDFAggregate::is_delta() const
+boolean BSDFAggregate::is_delta(CompileContext &cc) const
 {
     return is_delta_;
 }
 
-void BSDFAggregate::preprocess() const
+void BSDFAggregate::preprocess(CompileContext &cc) const
 {
     if(!is_dirty_)
         return;
@@ -154,7 +157,7 @@ void BSDFAggregate::preprocess() const
 
     albedo_ = CSpectrum::zero();
     for(auto &c : components_)
-        albedo_ = albedo_ + c.component->albedo();
+        albedo_ = albedo_ + c.component->albedo(cc);
 }
 
 BTRC_BUILTIN_END

@@ -18,17 +18,17 @@ void Metal::set_anisotropic(RC<const Texture2D> anisoropic)
     anisotropic_ = std::move(anisoropic);
 }
 
-RC<Shader> Metal::create_shader(const SurfacePoint &inct) const
+RC<Shader> Metal::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     ShaderFrame frame;
     frame.geometry = inct.frame;
     frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
 
     ConductorFresnelPoint fresnel;
-    fresnel.R0 = R0_->sample_spectrum(inct);
+    fresnel.R0 = R0_->sample_spectrum(cc, inct);
 
-    var roughness = roughness_->sample_float(inct);
-    var anisotropic = anisotropic_->sample_float(inct);
+    var roughness = roughness_->sample_float(cc, inct);
+    var anisotropic = anisotropic_->sample_float(cc, inct);
     MicrofacetReflectionComponentImpl closure(fresnel, roughness, anisotropic);
 
     auto shader = newRC<BSDFAggregate>(as_shared(), false, frame);
