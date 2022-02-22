@@ -12,19 +12,6 @@
 #include <btrc/utils/exception.h>
 #include <btrc/utils/file.h>
 
-// commit
-// recompile
-// update
-// render
-
-/*
- * scene.preprocess()
- * commit()
- * recompile()
- * update_parameters()
- * render()
- */
-
 void process_object(
     btrc::RC<btrc::Object>               object,
     std::set<btrc::RC<btrc::Object>>    &processed_objects,
@@ -101,7 +88,7 @@ void run(const std::string &scene_filename)
 
     renderer->recompile();
 
-    std::cout << "render..." << std::endl;
+    std::cout << "render image..." << std::endl;
 
     auto result = renderer->render();
 

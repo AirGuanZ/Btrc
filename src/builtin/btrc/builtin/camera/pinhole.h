@@ -30,19 +30,19 @@ public:
 
 private:
 
-    PropertySlot<Vec3f> eye_ = new_property<Vec3f>();
-    PropertySlot<Vec3f> dst_ = new_property<Vec3f>();
-    PropertySlot<Vec3f> up_  = new_property<Vec3f>();
+    BTRC_PROPERTY(Vec3f, eye_);
+    BTRC_PROPERTY(Vec3f, dst_);
+    BTRC_PROPERTY(Vec3f, up_);
 
-    PropertySlot<float> beg_time_ = new_property(0.0f);
-    PropertySlot<float> end_time_ = new_property(0.0f);
+    BTRC_PROPERTY(float, beg_time_, 0.0f);
+    BTRC_PROPERTY(float, end_time_, 0.0f);
 
-    PropertySlot<float> fov_y_deg_ = new_property(60.0f);
-    PropertySlot<float> w_over_h_  = new_property(1.0f);
+    BTRC_PROPERTY(float, fov_y_deg_, 60.0f);
+    BTRC_PROPERTY(float, w_over_h_, 1.0f);
 
-    PropertySlot<Vec3f> left_bottom_corner_ = new_property<Vec3f>();
-    PropertySlot<Vec3f> film_x_ = new_property<Vec3f>();
-    PropertySlot<Vec3f> film_y_ = new_property<Vec3f>();
+    BTRC_PROPERTY(Vec3f, left_bottom_corner_);
+    BTRC_PROPERTY(Vec3f, film_x_);
+    BTRC_PROPERTY(Vec3f, film_y_);
 };
 
 class PinholeCameraCreator : public factory::Creator<Camera>

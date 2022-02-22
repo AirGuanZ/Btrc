@@ -37,7 +37,8 @@ public:
 
     Property();
 
-    explicit Property(T *device_pointer, const T &value = {});
+    template<typename...Args>
+    explicit Property(T *device_pointer, Args&&...args);
 
     Property(Property &&other) noexcept;
 
@@ -100,8 +101,8 @@ public:
 
     static PropertyPool &get_instance();
 
-    template<typename T>
-    Property<T> allocate(const T &value);
+    template<typename T, typename...Args>
+    Property<T> allocate(Args&&...args);
 
     template<typename T>
     void release(T *device_pointer);
@@ -179,8 +180,8 @@ protected:
         requires std::is_member_function_pointer_v<MemberFuncPtr>
     auto record(CompileContext &cc, MemberFuncPtr ptr, std::string_view action_name, Args...args) const;
 
-    template<typename T>
-    PropertySlot<T> new_property(const T &value = {});
+    template<typename T, typename...Args>
+    PropertySlot<T> new_property(Args&&...args);
 
     template<typename T>
     ObjectSlot<T> new_object();
@@ -238,14 +239,15 @@ private:
 
 template<typename T>
 Property<T>::Property()
-    : Property(nullptr, {})
+    : Property(nullptr)
 {
 
 }
 
 template<typename T>
-Property<T>::Property(T *device_pointer, const T &value)
-    : is_dirty_(true), value_(value), device_pointer_(device_pointer)
+template<typename...Args>
+Property<T>::Property(T *device_pointer, Args&&...args)
+    : is_dirty_(true), value_(std::forward<Args>(args)...), device_pointer_(device_pointer)
 {
 
 }
@@ -327,11 +329,11 @@ bool Property<T>::is_dirty() const
     return is_dirty_;
 }
 
-template<typename T>
-Property<T> PropertyPool::allocate(const T &value)
+template<typename T, typename...Args>
+Property<T> PropertyPool::allocate(Args&&...args)
 {
     auto device_pointer = allocate_impl(std::type_index(typeid(T)), sizeof(T), alignof(T));
-    return Property<T>(static_cast<T*>(device_pointer), value);
+    return Property<T>(static_cast<T*>(device_pointer), std::forward<Args>(args)...);
 }
 
 template<typename T>
@@ -536,10 +538,10 @@ auto Object::record(CompileContext &cc, MemberFuncPtr ptr, std::string_view acti
     }
 }
 
-template<typename T>
-PropertySlot<T> Object::new_property(const T &value)
+template<typename T, typename...Args>
+PropertySlot<T> Object::new_property(Args&&...args)
 {
-    auto prop = newRC<Property<T>>(PropertyPool::get_instance().allocate<T>(value));
+    auto prop = newRC<Property<T>>(PropertyPool::get_instance().allocate<T>(std::forward<Args>(args)...));
     properties_.push_back(prop.get());
     PropertySlot<T> result;
     result.prop = std::move(prop);
