@@ -4,7 +4,7 @@ BTRC_FACTORY_BEGIN
 
 RC<Scene> create_scene(const RC<const Node> &scene_root, Context &context)
 {
-    auto result = newRC<Scene>();
+    auto result = newRC<Scene>(context.get_optix_context());
 
     auto entity_array = scene_root->child_node("entities")->as_array();
     if(!entity_array)

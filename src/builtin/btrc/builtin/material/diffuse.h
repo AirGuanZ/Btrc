@@ -10,13 +10,15 @@ class Diffuse : public Material
 {
 public:
 
-    void set_albedo(RC<const Texture2D> albedo);
-    
+    void set_albedo(RC<Texture2D> albedo);
+
+    std::vector<RC<Object>> get_dependent_objects() override;
+
     RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 
 private:
 
-    RC<const Texture2D> albedo_;
+    RC<Texture2D> albedo_;
 };
 
 class DiffuseCreator : public factory::Creator<Material>

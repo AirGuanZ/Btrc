@@ -37,7 +37,7 @@ public:
     const AreaLight *as_area() const final { return this; }
 
     virtual void set_geometry(
-        RC<const Geometry> geometry, const Transform &local_to_world) = 0;
+        RC<Geometry> geometry, const Transform &local_to_world) = 0;
 
     virtual CSpectrum eval_le_inline(
         CompileContext &cc,

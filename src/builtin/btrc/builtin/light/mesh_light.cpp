@@ -2,16 +2,17 @@
 
 BTRC_BUILTIN_BEGIN
 
-MeshLight::MeshLight(const Spectrum &intensity)
-    : intensity_(intensity)
+void MeshLight::set_intensity(const Spectrum &intensity)
 {
-    
+    intensity_ = intensity;
+    set_recompile(true);
 }
 
-void MeshLight::set_geometry(RC<const Geometry> geometry, const Transform &local_to_world)
+void MeshLight::set_geometry(RC<Geometry> geometry, const Transform &local_to_world)
 {
     geometry_ = std::move(geometry);
     local_to_world_ = local_to_world;
+    set_recompile(true);
 }
 
 CSpectrum MeshLight::eval_le_inline(
@@ -41,7 +42,7 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
 {
     CTransform ctrans = local_to_world_;
 
-    var surface_sample = geometry_->sample(sam);
+    var surface_sample = geometry_->sample(cc, sam);
     var spos = ctrans.apply_to_point(surface_sample.point.position);
     var snor = normalize(ctrans.apply_to_vector(surface_sample.point.frame.z));
     var pos_to_ref = ref_pos - spos;
@@ -80,7 +81,7 @@ f32 MeshLight::pdf_li_inline(
     }
     $else
     {
-        var pdf_area = geometry_->pdf(ref_pos, pos);
+        var pdf_area = geometry_->pdf(cc, ref_pos, pos);
         var spt_to_ref = ref_pos - pos;
         var dist2 = length_square(spt_to_ref);
         var dist3 = cstd::sqrt(dist2) * dist2;
@@ -93,7 +94,9 @@ f32 MeshLight::pdf_li_inline(
 RC<Light> MeshLightCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
     auto intensity = node->parse_child<Spectrum>("intensity");
-    return newRC<MeshLight>(intensity);
+    auto result = newRC<MeshLight>();
+    result->set_intensity(intensity);
+    return result;
 }
 
 BTRC_BUILTIN_END

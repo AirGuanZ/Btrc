@@ -12,17 +12,14 @@ BTRC_BUILTIN_BEGIN
 struct WavefrontPathTracer::Impl
 {
     optix::Context *optix_ctx = nullptr;
-    CompileContext *cc = nullptr;
 
-    Params           params;
-    RC<const Scene>  scene;
-    RC<const Camera> camera;
-    RC<Reporter>     reporter;
+    Params       params;
+    RC<Scene>    scene;
+    RC<Camera>   camera;
+    RC<Reporter> reporter;
 
     int width = 512;
     int height = 512;
-
-    bool is_dirty = true;
 
     Film                   film;
     wfpt::PathState        path_state;
@@ -47,22 +44,14 @@ WavefrontPathTracer::~WavefrontPathTracer()
 void WavefrontPathTracer::set_params(const Params &params)
 {
     impl_->params = params;
-    impl_->is_dirty = true;
 }
 
-void WavefrontPathTracer::set_compile_context(CompileContext &cc)
-{
-    impl_->cc = &cc;
-    impl_->is_dirty = true;
-}
-
-void WavefrontPathTracer::set_scene(RC<const Scene> scene)
+void WavefrontPathTracer::set_scene(RC<Scene> scene)
 {
     impl_->scene = scene;
-    impl_->is_dirty = true;
 }
 
-void WavefrontPathTracer::set_camera(RC<const Camera> camera)
+void WavefrontPathTracer::set_camera(RC<Camera> camera)
 {
     impl_->camera = std::move(camera);
 }
@@ -71,7 +60,6 @@ void WavefrontPathTracer::set_film(int width, int height)
 {
     impl_->width = width;
     impl_->height = height;
-    impl_->is_dirty = true;
 }
 
 void WavefrontPathTracer::set_reporter(RC<Reporter> reporter)
@@ -79,11 +67,22 @@ void WavefrontPathTracer::set_reporter(RC<Reporter> reporter)
     impl_->reporter = std::move(reporter);
 }
 
+std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
+{
+    std::set<RC<Object>> scene_objects;
+    impl_->scene->collect_objects(scene_objects);
+    std::vector<RC<Object>> result = { scene_objects.begin(), scene_objects.end() };
+    result.push_back(impl_->camera);
+    return result;
+}
+
+void WavefrontPathTracer::recompile()
+{
+    build_pipeline();
+}
+
 Renderer::RenderResult WavefrontPathTracer::render() const
 {
-    if(impl_->is_dirty)
-        build_pipeline();
-
     impl_->generate.clear();
     impl_->path_state.clear();
 
@@ -247,8 +246,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
 
 void WavefrontPathTracer::build_pipeline() const
 {
-    assert(impl_->is_dirty);
-    BTRC_SCOPE_SUCCESS{ impl_->is_dirty = false; };
+    CompileContext cc;
 
     auto &params = impl_->params;
 
@@ -265,7 +263,7 @@ void WavefrontPathTracer::build_pipeline() const
     // pipelines
 
     impl_->generate = wfpt::GeneratePipeline(
-        *impl_->cc, *impl_->camera,
+        cc, *impl_->camera,
         { impl_->width, impl_->height },
         params.spp, params.state_count);
 
@@ -278,7 +276,7 @@ void WavefrontPathTracer::build_pipeline() const
     impl_->sort = wfpt::SortPipeline();
 
     impl_->shade = wfpt::ShadePipeline(
-        *impl_->cc, impl_->film, *impl_->scene,
+        cc, impl_->film, *impl_->scene,
         wfpt::ShadePipeline::ShadeParams{
             .min_depth = params.min_depth,
             .max_depth = params.max_depth,

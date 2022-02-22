@@ -3,21 +3,28 @@
 
 BTRC_BUILTIN_BEGIN
 
-void IBL::set_texture(RC<const Texture2D> tex)
+void IBL::set_texture(RC<Texture2D> tex)
 {
     tex_ = std::move(tex);
+    set_recompile(true);
 }
 
 void IBL::set_up(const Vec3f &up)
 {
     frame_ = Frame::from_z(up);
+    set_recompile(true);
 }
 
-void IBL::preprocess(const Vec2i &lut_res)
+void IBL::set_lut_res(const Vec2i &lut_res)
 {
-    assert(tex_);
+    lut_res_ = lut_res;
+    set_recompile(true);
+}
+
+void IBL::commit()
+{
     sampler_ = newBox<EnvirLightSampler>();
-    sampler_->preprocess(tex_, lut_res, 128);
+    sampler_->preprocess(tex_.get(), lut_res_, 128);
 }
 
 CSpectrum IBL::eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const
@@ -62,7 +69,7 @@ RC<Light> IBLCreator::create(RC<const factory::Node> node, factory::Context &con
     auto result = newRC<IBL>();
     result->set_texture(std::move(tex));
     result->set_up(up);
-    result->preprocess({ lut_res_x, lut_res_y });
+    result->set_lut_res({ lut_res_x, lut_res_y });
     return result;
 }
 

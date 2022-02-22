@@ -19,14 +19,14 @@ void GradientSky::set_up(const Vec3f &up)
 
 CSpectrum GradientSky::eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const
 {
-    var cos_theta = dot(CVec3f(up_), normalize(to_light));
+    var cos_theta = dot(up_.read(cc), normalize(to_light));
     var s = cstd::saturate(0.5f * (cos_theta + 1.0f));
-    return CSpectrum(lower_) * (1.0f - s) + CSpectrum(upper_) * s;
+    return lower_.read(cc) * (1.0f - s) + upper_.read(cc) * s;
 }
 
 EnvirLight::SampleLiResult GradientSky::sample_li_inline(CompileContext &cc, ref<CVec3f> sam) const
 {
-    CFrame frame = CFrame::from_z(up_);
+    CFrame frame = CFrame::from_z(up_.read(cc));
     var local_dir = sample_sphere_uniform(sam.x, sam.y);
     var global_dir = frame.local_to_global(local_dir);
 

@@ -3,9 +3,15 @@
 
 BTRC_BUILTIN_BEGIN
 
-void Diffuse::set_albedo(RC<const Texture2D> albedo)
+void Diffuse::set_albedo(RC<Texture2D> albedo)
 {
     albedo_ = std::move(albedo);
+    set_recompile();
+}
+
+std::vector<RC<Object>> Diffuse::get_dependent_objects()
+{
+    return { albedo_ };
 }
 
 RC<Shader> Diffuse::create_shader(CompileContext &cc, const SurfacePoint &inct) const

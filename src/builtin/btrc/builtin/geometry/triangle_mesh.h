@@ -10,24 +10,31 @@ class TriangleMesh : public Geometry
 {
 public:
 
-    TriangleMesh(
-        optix::Context &optix_ctx,
-        const std::string &filename,
-        bool transform_to_unit_cube);
+    void set_optix_context(optix::Context &optix_ctx);
+
+    void set_filename(std::string filename);
+
+    void set_transform_to_unit_cube(bool transform);
+
+    void commit() override;
 
     OptixTraversableHandle get_blas() const override;
 
     const GeometryInfo &get_geometry_info() const override;
 
-    SampleResult sample(ref<CVec3f> sam) const override;
+    SampleResult sample_inline(ref<CVec3f> sam) const override;
 
-    f32 pdf(ref<CVec3f> pos) const override;
+    f32 pdf_inline(ref<CVec3f> pos) const override;
 
-    SampleResult sample(ref<CVec3f> dst_pos, ref<CVec3f> sam) const override;
+    SampleResult sample_inline(ref<CVec3f> dst_pos, ref<CVec3f> sam) const override;
 
-    f32 pdf(ref<CVec3f> dst_pos, ref<CVec3f> pos) const override;
+    f32 pdf_inline(ref<CVec3f> dst_pos, ref<CVec3f> pos) const override;
 
 private:
+
+    optix::Context *optix_ctx_ = nullptr;
+    std::string filename_;
+    bool transform_to_unit_cube_ = false;
 
     cuda::CUDABuffer<Vec4f> geo_info_buf_;
     GeometryInfo            geo_info_ = {};

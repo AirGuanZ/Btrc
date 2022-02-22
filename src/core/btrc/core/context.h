@@ -7,14 +7,151 @@
 #include <cuj.h>
 #include <mem_fn_traits.h>
 
+#include <cuda_runtime.h>
+
 #include <btrc/utils/any.h>
 #include <btrc/utils/bind.h>
+#include <btrc/utils/cuda/error.h>
 #include <btrc/utils/scope_guard.h>
 
-#include "context.h"
-
 BTRC_BEGIN
-    class CompileContext;
+
+class CompileContext;
+class Object;
+
+class PropertyCommon
+{
+public:
+
+    virtual ~PropertyCommon() = default;
+
+    virtual void update() = 0;
+
+    virtual bool is_dirty() const = 0;
+};
+
+template<typename T>
+class Property : public PropertyCommon, public Uncopyable
+{
+public:
+
+    Property();
+
+    explicit Property(T *device_pointer, const T &value = {});
+
+    Property(Property &&other) noexcept;
+
+    Property &operator=(Property &&other) noexcept;
+
+    ~Property() override;
+
+    void swap(Property &other) noexcept;
+
+    operator bool() const;
+
+    void set(const T &value);
+
+    const T &get() const;
+
+    cuj::cxx<T> read(CompileContext &cc) const;
+
+    void update() override;
+
+    bool is_dirty() const override;
+
+private:
+
+    bool is_dirty_;
+    T value_;
+    T *device_pointer_;
+};
+
+template<typename T>
+class PropertySlot
+{
+public:
+
+    RC<Property<T>> prop;
+
+    void set(const T &value) { prop->set(value); }
+
+    auto &operator=(const T &value) { this->set(value); return *this; }
+
+    const T &get() const { return prop->get(); }
+
+    cuj::cxx<T> read(CompileContext &cc) const { return prop->read(cc); }
+
+    void update() { prop->update(); }
+
+    bool is_dirty() const { return prop->is_dirty(); }
+};
+
+class PropertyPool : public Uncopyable
+{
+    PropertyPool() = default;
+
+public:
+
+    ~PropertyPool();
+
+    static void initialize_instance();
+
+    static void destroy_instance();
+
+    static PropertyPool &get_instance();
+
+    template<typename T>
+    Property<T> allocate(const T &value);
+
+    template<typename T>
+    void release(T *device_pointer);
+
+private:
+
+    static void new_chunk(std::vector<void *> &output, size_t size, size_t align);
+
+    void *allocate_impl(std::type_index type_index, size_t size, size_t align);
+
+    void release_impl(std::type_index type_index, void *device_pointer);
+
+    std::vector<void *> chunks_;
+    std::map<std::type_index, std::vector<void *>> free_properties_;
+};
+
+class ObjectReferenceCommon
+{
+public:
+
+    virtual ~ObjectReferenceCommon() = default;
+
+    virtual RC<Object> get_object() = 0;
+};
+
+template<typename T>
+class ObjectReference : public ObjectReferenceCommon
+{
+public:
+
+    RC<T> object;
+
+    RC<Object> get_object() override { return object; }
+};
+
+template<typename T>
+class ObjectSlot
+{
+public:
+
+    RC<ObjectReference<T>> reference;
+    
+    void set(RC<T> object);
+
+    const RC<T> &get() const;
+
+    ObjectSlot &operator=(RC<T> object);
+
+    auto operator->() const;
+};
 
 class Object : public std::enable_shared_from_this<Object>
 {
@@ -22,20 +159,50 @@ public:
 
     virtual ~Object() = default;
 
-    RC<Object> as_shared() { return this->shared_from_this(); }
+    RC<Object> as_shared();
 
-    RC<const Object> as_shared() const { return this->shared_from_this(); }
+    RC<const Object> as_shared() const;
+
+    bool need_recompile() const;
+
+    void set_recompile(bool recompile = true);
+
+    std::vector<PropertyCommon *> get_properties();
+
+    virtual std::vector<RC<Object>> get_dependent_objects();
+
+    virtual void commit() { }
 
 protected:
 
     template<typename MemberFuncPtr, typename...Args>
         requires std::is_member_function_pointer_v<MemberFuncPtr>
     auto record(CompileContext &cc, MemberFuncPtr ptr, std::string_view action_name, Args...args) const;
+
+    template<typename T>
+    PropertySlot<T> new_property(const T &value = {});
+
+    template<typename T>
+    ObjectSlot<T> new_object();
+
+private:
+
+    bool need_recompile_ = true;
+
+    std::vector<PropertyCommon *> properties_;
+    std::vector<ObjectReferenceCommon *> dependent_objects_;
 };
+
+#define BTRC_OBJECT(TYPE, NAME) ObjectSlot<TYPE> NAME = new_object<TYPE>()
+#define BTRC_PROPERTY(TYPE, NAME, ...) PropertySlot<TYPE> NAME = new_property<TYPE>(__VA_ARGS__)
 
 class CompileContext
 {
 public:
+
+    explicit CompileContext(bool offline = true);
+
+    bool is_offline_mode() const;
 
     template<typename ObjectAction, typename...Args>
     auto record_object_action(
@@ -63,10 +230,140 @@ private:
         std::map<std::string, ActionRecord, std::less<>> actions;
     };
 
+    bool offline_mode_;
     std::map<RC<const Object>, ObjectRecord> object_records_;
 };
 
 // ========================== impl ==========================
+
+template<typename T>
+Property<T>::Property()
+    : Property(nullptr, {})
+{
+
+}
+
+template<typename T>
+Property<T>::Property(T *device_pointer, const T &value)
+    : is_dirty_(true), value_(value), device_pointer_(device_pointer)
+{
+
+}
+
+template<typename T>
+Property<T>::Property(Property &&other) noexcept
+    : Property()
+{
+    this->swap(other);
+}
+
+template<typename T>
+Property<T> &Property<T>::operator=(Property &&other) noexcept
+{
+    this->swap(other);
+    return *this;
+}
+
+template<typename T>
+Property<T>::~Property()
+{
+    if(device_pointer_)
+        PropertyPool::get_instance().release(device_pointer_);
+}
+
+template<typename T>
+void Property<T>::swap(Property &other) noexcept
+{
+    std::swap(value_, other.value_);
+    std::swap(device_pointer_, other.device_pointer_);
+}
+
+template<typename T>
+Property<T>::operator bool() const
+{
+    return device_pointer_ != nullptr;
+}
+
+template<typename T>
+void Property<T>::set(const T &value)
+{
+    assert(*this);
+    value_ = value;
+    is_dirty_ = true;
+}
+
+template<typename T>
+const T &Property<T>::get() const
+{
+    assert(*this);
+    return value_;
+}
+
+template<typename T>
+cuj::cxx<T> Property<T>::read(CompileContext &cc) const
+{
+    assert(*this);
+    if(cc.is_offline_mode())
+        return cuj::cxx<T>(value_);
+    return *cuj::import_pointer(device_pointer_);
+}
+
+template<typename T>
+void Property<T>::update()
+{
+    assert(*this);
+    if(is_dirty_)
+    {
+        throw_on_error(cudaMemcpy(
+            device_pointer_, &value_, sizeof(T), cudaMemcpyHostToDevice));
+        is_dirty_ = false;
+    }
+}
+
+template<typename T>
+bool Property<T>::is_dirty() const
+{
+    assert(*this);
+    return is_dirty_;
+}
+
+template<typename T>
+Property<T> PropertyPool::allocate(const T &value)
+{
+    auto device_pointer = allocate_impl(std::type_index(typeid(T)), sizeof(T), alignof(T));
+    return Property<T>(static_cast<T*>(device_pointer), value);
+}
+
+template<typename T>
+void PropertyPool::release(T *device_pointer)
+{
+    this->release_impl(std::type_index(typeid(T)), device_pointer);
+}
+
+template<typename T>
+void ObjectSlot<T>::set(RC<T> object)
+{
+    reference->object = std::move(object);
+}
+
+template<typename T>
+const RC<T> &ObjectSlot<T>::get() const
+{
+    return reference->object;
+}
+
+template<typename T>
+ObjectSlot<T> &ObjectSlot<T>::operator=(RC<T> object)
+{
+    this->set(std::move(object));
+    return *this;
+}
+
+template<typename T>
+auto ObjectSlot<T>::operator->() const
+{
+    return get().get();
+}
 
 namespace object_detail
 {
@@ -169,15 +466,52 @@ namespace object_detail
 
 } // namespace object_detail
 
+inline RC<Object> Object::as_shared()
+{
+    return this->shared_from_this();
+}
+
+inline RC<const Object> Object::as_shared() const
+{
+    return this->shared_from_this();
+}
+
+inline bool Object::need_recompile() const
+{
+    return need_recompile_;
+}
+
+inline void Object::set_recompile(bool recompile)
+{
+    need_recompile_ = recompile;
+}
+
+inline std::vector<PropertyCommon*> Object::get_properties()
+{
+    return properties_;
+}
+
+inline std::vector<RC<Object>> Object::get_dependent_objects()
+{
+    std::vector<RC<Object>> result;
+    for(auto &o : dependent_objects_)
+    {
+        auto obj = o->get_object();
+        assert(obj);
+        result.push_back(std::move(obj));
+    }
+    return result;
+}
+
 template<typename MemberFuncPtr, typename...Args>
     requires std::is_member_function_pointer_v<MemberFuncPtr>
 auto Object::record(CompileContext &cc, MemberFuncPtr ptr, std::string_view action_name, Args...args) const
 {
-    using Class = typename member_function_pointer_trait<MemberFuncPtr>::class_type;
+    using MemFnTrait = member_function_pointer_trait<MemberFuncPtr>;
+    using Class = typename MemFnTrait::class_type;
     static_assert(std::is_base_of_v<Object, Class>);
     auto this_ptr = dynamic_cast<const Class *>(this);
 
-    using MemFnTrait = member_function_pointer_trait<MemberFuncPtr>;
     if constexpr(MemFnTrait::n_args > 0)
     {
         using Arg0 = typename MemFnTrait::template arg<0>;
@@ -200,6 +534,36 @@ auto Object::record(CompileContext &cc, MemberFuncPtr ptr, std::string_view acti
             this->as_shared(), std::string(action_name),
             object_detail::bind_this(ptr, this_ptr), args...);
     }
+}
+
+template<typename T>
+PropertySlot<T> Object::new_property(const T &value)
+{
+    auto prop = newRC<Property<T>>(PropertyPool::get_instance().allocate<T>(value));
+    properties_.push_back(prop.get());
+    PropertySlot<T> result;
+    result.prop = std::move(prop);
+    return result;
+}
+
+template<typename T>
+ObjectSlot<T> Object::new_object()
+{
+    ObjectSlot<T> result;
+    result.reference = newRC<ObjectReference<T>>();
+    dependent_objects_.push_back(result.reference.get());
+    return result;
+}
+
+inline CompileContext::CompileContext(bool offline)
+    : offline_mode_(offline)
+{
+    
+}
+
+inline bool CompileContext::is_offline_mode() const
+{
+    return offline_mode_;
 }
 
 template<typename ObjectAction, typename...Args>

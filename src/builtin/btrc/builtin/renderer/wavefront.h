@@ -30,15 +30,17 @@ public:
 
     void set_params(const Params &params);
 
-    void set_compile_context(CompileContext &cc) override;
+    void set_scene(RC<Scene> scene) override;
 
-    void set_scene(RC<const Scene> scene) override;
-
-    void set_camera(RC<const Camera> camera) override;
+    void set_camera(RC<Camera> camera) override;
 
     void set_film(int width, int height) override;
 
     void set_reporter(RC<Reporter> reporter) override;
+
+    std::vector<RC<Object>> get_dependent_objects() override;
+
+    void recompile() override;
 
     RenderResult render() const override;
 

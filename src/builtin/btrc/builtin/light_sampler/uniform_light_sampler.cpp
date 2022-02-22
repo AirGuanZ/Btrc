@@ -7,17 +7,27 @@ void UniformLightSampler::clear()
     lights_ = {};
     envir_light_index_ = -1;
     envir_light_ = {};
+    set_recompile();
 }
 
-void UniformLightSampler::add_light(RC<const Light> light)
+void UniformLightSampler::add_light(RC<Light> light)
 {
     if(!light->is_area())
     {
         assert(!envir_light_);
-        envir_light_ = std::dynamic_pointer_cast<const EnvirLight>(light);
+        envir_light_ = std::dynamic_pointer_cast<EnvirLight>(light);
         envir_light_index_ = static_cast<int>(lights_.size());
     }
     lights_.push_back(std::move(light));
+    set_recompile();
+}
+
+std::vector<RC<Object>> UniformLightSampler::get_dependent_objects()
+{
+    std::vector<RC<Object>> result;
+    for(auto &l : lights_)
+        result.push_back(l);
+    return result;
 }
 
 UniformLightSampler::SampleResult UniformLightSampler::sample(

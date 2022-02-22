@@ -46,6 +46,7 @@ namespace
 void Array2D::initialize(RC<const Texture> cuda_texture)
 {
     tex_ = std::move(cuda_texture);
+    set_recompile();
 }
 
 void Array2D::initialize(const std::string &filename, const Texture::Description &desc)
@@ -53,16 +54,17 @@ void Array2D::initialize(const std::string &filename, const Texture::Description
     auto tex = newRC<Texture>();
     tex->initialize(filename, desc);
     tex_ = std::move(tex);
+    set_recompile();
 }
 
-CSpectrum Array2D::sample_spectrum_inline(ref<CVec2f> uv) const
+CSpectrum Array2D::sample_spectrum_inline(CompileContext &cc, ref<CVec2f> uv) const
 {
     f32 r, g, b;
     cstd::sample_texture2d_3f(u64(tex_->get_tex()), uv.x, uv.y, r, g, b);
     return CSpectrum::from_rgb(r, g, b);
 }
 
-f32 Array2D::sample_float_inline(ref<CVec2f> uv) const
+f32 Array2D::sample_float_inline(CompileContext &cc, ref<CVec2f> uv) const
 {
     f32 r;
     cstd::sample_texture2d_1f(u64(tex_->get_tex()), uv.x, uv.y, r);

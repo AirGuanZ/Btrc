@@ -6,22 +6,37 @@
 
 BTRC_BUILTIN_BEGIN
 
-TriangleMesh::TriangleMesh(
-    optix::Context &optix_ctx,
-    const std::string &filename,
-    bool transform_to_unit_cube)
+void TriangleMesh::set_optix_context(optix::Context &optix_ctx)
 {
-    TriangleMeshLoader loader(filename);
-    if(transform_to_unit_cube)
+    optix_ctx_ = &optix_ctx;
+    set_recompile(true);
+}
+
+void TriangleMesh::set_filename(std::string filename)
+{
+    filename_ = std::move(filename);
+    set_recompile(true);
+}
+
+void TriangleMesh::set_transform_to_unit_cube(bool transform)
+{
+    transform_to_unit_cube_ = transform;
+    set_recompile(true);
+}
+
+void TriangleMesh::commit()
+{
+    TriangleMeshLoader loader(filename_);
+    if(transform_to_unit_cube_)
         loader.transform_to_unit_cube();
     if(!loader.get_indices_i32().empty())
     {
-        as_ = optix_ctx.create_triangle_as(
+        as_ = optix_ctx_->create_triangle_as(
             loader.get_positions(), loader.get_indices_i32());
     }
     else
     {
-        as_ = optix_ctx.create_triangle_as(
+        as_ = optix_ctx_->create_triangle_as(
             loader.get_positions(), loader.get_indices_i16());
     }
 
@@ -164,7 +179,7 @@ const GeometryInfo &TriangleMesh::get_geometry_info() const
     return geo_info_;
 }
 
-Geometry::SampleResult TriangleMesh::sample(ref<CVec3f> sam) const
+Geometry::SampleResult TriangleMesh::sample_inline(ref<CVec3f> sam) const
 {
     using namespace cuj;
 
@@ -206,26 +221,30 @@ Geometry::SampleResult TriangleMesh::sample(ref<CVec3f> sam) const
     return result;
 }
 
-f32 TriangleMesh::pdf(ref<CVec3f> pos) const
+f32 TriangleMesh::pdf_inline(ref<CVec3f> pos) const
 {
     return 1 / total_area_;
 }
 
-Geometry::SampleResult TriangleMesh::sample(ref<CVec3f> dst_pos, ref<CVec3f> sam) const
+Geometry::SampleResult TriangleMesh::sample_inline(ref<CVec3f> dst_pos, ref<CVec3f> sam) const
 {
-    return sample(sam);
+    return sample_inline(sam);
 }
 
-f32 TriangleMesh::pdf(ref<CVec3f> dst_pos, ref<CVec3f> pos) const
+f32 TriangleMesh::pdf_inline(ref<CVec3f> dst_pos, ref<CVec3f> pos) const
 {
-    return pdf(pos);
+    return pdf_inline(pos);
 }
 
 RC<Geometry> TriangleMeshCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
     const auto filename = context.resolve_path(node->parse_child<std::string>("filename")).string();
     const bool transform_to_unit_cube = node->parse_child_or<bool>("transform_to_unit_cube", false);
-    return newRC<TriangleMesh>(context.get_optix_context(), filename, transform_to_unit_cube);
+    auto mesh = newRC<TriangleMesh>();
+    mesh->set_optix_context(context.get_optix_context());
+    mesh->set_filename(filename);
+    mesh->set_transform_to_unit_cube(transform_to_unit_cube);
+    return mesh;
 }
 
 BTRC_BUILTIN_END

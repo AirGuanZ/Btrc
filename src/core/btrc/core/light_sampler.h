@@ -17,7 +17,7 @@ public:
 
     virtual void clear() = 0;
 
-    virtual void add_light(RC<const Light> light) = 0;
+    virtual void add_light(RC<Light> light) = 0;
 
     virtual SampleResult sample(const CVec3f &ref, f32 time, f32 sam) const = 0;
 

@@ -56,7 +56,8 @@ IF(BTRC_BUILD_GUI)
     FIND_PACKAGE(OpenGL REQUIRED)
     ADD_SUBDIRECTORY(lib/glfw)
     ADD_SUBDIRECTORY(lib/glew/build/cmake)
-    SET_TARGET_PROPERTIES(glfw glew glew_s PROPERTIES FOLDER "ThirdParty")
+    ADD_SUBDIRECTORY(lib/imgui)
+    SET_TARGET_PROPERTIES(glfw glew glew_s imgui PROPERTIES FOLDER "ThirdParty")
 ENDIF()
 
 ############## cuj

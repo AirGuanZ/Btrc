@@ -12,6 +12,43 @@
 #include <btrc/utils/exception.h>
 #include <btrc/utils/file.h>
 
+// commit
+// recompile
+// update
+// render
+
+/*
+ * scene.preprocess()
+ * commit()
+ * recompile()
+ * update_parameters()
+ * render()
+ */
+
+void process_object(
+    btrc::RC<btrc::Object>               object,
+    std::set<btrc::RC<btrc::Object>>    &processed_objects,
+    std::vector<btrc::RC<btrc::Object>> &output)
+{
+    if(processed_objects.contains(object))
+        return;
+    for(auto &d : object->get_dependent_objects())
+        process_object(d, processed_objects, output);
+    assert(!processed_objects.contains(object));
+    processed_objects.insert(object);
+    output.push_back(object);
+}
+
+std::vector<btrc::RC<btrc::Object>> topology_sort_objects(const std::set<btrc::RC<btrc::Object>> &entry_objects)
+{
+    using namespace btrc;
+    std::set<RC<Object>> processed_objects;
+    std::vector<RC<Object>> output;
+    for(auto &e : entry_objects)
+        process_object(e, processed_objects, output);
+    return output;
+}
+
 void run(const std::string &scene_filename)
 {
     using namespace btrc;
@@ -20,6 +57,9 @@ void run(const std::string &scene_filename)
 
     cuda::Context cuda_context(0);
     optix::Context optix_context(cuda_context);
+
+    PropertyPool::initialize_instance();
+    BTRC_SCOPE_EXIT{ PropertyPool::destroy_instance(); };
 
     factory::Context btrc_context(optix_context);
     builtin::register_builtin_creators(btrc_context);
@@ -34,7 +74,6 @@ void run(const std::string &scene_filename)
 
     auto scene_node = root_node->child_node("scene");
     auto scene = create_scene(scene_node, btrc_context);
-    scene->preprocess(optix_context);
 
     const int width = root_node->parse_child<int>("width");
     const int height = root_node->parse_child<int>("height");
@@ -48,11 +87,24 @@ void run(const std::string &scene_filename)
     renderer->set_scene(scene);
     renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
-    CompileContext cc;
-    renderer->set_compile_context(cc);
+    auto entry_objects = renderer->get_dependent_objects();
+    auto sorted_objects = topology_sort_objects(std::set(entry_objects.begin(), entry_objects.end()));
 
-    renderer->render_async();
-    auto result = renderer->wait_async();
+    std::cout << "commit objects..." << std::endl;
+
+    scene->precommit();
+    for(auto &obj : sorted_objects)
+        obj->commit();
+    scene->postcommit();
+
+    std::cout << "compile kernel..." << std::endl;
+
+    renderer->recompile();
+
+    std::cout << "render..." << std::endl;
+
+    auto result = renderer->render();
+
     result.value.save(root_node->parse_child_or<std::string>("value_filename", "output.exr"));
     if(result.albedo)
         result.albedo.save(root_node->parse_child_or<std::string>("albedo_filename", "output_albedo.png"));

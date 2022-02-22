@@ -11,7 +11,9 @@ public:
 
     void clear() override;
 
-    void add_light(RC<const Light> light) override;
+    void add_light(RC<Light> light) override;
+
+    std::vector<RC<Object>> get_dependent_objects() override;
 
     SampleResult sample(const CVec3f &ref, f32 time, f32 sam) const override;
 
@@ -27,10 +29,10 @@ public:
 
 private:
 
-    std::vector<RC<const Light>> lights_;
+    std::vector<RC<Light>> lights_;
 
     int envir_light_index_ = -1;
-    RC<const EnvirLight> envir_light_;
+    RC<EnvirLight> envir_light_;
 };
 
 class UniformLightSamplerCreator : public factory::Creator<LightSampler>

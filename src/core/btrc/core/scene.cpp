@@ -3,12 +3,18 @@
 
 BTRC_BEGIN
 
+Scene::Scene(optix::Context &optix_ctx)
+    : optix_ctx_(&optix_ctx)
+{
+
+}
+
 void Scene::add_instance(const Instance &inst)
 {
     instances_.push_back(inst);
 }
 
-void Scene::set_envir_light(RC<const EnvirLight> env)
+void Scene::set_envir_light(RC<EnvirLight> env)
 {
     env_light_ = std::move(env);
 }
@@ -18,17 +24,28 @@ void Scene::set_light_sampler(RC<LightSampler> light_sampler)
     light_sampler_ = std::move(light_sampler);
 }
 
-void Scene::preprocess(optix::Context &optix_ctx)
+void Scene::precommit()
+{
+    light_sampler_->clear();
+    for(auto &inst : instances_)
+    {
+        if(inst.light)
+            light_sampler_->add_light(inst.light);
+    }
+    if(env_light_)
+        light_sampler_->add_light(env_light_);
+}
+
+void Scene::postcommit()
 {
     std::vector<optix::Context::Instance> blas_instances;
 
-    std::vector<InstanceInfo>          instance_info;
-    std::vector<GeometryInfo>          geometry_info;
-    std::map<RC<const Geometry>, int>  geometry_info_indices;
-    std::map<RC<const Material>, int>  material_indices;
+    std::vector<InstanceInfo>   instance_info;
+    std::vector<GeometryInfo>   geometry_info;
+    std::map<RC<Geometry>, int> geometry_info_indices;
+    std::map<RC<Material>, int> material_indices;
 
     int next_light_idx = 0;
-    light_sampler_->clear();
 
     for(auto &inst : instances_)
     {
@@ -58,18 +75,15 @@ void Scene::preprocess(optix::Context &optix_ctx)
 
         int light_idx = -1;
         if(inst.light)
-        {
-            light_sampler_->add_light(inst.light);
             light_idx = next_light_idx++;
-        }
 
         instance_info.push_back(InstanceInfo{
             .geometry_id = geo_id,
             .material_id = mat_id,
-            .light_id    = light_idx,
-            .transform   = inst.transform
-        });
-
+            .light_id = light_idx,
+            .transform = inst.transform
+            });
+        
         blas_instances.push_back(optix::Context::Instance{
             .local_to_world = inst.transform.to_transform_matrix(),
             .id             = static_cast<uint32_t>(blas_instances.size()),
@@ -78,22 +92,33 @@ void Scene::preprocess(optix::Context &optix_ctx)
         });
     }
 
-    if(env_light_)
-        light_sampler_->add_light(env_light_);
-
     std::vector<int32_t> instance_to_material(instance_info.size());
     for(size_t i = 0; i < instances_.size(); ++i)
         instance_to_material[i] = instance_info[i].material_id;
 
-    tlas_                 = optix_ctx.create_instance_as(blas_instances);
-    instance_info_        = cuda::CUDABuffer<InstanceInfo>(instance_info);
-    geometry_info_        = cuda::CUDABuffer<GeometryInfo>(geometry_info);
+    tlas_ = optix_ctx_->create_instance_as(blas_instances);
+    instance_info_ = cuda::CUDABuffer<InstanceInfo>(instance_info);
+    geometry_info_ = cuda::CUDABuffer<GeometryInfo>(geometry_info);
     instance_to_material_ = cuda::CUDABuffer<int32_t>(instance_to_material);
 }
 
 OptixTraversableHandle Scene::get_tlas() const
 {
     return tlas_;
+}
+
+void Scene::collect_objects(std::set<RC<Object>> &output) const
+{
+    for(auto &inst : instances_)
+    {
+        output.insert(inst.geometry);
+        output.insert(inst.material);
+        if(inst.light)
+            output.insert(inst.light);
+    }
+    if(env_light_)
+        output.insert(env_light_);
+    output.insert(light_sampler_);
 }
 
 const GeometryInfo *Scene::get_device_geometry_info() const

@@ -9,7 +9,7 @@ Constant2D::Constant2D()
 
 void Constant2D::set_value(float value)
 {
-    value_ = value;
+    value_ = Spectrum::from_rgb(value, value, value);
 }
 
 void Constant2D::set_value(const Spectrum &value)
@@ -17,18 +17,14 @@ void Constant2D::set_value(const Spectrum &value)
     value_ = value;
 }
 
-CSpectrum Constant2D::sample_spectrum_inline(ref<CVec2f> uv) const
+CSpectrum Constant2D::sample_spectrum_inline(CompileContext &cc, ref<CVec2f> uv) const
 {
-    return value_.match(
-        [](float v) { return CSpectrum::from_rgb(v, v, v); },
-        [](const Spectrum &v) { return CSpectrum(v); });
+    return value_.read(cc);
 }
 
-f32 Constant2D::sample_float_inline(ref<CVec2f> uv) const
+f32 Constant2D::sample_float_inline(CompileContext &cc, ref<CVec2f> uv) const
 {
-    return value_.match(
-        [](float v) { return f32(v); },
-        [](const Spectrum &v) { return f32(v.get_lum()); });
+    return value_.read(cc).r;
 }
 
 BTRC_END

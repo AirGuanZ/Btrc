@@ -31,13 +31,13 @@ public:
 
     struct Instance
     {
-        RC<const Geometry>  geometry;
-        RC<const Material>  material;
-        RC<const AreaLight> light;
-        Transform           transform;
+        RC<Geometry>  geometry;
+        RC<Material>  material;
+        RC<AreaLight> light;
+        Transform     transform;
     };
 
-    Scene() = default;
+    explicit Scene(optix::Context &optix_ctx);
 
     Scene(const Scene &other) noexcept = delete;
 
@@ -49,13 +49,17 @@ public:
 
     void add_instance(const Instance &inst);
 
-    void set_envir_light(RC<const EnvirLight> env);
+    void set_envir_light(RC<EnvirLight> env);
 
     void set_light_sampler(RC<LightSampler> light_sampler);
 
-    void preprocess(optix::Context &optix_ctx);
+    void precommit();
 
+    void postcommit();
+    
     OptixTraversableHandle get_tlas() const;
+
+    void collect_objects(std::set<RC<Object>> &output) const;
 
     const GeometryInfo *get_device_geometry_info() const;
 
@@ -75,15 +79,17 @@ public:
 
 private:
 
-    std::vector<Instance>  instances_;
-    RC<const EnvirLight>   env_light_;
+    optix::Context *optix_ctx_;
 
-    optix::InstanceAS               tlas_;
-    std::vector<RC<const Material>> materials_;
-    RC<LightSampler>                light_sampler_;
-    cuda::CUDABuffer<InstanceInfo>  instance_info_;
-    cuda::CUDABuffer<GeometryInfo>  geometry_info_;
-    cuda::CUDABuffer<int32_t>       instance_to_material_;
+    std::vector<Instance> instances_;
+    RC<EnvirLight>        env_light_;
+
+    optix::InstanceAS              tlas_;
+    std::vector<RC<Material>>      materials_;
+    RC<LightSampler>               light_sampler_;
+    cuda::CUDABuffer<InstanceInfo> instance_info_;
+    cuda::CUDABuffer<GeometryInfo> geometry_info_;
+    cuda::CUDABuffer<int32_t>      instance_to_material_;
 };
 
 BTRC_END

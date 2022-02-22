@@ -10,9 +10,9 @@ class MeshLight : public AreaLight
 {
 public:
 
-    explicit MeshLight(const Spectrum &intensity);
+    void set_intensity(const Spectrum &intensity);
 
-    void set_geometry(RC<const Geometry> geometry, const Transform &local_to_world) override;
+    void set_geometry(RC<Geometry> geometry, const Transform &local_to_world) override;
 
     CSpectrum eval_le_inline(
         CompileContext &cc,
@@ -35,9 +35,9 @@ public:
 
 private:
 
-    RC<const Geometry> geometry_;
-    Transform          local_to_world_;
-    Spectrum           intensity_;
+    ObjectSlot<Geometry> geometry_ = new_object<Geometry>();
+    Transform            local_to_world_;
+    Spectrum             intensity_;
 };
 
 class MeshLightCreator : public factory::Creator<Light>

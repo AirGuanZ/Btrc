@@ -10,19 +10,19 @@ class Metal : public Material
 {
 public:
 
-    void set_r0(RC<const Texture2D> R0);
+    void set_r0(RC<Texture2D> R0);
 
-    void set_roughness(RC<const Texture2D> roughness);
+    void set_roughness(RC<Texture2D> roughness);
 
-    void set_anisotropic(RC<const Texture2D> anisoropic);
+    void set_anisotropic(RC<Texture2D> anisoropic);
 
     RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 
 private:
 
-    RC<const Texture2D> R0_;
-    RC<const Texture2D> roughness_;
-    RC<const Texture2D> anisotropic_;
+    BTRC_OBJECT(Texture2D, R0_);
+    BTRC_OBJECT(Texture2D, roughness_);
+    BTRC_OBJECT(Texture2D, anisotropic_);
 };
 
 class MetalCreator : public factory::Creator<Material>

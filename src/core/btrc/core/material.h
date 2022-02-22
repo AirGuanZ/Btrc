@@ -61,8 +61,6 @@ class Material : public Object
 {
 public:
 
-    virtual ~Material() = default;
-
     virtual RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const = 0;
 };
 

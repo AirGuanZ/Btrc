@@ -41,13 +41,37 @@ public:
 
     virtual const GeometryInfo &get_geometry_info() const = 0;
 
-    virtual SampleResult sample(ref<CVec3f> sam) const = 0;
+    virtual SampleResult sample_inline(ref<CVec3f> sam) const = 0;
 
-    virtual f32 pdf(ref<CVec3f> pos) const = 0;
+    virtual f32 pdf_inline(ref<CVec3f> pos) const = 0;
 
-    virtual SampleResult sample(ref<CVec3f> dst_pos, ref<CVec3f> sam) const = 0;
+    virtual SampleResult sample_inline(ref<CVec3f> dst_pos, ref<CVec3f> sam) const = 0;
 
-    virtual f32 pdf(ref<CVec3f> dst_pos, ref<CVec3f> pos) const = 0;
+    virtual f32 pdf_inline(ref<CVec3f> dst_pos, ref<CVec3f> pos) const = 0;
+
+    SampleResult sample(CompileContext &cc, ref<CVec3f> sam) const
+    {
+        auto action = [this](ref<CVec3f> _sam) { return sample_inline(_sam); };
+        return cc.record_object_action(as_shared(), "sample", action, sam);
+    }
+
+    f32 pdf(CompileContext &cc, ref<CVec3f> pos) const
+    {
+        auto action = [this](ref<CVec3f> _pos) { return pdf_inline(_pos); };
+        return cc.record_object_action(as_shared(), "pdf", action, pos);
+    }
+
+    SampleResult sample(CompileContext &cc, ref<CVec3f> dst_pos, ref<CVec3f> sam) const
+    {
+        auto action = [this](ref<CVec3f> dst_pos, ref<CVec3f> sam) { return sample_inline(dst_pos, sam); };
+        return cc.record_object_action(as_shared(), "sample_dst", action, dst_pos, sam);
+    }
+
+    f32 pdf(CompileContext &cc, ref<CVec3f> dst_pos, ref<CVec3f> pos) const
+    {
+        auto action = [this](ref<CVec3f> dst_pos, ref<CVec3f> pos) { return pdf_inline(dst_pos, pos); };
+        return cc.record_object_action(as_shared(), "pdf_dst", action, dst_pos, pos);
+    }
 };
 
 BTRC_END

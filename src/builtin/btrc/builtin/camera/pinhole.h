@@ -21,27 +21,28 @@ public:
 
     void set_duration(float beg, float end);
 
-    SampleWeResult generate_ray_inline(ref<CVec2f> film_coord, f32 time_sample) const override;
+    void commit() override;
+
+    SampleWeResult generate_ray_inline(
+        CompileContext &cc,
+        ref<CVec2f>     film_coord,
+        f32             time_sample) const override;
 
 private:
 
-    struct GenerateData
-    {
-        Vec3f left_bottom_corner;
-        Vec3f film_x;
-        Vec3f film_y;
-    };
+    PropertySlot<Vec3f> eye_ = new_property<Vec3f>();
+    PropertySlot<Vec3f> dst_ = new_property<Vec3f>();
+    PropertySlot<Vec3f> up_  = new_property<Vec3f>();
 
-    GenerateData preprocess() const;
+    PropertySlot<float> beg_time_ = new_property(0.0f);
+    PropertySlot<float> end_time_ = new_property(0.0f);
 
-    Vec3f eye_;
-    Vec3f dst_;
-    Vec3f up_;
-    float beg_time_ = 0;
-    float end_time_ = 0;
+    PropertySlot<float> fov_y_deg_ = new_property(60.0f);
+    PropertySlot<float> w_over_h_  = new_property(1.0f);
 
-    float fov_y_deg_ = 60;
-    float w_over_h_  = 1;
+    PropertySlot<Vec3f> left_bottom_corner_ = new_property<Vec3f>();
+    PropertySlot<Vec3f> film_x_ = new_property<Vec3f>();
+    PropertySlot<Vec3f> film_y_ = new_property<Vec3f>();
 };
 
 class PinholeCameraCreator : public factory::Creator<Camera>

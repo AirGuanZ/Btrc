@@ -11,11 +11,13 @@ class IBL : public EnvirLight
 {
 public:
 
-    void set_texture(RC<const Texture2D> tex);
+    void set_texture(RC<Texture2D> tex);
 
     void set_up(const Vec3f &up);
+    
+    void set_lut_res(const Vec2i &lut_res);
 
-    void preprocess(const Vec2i &lut_res);
+    void commit() override;
 
     CSpectrum eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const override;
 
@@ -27,8 +29,9 @@ private:
 
     CSpectrum eval_local(CompileContext &cc, ref<CVec3f> normalized_to_light) const;
 
-    RC<const Texture2D>    tex_;
+    ObjectSlot<Texture2D>  tex_ = new_object<Texture2D>();
     Frame                  frame_;
+    Vec2i                  lut_res_;
     Box<EnvirLightSampler> sampler_;
 };
 
