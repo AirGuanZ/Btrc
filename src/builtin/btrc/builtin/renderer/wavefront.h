@@ -11,7 +11,7 @@ public:
 
     struct Params
     {
-        int spp    = 128;
+        int spp = 128;
 
         int   min_depth    = 5;
         int   max_depth    = 100;
@@ -38,15 +38,19 @@ public:
 
     void set_reporter(RC<Reporter> reporter) override;
 
+    void set_preview_interval(int ms) override;
+
     std::vector<RC<Object>> get_dependent_objects() override;
 
-    void recompile() override;
+    void recompile(bool offline) override;
 
     RenderResult render() const override;
 
 private:
 
-    void build_pipeline() const;
+    void build_pipeline(bool offline) const;
+
+    void new_preview_image() const;
 
     struct Impl;
 

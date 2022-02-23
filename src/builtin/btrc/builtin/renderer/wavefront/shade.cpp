@@ -144,8 +144,6 @@ ShadePipeline::StateCounters ShadePipeline::shade(
         inst_to_mat_,
         soa);
 
-    throw_on_error(cudaStreamSynchronize(nullptr));
-
     std::array<int32_t, 3> counter_data;
     counters_.to_cpu(counter_data.data());
     return { counter_data[0], counter_data[2] };

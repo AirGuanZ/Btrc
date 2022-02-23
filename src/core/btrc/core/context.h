@@ -119,6 +119,15 @@ private:
     std::map<std::type_index, std::vector<void *>> free_properties_;
 };
 
+class ScopedPropertyPool : public Uncopyable
+{
+public:
+
+    ScopedPropertyPool();
+
+    ~ScopedPropertyPool();
+};
+
 class ObjectReferenceCommon
 {
 public:

@@ -20,11 +20,7 @@ public:
 
     virtual bool need_preview() const { return false; }
 
-    virtual void new_preview(const Image<Vec3f> &preview) { }
-
-    // must be thread safe
-
-    virtual bool should_stop() const { return false; }
+    virtual void new_preview(const Image<Vec4f> &preview) { }
 };
 
 BTRC_END

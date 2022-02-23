@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <btrc/builtin/renderer/wavefront.h>
 
 #include "./wavefront/generate.h"
@@ -6,6 +8,7 @@
 #include "./wavefront/shadow.h"
 #include "./wavefront/sort.h"
 #include "./wavefront/trace.h"
+#include "./wavefront/wfpt_preview.h"
 
 BTRC_BUILTIN_BEGIN
 
@@ -17,6 +20,7 @@ struct WavefrontPathTracer::Impl
     RC<Scene>    scene;
     RC<Camera>   camera;
     RC<Reporter> reporter;
+    int          preview_interval_ms = 500;
 
     int width = 512;
     int height = 512;
@@ -28,6 +32,9 @@ struct WavefrontPathTracer::Impl
     wfpt::SortPipeline     sort;
     wfpt::ShadePipeline    shade;
     wfpt::ShadowPipeline   shadow;
+
+    cuda::CUDABuffer<Vec4f> device_preview_image;
+    Image<Vec4f>            preview_image;
 };
 
 WavefrontPathTracer::WavefrontPathTracer(optix::Context &optix_ctx)
@@ -44,27 +51,36 @@ WavefrontPathTracer::~WavefrontPathTracer()
 void WavefrontPathTracer::set_params(const Params &params)
 {
     impl_->params = params;
+    set_recompile();
 }
 
 void WavefrontPathTracer::set_scene(RC<Scene> scene)
 {
     impl_->scene = scene;
+    set_recompile();
 }
 
 void WavefrontPathTracer::set_camera(RC<Camera> camera)
 {
     impl_->camera = std::move(camera);
+    set_recompile();
 }
 
 void WavefrontPathTracer::set_film(int width, int height)
 {
     impl_->width = width;
     impl_->height = height;
+    set_recompile();
 }
 
 void WavefrontPathTracer::set_reporter(RC<Reporter> reporter)
 {
     impl_->reporter = std::move(reporter);
+}
+
+void WavefrontPathTracer::set_preview_interval(int ms)
+{
+    impl_->preview_interval_ms = ms;
 }
 
 std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
@@ -76,9 +92,9 @@ std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
     return result;
 }
 
-void WavefrontPathTracer::recompile()
+void WavefrontPathTracer::recompile(bool offline)
 {
-    build_pipeline();
+    build_pipeline(offline);
 }
 
 Renderer::RenderResult WavefrontPathTracer::render() const
@@ -92,6 +108,12 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     auto &reporter = *impl_->reporter;
 
     reporter.new_stage();
+
+    using Clock = std::chrono::steady_clock;
+    auto last_preview_time = Clock::now();
+    const auto preview_interval = std::chrono::duration_cast<Clock::duration>(
+        std::chrono::milliseconds(impl_->preview_interval_ms));
+    Clock::duration rest_preview_duration(0);
 
     const uint64_t total_path_count = static_cast<uint64_t>(params.spp) * impl_->width * impl_->height;
     uint64_t finished_path_count = 0;
@@ -127,7 +149,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .state_index   = soa.active_state_indices
             });
 
-        // TODO: sort
+        // impl_->sort.sort(active_state_count, soa.inct_t, soa.inct_uv_id, soa.active_state_indices);
 
         const auto shade_counters = impl_->shade.shade(
             active_state_count,
@@ -166,6 +188,17 @@ Renderer::RenderResult WavefrontPathTracer::render() const
         reporter.progress(100.0f * finished_path_count / total_path_count);
         active_state_count = shade_counters.active_state_counter;
 
+        if(reporter.need_preview())
+        {
+            auto now = Clock::now();
+            if(now - last_preview_time > rest_preview_duration)
+            {
+                last_preview_time = now;
+                rest_preview_duration = preview_interval;
+                new_preview_image();
+            }
+        }
+
         if(shade_counters.shadow_ray_counter)
         {
             impl_->shadow.test(
@@ -180,7 +213,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 });
         }
 
-        if(reporter.should_stop())
+        if(should_stop())
             break;
 
         soa.next_iteration();
@@ -189,8 +222,11 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     throw_on_error(cudaStreamSynchronize(nullptr));
 
     reporter.complete_stage();
-    if(reporter.should_stop())
+    if(should_stop())
         return {};
+
+    if(reporter.need_preview())
+        new_preview_image();
 
     auto value = Image<Vec4f>(impl_->width, impl_->height);
     auto weight = Image<float>(impl_->width, impl_->height);
@@ -244,9 +280,9 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     return result;
 }
 
-void WavefrontPathTracer::build_pipeline() const
+void WavefrontPathTracer::build_pipeline(bool offline) const
 {
-    CompileContext cc;
+    CompileContext cc(offline);
 
     auto &params = impl_->params;
 
@@ -293,6 +329,30 @@ void WavefrontPathTracer::build_pipeline() const
     // path state
 
     impl_->path_state.initialize(params.state_count);
+}
+
+void WavefrontPathTracer::new_preview_image() const
+{
+    const size_t texel_count = impl_->width * impl_->height;
+    if(impl_->device_preview_image.get_size() != texel_count)
+    {
+        impl_->device_preview_image.initialize(texel_count);
+        impl_->preview_image = Image<Vec4f>(impl_->width, impl_->height);
+    }
+
+    wfpt::compute_preview_image(
+        impl_->width, impl_->height,
+        impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).as<Vec4f>(),
+        impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
+        impl_->device_preview_image.get());
+
+    throw_on_error(cudaMemcpy(
+        impl_->preview_image.data(),
+        impl_->device_preview_image.get(),
+        sizeof(Vec4f) * texel_count,
+        cudaMemcpyDeviceToHost));
+
+    impl_->reporter->new_preview(impl_->preview_image);
 }
 
 RC<Renderer> WavefrontPathTracerCreator::create(RC<const factory::Node> node, factory::Context &context)

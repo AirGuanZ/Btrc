@@ -13,6 +13,11 @@ bool Renderer::is_rendering() const
     return rendering_;
 }
 
+bool Renderer::should_stop() const
+{
+    return stop_;
+}
+
 void Renderer::render_async()
 {
     CUcontext cuda_context;

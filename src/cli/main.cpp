@@ -4,6 +4,7 @@
 #include <btrc/builtin/register.h>
 #include <btrc/builtin/reporter/console.h>
 #include <btrc/core/scene.h>
+#include <btrc/core/traversal.h>
 #include <btrc/factory/context.h>
 #include <btrc/factory/node/parser.h>
 #include <btrc/factory/scene.h>
@@ -12,45 +13,28 @@
 #include <btrc/utils/exception.h>
 #include <btrc/utils/file.h>
 
-void process_object(
-    btrc::RC<btrc::Object>               object,
-    std::set<btrc::RC<btrc::Object>>    &processed_objects,
-    std::vector<btrc::RC<btrc::Object>> &output)
-{
-    if(processed_objects.contains(object))
-        return;
-    for(auto &d : object->get_dependent_objects())
-        process_object(d, processed_objects, output);
-    assert(!processed_objects.contains(object));
-    processed_objects.insert(object);
-    output.push_back(object);
-}
-
-std::vector<btrc::RC<btrc::Object>> topology_sort_objects(const std::set<btrc::RC<btrc::Object>> &entry_objects)
-{
-    using namespace btrc;
-    std::set<RC<Object>> processed_objects;
-    std::vector<RC<Object>> output;
-    for(auto &e : entry_objects)
-        process_object(e, processed_objects, output);
-    return output;
-}
-
 void run(const std::string &scene_filename)
 {
     using namespace btrc;
 
-    const auto scene_dir = std::filesystem::path(scene_filename).parent_path();
+    std::cout << ">>> Btrc Renderer <<<" << std::endl;
+
+    std::cout << "create optix context" << std::endl;
 
     cuda::Context cuda_context(0);
     optix::Context optix_context(cuda_context);
 
-    PropertyPool::initialize_instance();
-    BTRC_SCOPE_EXIT{ PropertyPool::destroy_instance(); };
+    ScopedPropertyPool property_pool;
+
+    std::cout << "create btrc context" << std::endl;
 
     factory::Context btrc_context(optix_context);
     builtin::register_builtin_creators(btrc_context);
+
+    const auto scene_dir = std::filesystem::path(scene_filename).parent_path();
     btrc_context.add_path_mapping("scene_directory", scene_dir.string());
+
+    std::cout << "parse scene" << std::endl;
 
     factory::JSONParser parser;
     std::string json_source = read_txt_file(scene_filename);
@@ -59,8 +43,12 @@ void run(const std::string &scene_filename)
     parser.parse();
     auto root_node = parser.get_result();
 
+    std::cout << "create scene" << std::endl;
+
     auto scene_node = root_node->child_node("scene");
     auto scene = create_scene(scene_node, btrc_context);
+
+    std::cout << "create camera" << std::endl;
 
     const int width = root_node->parse_child<int>("width");
     const int height = root_node->parse_child<int>("height");
@@ -68,27 +56,28 @@ void run(const std::string &scene_filename)
     auto camera = btrc_context.create<Camera>(root_node->child_node("camera"));
     camera->set_w_over_h(static_cast<float>(width) / height);
 
+    std::cout << "create renderer" << std::endl;
+
     auto renderer = btrc_context.create<Renderer>(root_node->child_node("renderer"));
     renderer->set_camera(camera);
     renderer->set_film(width, height);
     renderer->set_scene(scene);
     renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
-    auto entry_objects = renderer->get_dependent_objects();
-    auto sorted_objects = topology_sort_objects(std::set(entry_objects.begin(), entry_objects.end()));
+    auto sorted_objects = topology_sort_object_tree(renderer->get_dependent_objects());
 
-    std::cout << "commit objects..." << std::endl;
+    std::cout << "commit objects" << std::endl;
 
     scene->precommit();
     for(auto &obj : sorted_objects)
         obj->commit();
     scene->postcommit();
 
-    std::cout << "compile kernel..." << std::endl;
+    std::cout << "compile kernel" << std::endl;
 
-    renderer->recompile();
+    renderer->recompile(true);
 
-    std::cout << "render image..." << std::endl;
+    std::cout << "render image" << std::endl;
 
     auto result = renderer->render();
 

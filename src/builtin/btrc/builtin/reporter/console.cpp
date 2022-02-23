@@ -24,8 +24,11 @@ void ConsoleReporter::complete_stage()
 
 void ConsoleReporter::progress(float percentage)
 {
-    pbar_.set_percent(percentage);
-    pbar_.display();
+    if(percentage - pbar_.get_percent() >= 1)
+    {
+        pbar_.set_percent(percentage);
+        pbar_.display();
+    }
 }
 
 BTRC_BUILTIN_END

@@ -68,4 +68,14 @@ void PropertyPool::release_impl(std::type_index type_index, void *device_pointer
     free_properties_[type_index].push_back(device_pointer);
 }
 
+ScopedPropertyPool::ScopedPropertyPool()
+{
+    PropertyPool::initialize_instance();
+}
+
+ScopedPropertyPool::~ScopedPropertyPool()
+{
+    PropertyPool::destroy_instance();
+}
+
 BTRC_END

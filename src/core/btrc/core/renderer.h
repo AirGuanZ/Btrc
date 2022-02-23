@@ -31,7 +31,9 @@ public:
 
     virtual void set_reporter(RC<Reporter> reporter) = 0;
 
-    virtual void recompile() = 0;
+    virtual void set_preview_interval(int ms) = 0;
+
+    virtual void recompile(bool offline) = 0;
 
     virtual RenderResult render() const = 0;
 
@@ -44,6 +46,10 @@ public:
     bool is_waitable() const;
 
     bool is_rendering() const;
+
+protected:
+
+    bool should_stop() const;
 
 private:
 
