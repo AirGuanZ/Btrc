@@ -22,4 +22,4 @@ IF(MSVC)
         PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/")
 ENDIF()
 
-TARGET_LINK_LIBRARIES(BtrcGUI PUBLIC BtrcBuiltin OpenGL::GL glfw glew_s imgui)
+TARGET_LINK_LIBRARIES(BtrcGUI PUBLIC BtrcBuiltin OpenGL::GL glfw glew_s imgui portable_file_dialogs)

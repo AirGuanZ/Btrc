@@ -1,20 +1,13 @@
 #include <iostream>
 #include <vector>
 
-#ifdef WIN32
-#include <Windows.h>
-#endif
-
 #include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
+#include <portable-file-dialogs.h>
 
 #include <btrc/builtin/register.h>
-#include <btrc/builtin/reporter/console.h>
+#include <btrc/core/object_dag.h>
 #include <btrc/core/scene.h>
-#include <btrc/core/traversal.h>
 #include <btrc/factory/context.h>
 #include <btrc/factory/node/parser.h>
 #include <btrc/factory/scene.h>
@@ -24,23 +17,19 @@
 #include <btrc/utils/file.h>
 
 #include "reporter.h"
+#include "window.h"
 
 using namespace btrc;
 
-struct OpenGLContext
-{
-    GLFWwindow *window;
-};
-
 struct BtrcScene
 {
-    Box<cuda::Context>      cuda_context;
-    Box<optix::Context>     optix_context;
     Box<ScopedPropertyPool> property_pool;
     Box<factory::Context>   object_context;
 
     int width  = 0;
     int height = 0;
+
+    RC<factory::Node> root;
 
     RC<Scene>    scene;
     RC<Camera>   camera;
@@ -48,91 +37,66 @@ struct BtrcScene
     RC<Renderer> renderer;
 };
 
-OpenGLContext initialize_opengl()
-{
-    if(!glfwInit())
-        throw std::runtime_error("failed to initialize glfw");
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    auto glfw_window = glfwCreateWindow(640, 480, "BtrcGUI", nullptr, nullptr);
-    if(!glfw_window)
-        throw std::runtime_error("failed to create glfw window");
-
-    glfwMakeContextCurrent(glfw_window);
-
-    if(glewInit() != GLEW_OK)
-        throw std::runtime_error("failed to iniailize glew");
-
-    ImGui::CreateContext();
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-    ImGui::GetIO().IniFilename = nullptr;
-
-    ImGui_ImplGlfw_InitForOpenGL(glfw_window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
-
-    ImGui::StyleColorsLight();
-
-    return { glfw_window };
-}
-
-void destroy_opengl(OpenGLContext &context)
-{
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    glfwDestroyWindow(context.window);
-    glfwTerminate();
-}
-
-BtrcScene initialize_btrc_scene(const std::string &filename)
+BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context)
 {
     BtrcScene result;
 
-    result.cuda_context = newBox<cuda::Context>(0);
-    result.optix_context = newBox<optix::Context>(*result.cuda_context);
+    std::cout << "create btrc context" << std::endl;
+
     result.property_pool = newBox<ScopedPropertyPool>();
 
-    result.object_context = newBox<factory::Context>(*result.optix_context);
+    result.object_context = newBox<factory::Context>(optix_context);
     builtin::register_builtin_creators(*result.object_context);
 
     const auto scene_dir = std::filesystem::path(filename).parent_path();
     result.object_context->add_path_mapping("scene_directory", scene_dir.string());
 
+    std::cout << "parse scene" << std::endl;
+
     factory::JSONParser parser;
     parser.set_source(read_txt_file(filename));
     parser.add_include_directory(scene_dir);
     parser.parse();
-    auto root = parser.get_result();
+    result.root = parser.get_result();
 
-    result.scene = create_scene(root->child_node("scene"), *result.object_context);
+    std::cout << "create scene" << std::endl;
 
-    result.width = root->parse_child<int>("width");
-    result.height = root->parse_child<int>("height");
+    result.scene = create_scene(result.root->child_node("scene"), *result.object_context);
 
-    result.camera = result.object_context->create<Camera>(root->child_node("camera"));
+    std::cout << "create camera" << std::endl;
+
+    result.width = result.root->parse_child<int>("width");
+    result.height = result.root->parse_child<int>("height");
+
+    result.camera = result.object_context->create<Camera>(result.root->child_node("camera"));
     result.camera->set_w_over_h(static_cast<float>(result.width) / result.height);
 
-    result.renderer = result.object_context->create<Renderer>(root->child_node("renderer"));
+    std::cout << "create renderer" << std::endl;
+
+    result.renderer = result.object_context->create<Renderer>(result.root->child_node("renderer"));
     result.renderer->set_camera(result.camera);
     result.renderer->set_film(result.width, result.height);
     result.renderer->set_scene(result.scene);
 
-    auto sorted_objects = topology_sort_object_tree(result.renderer->get_dependent_objects());
+    std::cout << "commit objects" << std::endl;
+
+    ObjectDAG dag(result.renderer);
 
     result.scene->precommit();
-    for(auto &obj : sorted_objects)
-        obj->commit();
+    dag.commit();
     result.scene->postcommit();
 
-    result.renderer->recompile(true);
+    std::cout << "compile kernel" << std::endl;
 
-    //for(auto &obj : sorted_objects)
-    //{
-    //    for(auto &p : obj->get_properties())
-    //        p->update();
-    //}
+    if(dag.need_recompile())
+    {
+        result.renderer->recompile(false);
+        dag.clear_recompile_flag();
+    }
+
+    std::cout << "update properties" << std::endl;
+
+    dag.update_properties();
 
     return result;
 }
@@ -163,21 +127,24 @@ void display_image(GLuint tex_handle, int scene_width, int scene_height)
 
     ImGui::SetCursorPosX(0.5f * (window_width - display_size_x));
     ImGui::SetCursorPosY(0.5f * (window_height - display_size_y));
-    ImGui::Image(
-        reinterpret_cast<ImTextureID>(static_cast<size_t>(tex_handle)),
-        ImVec2(display_size_x, display_size_y));
+
+    const auto im_tex = reinterpret_cast<ImTextureID>(static_cast<size_t>(tex_handle));
+    ImGui::Image(im_tex, ImVec2(display_size_x, display_size_y));
 }
 
 void run(const std::string &config_filename)
 {
-    auto scene = initialize_btrc_scene(config_filename);
+    cuda::Context cuda_context(0);
+    optix::Context optix_context(nullptr);
 
-    auto opengl = initialize_opengl();
-    BTRC_SCOPE_EXIT{ destroy_opengl(opengl); };
+    auto scene = initialize_btrc_scene(config_filename, optix_context);
+
+    Window window("BtrcGUI", 1024, 768);
 
     auto reporter = newRC<GUIPreviewer>();
+    reporter->set_preview_interval(50);
+
     scene.renderer->set_reporter(reporter);
-    scene.renderer->set_preview_interval(200);
     scene.renderer->render_async();
 
     GLuint tex_handle = 0;
@@ -196,30 +163,62 @@ void run(const std::string &config_filename)
         }
     };
 
-    while(!glfwWindowShouldClose(opengl.window))
+    while(!window.should_close())
     {
-        glfwPollEvents();
+        window.begin_frame();
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        glClearColor(0, 1, 1, 0);
-        glClear(GL_COLOR_BUFFER_BIT);
+        if(ImGui::IsKeyDown(ImGuiKey_Escape))
+            window.set_close(true);
+        
+        if(reporter->get_percentage() > 20)
+            reporter->set_preview_interval(1000);
+        else if(reporter->get_percentage() > 5)
+            reporter->set_preview_interval(200);
 
         if(reporter->get_dirty_flag())
             reporter->access_image(update_image);
 
+        if(!scene.renderer->is_rendering() && scene.renderer->is_waitable())
+        {
+            auto result = scene.renderer->wait_async();
+
+            const auto value_filename = scene.root->parse_child_or<std::string>("value_filename", "output.exr");
+            std::cout << "write value to " << value_filename << std::endl;
+            result.value.save(value_filename);
+
+            if(result.albedo)
+            {
+                const auto albedo_filename = scene.root->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
+                std::cout << "write albedo to " << albedo_filename << std::endl;
+                result.albedo.save(albedo_filename);
+            }
+
+            if(result.normal)
+            {
+                const auto normal_filename = scene.root->parse_child_or<std::string>("normal_filename", "output_normal.png");
+                std::cout << "write normal to " << normal_filename << std::endl;
+                result.normal.save(normal_filename);
+            }
+        }
+
         {
             auto viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(viewport->WorkPos, ImGuiCond_Always);
-            ImGui::SetNextWindowSize(viewport->WorkSize, ImGuiCond_Always);
-            ImGuiWindowFlags window_flags = 0;
-            window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
-            window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+            ImGui::SetNextWindowPos(viewport->WorkPos, ImGuiCond_Always);
+            ImGui::SetNextWindowSize(viewport->WorkSize, ImGuiCond_Always);
+
+            constexpr ImGuiWindowFlags window_flags =
+                ImGuiWindowFlags_NoTitleBar |
+                ImGuiWindowFlags_NoCollapse |
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoDocking |
+                ImGuiWindowFlags_NoBringToFrontOnFocus |
+                ImGuiWindowFlags_NoNavFocus;
 
             if(ImGui::Begin("display", nullptr, window_flags))
             {
@@ -231,44 +230,47 @@ void run(const std::string &config_filename)
             ImGui::End();
         }
 
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        if(ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
-            GLFWwindow *backup_current_context = glfwGetCurrentContext();
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
-            glfwMakeContextCurrent(backup_current_context);
-        }
-
-        glfwSwapBuffers(opengl.window);
+        window.end_frame();
     }
-    
+
     glDeleteTextures(1, &tex_handle);
 
-    if(scene.renderer->is_rendering())
+    if(scene.renderer->is_waitable())
         scene.renderer->stop_async();
-    else
-        scene.renderer->wait_async();
 }
 
 int main(int argc, char *argv[])
 {
-    if(argc != 2)
+    std::cout << ">>> Btrc Renderer <<<" << std::endl;
+
+    if(argc > 2)
     {
-        std::cout << "usage: BtrcGUI config.json" << std::endl;
+        std::cout << "usage: BtrcGUI (optional config.json)" << std::endl;
         return 0;
+    }
+
+    std::string filename;
+    if(argc == 2)
+        filename = argv[1];
+    else
+    {
+        auto open = pfd::open_file(
+            "Select Scene Configuration FIle",
+            std::filesystem::current_path().string(),
+            {".json" });
+        if(open.result().size() != 1)
+            return 0;
+        filename = open.result()[0];
     }
 
     try
     {
-        run(argv[1]);
+        run(filename);
     }
     catch(const std::exception &err)
     {
         std::vector<std::string> err_msgs;
-        btrc::extract_hierarchy_exceptions(err, std::back_inserter(err_msgs));
+        extract_hierarchy_exceptions(err, std::back_inserter(err_msgs));
         for(auto &s : err_msgs)
             std::cerr << s << std::endl;
         return -1;

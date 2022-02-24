@@ -31,7 +31,7 @@ public:
 
     virtual void set_reporter(RC<Reporter> reporter) = 0;
 
-    virtual void set_preview_interval(int ms) = 0;
+    void commit() final { }
 
     virtual void recompile(bool offline) = 0;
 

@@ -1,5 +1,3 @@
-#include <chrono>
-
 #include <btrc/builtin/renderer/wavefront.h>
 
 #include "./wavefront/generate.h"
@@ -20,7 +18,6 @@ struct WavefrontPathTracer::Impl
     RC<Scene>    scene;
     RC<Camera>   camera;
     RC<Reporter> reporter;
-    int          preview_interval_ms = 500;
 
     int width = 512;
     int height = 512;
@@ -78,11 +75,6 @@ void WavefrontPathTracer::set_reporter(RC<Reporter> reporter)
     impl_->reporter = std::move(reporter);
 }
 
-void WavefrontPathTracer::set_preview_interval(int ms)
-{
-    impl_->preview_interval_ms = ms;
-}
-
 std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
 {
     std::set<RC<Object>> scene_objects;
@@ -108,12 +100,6 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     auto &reporter = *impl_->reporter;
 
     reporter.new_stage();
-
-    using Clock = std::chrono::steady_clock;
-    auto last_preview_time = Clock::now();
-    const auto preview_interval = std::chrono::duration_cast<Clock::duration>(
-        std::chrono::milliseconds(impl_->preview_interval_ms));
-    Clock::duration rest_preview_duration(0);
 
     const uint64_t total_path_count = static_cast<uint64_t>(params.spp) * impl_->width * impl_->height;
     uint64_t finished_path_count = 0;
@@ -189,15 +175,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
         active_state_count = shade_counters.active_state_counter;
 
         if(reporter.need_preview())
-        {
-            auto now = Clock::now();
-            if(now - last_preview_time > rest_preview_duration)
-            {
-                last_preview_time = now;
-                rest_preview_duration = preview_interval;
-                new_preview_image();
-            }
-        }
+            new_preview_image();
 
         if(shade_counters.shadow_ray_counter)
         {
@@ -225,8 +203,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     if(should_stop())
         return {};
 
-    if(reporter.need_preview())
-        new_preview_image();
+    new_preview_image();
 
     auto value = Image<Vec4f>(impl_->width, impl_->height);
     auto weight = Image<float>(impl_->width, impl_->height);

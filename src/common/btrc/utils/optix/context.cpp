@@ -13,11 +13,17 @@
 
 BTRC_OPTIX_BEGIN
 
+Context::Context()
+    : context_(nullptr)
+{
+    
+}
+
 Context::Context(CUcontext cuda_context)
     : context_(nullptr)
 {
-    if(!cuda_context)
-        return;
+    if(cuda_context)
+        throw_on_error(cuCtxGetCurrent(&cuda_context));
 
     static std::once_flag init_optix_flag;
     std::call_once(init_optix_flag, []

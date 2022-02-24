@@ -86,6 +86,12 @@ ADD_SUBDIRECTORY(lib/nlohmann)
 
 ADD_SUBDIRECTORY(lib/cpp-member-function-trait)
 
+############## file dialog
+
+IF(BTRC_BUILD_GUI)
+	ADD_SUBDIRECTORY(lib/portable-file-dialog)
+ENDIF()
+
 ############## components
 
 ADD_SUBDIRECTORY(src/common)

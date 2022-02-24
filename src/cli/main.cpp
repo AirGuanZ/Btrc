@@ -3,8 +3,8 @@
 
 #include <btrc/builtin/register.h>
 #include <btrc/builtin/reporter/console.h>
+#include <btrc/core/object_dag.h>
 #include <btrc/core/scene.h>
-#include <btrc/core/traversal.h>
 #include <btrc/factory/context.h>
 #include <btrc/factory/node/parser.h>
 #include <btrc/factory/scene.h>
@@ -17,17 +17,14 @@ void run(const std::string &scene_filename)
 {
     using namespace btrc;
 
-    std::cout << ">>> Btrc Renderer <<<" << std::endl;
-
     std::cout << "create optix context" << std::endl;
 
     cuda::Context cuda_context(0);
-    optix::Context optix_context(cuda_context);
-
-    ScopedPropertyPool property_pool;
+    optix::Context optix_context(nullptr);
 
     std::cout << "create btrc context" << std::endl;
 
+    ScopedPropertyPool property_pool;
     factory::Context btrc_context(optix_context);
     builtin::register_builtin_creators(btrc_context);
 
@@ -64,13 +61,12 @@ void run(const std::string &scene_filename)
     renderer->set_scene(scene);
     renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
-    auto sorted_objects = topology_sort_object_tree(renderer->get_dependent_objects());
-
     std::cout << "commit objects" << std::endl;
 
+    ObjectDAG dag(renderer);
+
     scene->precommit();
-    for(auto &obj : sorted_objects)
-        obj->commit();
+    dag.commit();
     scene->postcommit();
 
     std::cout << "compile kernel" << std::endl;
@@ -81,15 +77,28 @@ void run(const std::string &scene_filename)
 
     auto result = renderer->render();
 
-    result.value.save(root_node->parse_child_or<std::string>("value_filename", "output.exr"));
+    const auto value_filename = root_node->parse_child_or<std::string>("value_filename", "output.exr");
+    std::cout << "write value to " << value_filename << std::endl;
+    result.value.save(value_filename);
+
     if(result.albedo)
-        result.albedo.save(root_node->parse_child_or<std::string>("albedo_filename", "output_albedo.png"));
+    {
+        const auto albedo_filename = root_node->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
+        std::cout << "write albedo to " << albedo_filename << std::endl;
+        result.albedo.save(albedo_filename);
+    }
     if(result.normal)
-        result.normal.save(root_node->parse_child_or<std::string>("normal_filename", "output_normal.png"));
+    {
+        const auto normal_filename = root_node->parse_child_or<std::string>("normal_filename", "output_normal.png");
+        std::cout << "write normal to " << normal_filename << std::endl;
+        result.normal.save(normal_filename);
+    }
 }
 
 int main(int argc, char *argv[])
 {
+    std::cout << ">>> Btrc Renderer <<<" << std::endl;
+
     if(argc != 2)
     {
         std::cout << "usage: BtrcCLI config.json" << std::endl;

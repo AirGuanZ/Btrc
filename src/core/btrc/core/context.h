@@ -175,6 +175,8 @@ public:
 
     bool need_recompile() const;
 
+    bool need_commit() const;
+
     void set_recompile(bool recompile = true);
 
     std::vector<PropertyCommon *> get_properties();
@@ -490,6 +492,18 @@ inline RC<const Object> Object::as_shared() const
 inline bool Object::need_recompile() const
 {
     return need_recompile_;
+}
+
+inline bool Object::need_commit() const
+{
+    if(need_recompile_)
+        return true;
+    for(auto p : properties_)
+    {
+        if(p->is_dirty())
+            return true;
+    }
+    return false;
 }
 
 inline void Object::set_recompile(bool recompile)

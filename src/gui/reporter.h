@@ -20,6 +20,8 @@ public:
 
     void new_preview(const Image &preview) override;
 
+    void set_preview_interval(int ms);
+
     template<typename F>
     void access_image(const F &f);
 
@@ -29,11 +31,16 @@ public:
 
 private:
 
+    using PreviewClock = std::chrono::steady_clock;
+
     std::mutex image_lock_;
     Image      image_;
 
     std::atomic<bool> dirty_flag_ = true;
     std::atomic<float> progress_ = 0.0f;
+
+    std::atomic<int> preview_interval_ms_ = 1000;
+    PreviewClock::time_point last_preview_time_ = PreviewClock::now();
 };
 
 template<typename F>

@@ -24,7 +24,7 @@ void IBL::set_lut_res(const Vec2i &lut_res)
 void IBL::commit()
 {
     sampler_ = newBox<EnvirLightSampler>();
-    sampler_->preprocess(tex_.get(), lut_res_, 128);
+    sampler_->preprocess(tex_.get(), lut_res_, 256);
 }
 
 CSpectrum IBL::eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const

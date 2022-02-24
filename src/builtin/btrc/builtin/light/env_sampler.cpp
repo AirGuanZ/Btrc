@@ -43,7 +43,7 @@ namespace
             var lum_sum = 0.0f;
             $while(i < n_samples)
             {
-                var local_sample = 1.4f * local_samples[i] - CVec2f(0.2f);
+                var local_sample = 1.2f * local_samples[i] - CVec2f(0.1f);
                 i = i + 1;
                 var x = lerp(x0, x1, local_sample.x);
                 var y = lerp(y0, y1, local_sample.y);

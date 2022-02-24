@@ -25,7 +25,9 @@ public:
     using MessageCallback = std::function<
         void(unsigned int, const char *, const char *)>;
 
-    explicit Context(CUcontext cuda_context = nullptr);
+    Context();
+
+    explicit Context(CUcontext cuda_context);
 
     Context(Context &&other) noexcept;
 

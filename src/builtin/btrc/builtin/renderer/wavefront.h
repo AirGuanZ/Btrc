@@ -38,8 +38,6 @@ public:
 
     void set_reporter(RC<Reporter> reporter) override;
 
-    void set_preview_interval(int ms) override;
-
     std::vector<RC<Object>> get_dependent_objects() override;
 
     void recompile(bool offline) override;

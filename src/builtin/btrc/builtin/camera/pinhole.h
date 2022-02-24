@@ -28,6 +28,20 @@ public:
         ref<CVec2f>     film_coord,
         f32             time_sample) const override;
 
+    const Vec3f &get_eye() const;
+
+    const Vec3f &get_dst() const;
+
+    const Vec3f &get_up() const;
+
+    float get_fov_y_deg() const;
+
+    float get_ratio() const;
+
+    float get_duration_begin() const;
+
+    float get_duration_end() const;
+
 private:
 
     BTRC_PROPERTY(Vec3f, eye_);
