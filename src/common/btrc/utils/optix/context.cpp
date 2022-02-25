@@ -1,9 +1,9 @@
 #include <cassert>
-#include <format>
 #include <iostream>
 #include <mutex>
 
 #include <cuda_runtime.h>
+#include <fmt/format.h>
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
 
@@ -47,7 +47,7 @@ Context::Context(CUcontext cuda_context)
     message_callback_ = [](unsigned int level, const char *tag, const char *msg)
     {
         if(level <= 3)
-            std::cerr << std::format("[{}][{:12}]: {}", level, tag, msg);
+            std::cerr << fmt::format("[{}][{:12}]: {}", level, tag, msg);
     };
 }
 
@@ -271,26 +271,23 @@ TriangleAS Context::create_triangle_as_impl(
         OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT
     };
     auto cu_device_vertices = reinterpret_cast<CUdeviceptr>(device_vertices);
-    OptixBuildInput build_input = {
-        .type          = OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
-        .triangleArray = OptixBuildInputTriangleArray{
-            .vertexBuffers               = &cu_device_vertices,
-            .numVertices                 = static_cast<unsigned int>(vertices.size()),
-            .vertexFormat                = OPTIX_VERTEX_FORMAT_FLOAT3,
-            .vertexStrideInBytes         = sizeof(Vec3f),
-            .indexBuffer                 = reinterpret_cast<CUdeviceptr>(device_indices),
-            .numIndexTriplets            = static_cast<unsigned int>(indices.size()) / 3,
-            .indexFormat                 = index_format,
-            .indexStrideInBytes          = index_stride,
-            .preTransform                = 0,
-            .flags                       = triangle_flags,
-            .numSbtRecords               = 1,
-            .sbtIndexOffsetBuffer        = 0,
-            .sbtIndexOffsetStrideInBytes = 0,
-            .primitiveIndexOffset        = 0,
-            .transformFormat             = OPTIX_TRANSFORM_FORMAT_NONE
-        }
-    };
+    OptixBuildInput build_input = {};
+    build_input.type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+    build_input.triangleArray.vertexBuffers               = &cu_device_vertices;
+    build_input.triangleArray.numVertices                 = static_cast<unsigned int>(vertices.size());
+    build_input.triangleArray.vertexFormat                = OPTIX_VERTEX_FORMAT_FLOAT3;
+    build_input.triangleArray.vertexStrideInBytes         = sizeof(Vec3f);
+    build_input.triangleArray.indexBuffer                 = reinterpret_cast<CUdeviceptr>(device_indices);
+    build_input.triangleArray.numIndexTriplets            = static_cast<unsigned int>(indices.size()) / 3;
+    build_input.triangleArray.indexFormat                 = index_format;
+    build_input.triangleArray.indexStrideInBytes          = index_stride;
+    build_input.triangleArray.preTransform                = 0;
+    build_input.triangleArray.flags                       = triangle_flags;
+    build_input.triangleArray.numSbtRecords               = 1;
+    build_input.triangleArray.sbtIndexOffsetBuffer        = 0;
+    build_input.triangleArray.sbtIndexOffsetStrideInBytes = 0;
+    build_input.triangleArray.primitiveIndexOffset        = 0;
+    build_input.triangleArray.transformFormat             = OPTIX_TRANSFORM_FORMAT_NONE;
 
     auto [handle, as_buffer] = build_accel(build_input);
     return TriangleAS(handle, std::move(as_buffer));

@@ -92,7 +92,7 @@ path JSONParser::get_absolute_included_file_path(const path &included_file) cons
         }
         if(final_included_file.empty())
         {
-            throw BtrcException(std::format(
+            throw BtrcException(fmt::format(
                 "included file '{}' is not found", included_file.string()));
         }
         final_included_file = final_included_file.lexically_normal();

@@ -1,9 +1,11 @@
 #pragma once
 
-#include <format>
 #include <map>
-#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
+
+#include <fmt/format.h>
 
 #include <btrc/common.h>
 
@@ -129,7 +131,7 @@ T Node::parse_child(std::string_view name) const
     auto child = this->as_group()->find_child_node(name);
     if(!child)
     {
-        throw BtrcException(std::format(
+        throw BtrcException(fmt::format(
             "child {} is not found", name));
     }
     return child->parse<T>();

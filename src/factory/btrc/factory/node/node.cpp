@@ -63,7 +63,7 @@ namespace
                 const float z = arr->get_element(2)->parse<float>();
                 return Vec3f(x, y, z);
             }
-            throw BtrcException(std::format("unexpected array size: {}", arr->get_size()));
+            throw BtrcException(fmt::format("unexpected array size: {}", arr->get_size()));
         }
         if(auto val = node->as_value())
         {
@@ -113,7 +113,7 @@ namespace
                 const float b = arr->get_element(2)->parse<float>();
                 return Spectrum::from_rgb(r, g, b);
             }
-            throw BtrcException(std::format("unexpected array size: {}", arr->get_size()));
+            throw BtrcException(fmt::format("unexpected array size: {}", arr->get_size()));
         }
         if(auto val = node->as_value())
         {
@@ -188,7 +188,7 @@ RC<Node> Node::child_node(std::string_view name)
 {
     auto ret = find_child_node(name);
     if(!ret)
-        throw BtrcException(std::format("child {} not found", name));
+        throw BtrcException(fmt::format("child {} not found", name));
     return ret;
 }
 
@@ -196,7 +196,7 @@ RC<const Node> Node::child_node(std::string_view name) const
 {
     auto ret = find_child_node(name);
     if(!ret)
-        throw BtrcException(std::format("child {} not found", name));
+        throw BtrcException(fmt::format("child {} not found", name));
     return ret;
 }
 
@@ -242,7 +242,7 @@ T Node::parse() const
         throw BtrcException("unimplemented");
     }
 
-    BTRC_HI_WRAP(std::format("in parsing {}", typeid(T).name()))
+    BTRC_HI_WRAP(fmt::format("in parsing {}", typeid(T).name()))
 }
 
 Node::Type Group::get_type() const
@@ -272,7 +272,7 @@ RC<Node> Group::child_node(std::string_view name)
 {
     auto ret = find_child_node(name);
     if(!ret)
-        throw BtrcException(std::format("child {} not found", name));
+        throw BtrcException(fmt::format("child {} not found", name));
     return ret;
 }
 
@@ -280,7 +280,7 @@ RC<const Node> Group::child_node(std::string_view name) const
 {
     auto ret = find_child_node(name);
     if(!ret)
-        throw BtrcException(std::format("child {} not found", name));
+        throw BtrcException(fmt::format("child {} not found", name));
     return ret;
 }
 

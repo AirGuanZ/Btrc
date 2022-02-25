@@ -48,6 +48,18 @@ namespace local_angle
         return cstd::acos(cstd::clamp(cos_theta(w), -1.0f, 1.0f));
     }
 
+    inline float phi(const Vec3f w)
+    {
+        float result = 0.0f;
+        if(w.x != 0 || w.y != 0)
+        {
+            result = std::atan2(w.y, w.x);
+            if(result < 0)
+                result += 2 * btrc_pi;
+        }
+        return result;
+    }
+
     inline f32 phi(ref<CVec3f> w)
     {
         var result = 0.0f;

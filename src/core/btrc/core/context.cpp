@@ -40,7 +40,7 @@ void PropertyPool::new_chunk(std::vector<void *> &output, size_t size, size_t al
     assert(size % align == 0);
     if(align > 256)
     {
-        throw BtrcException(std::format(
+        throw BtrcException(fmt::format(
             "Property: alignment value {} is too large!", align));
     }
 

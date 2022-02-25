@@ -75,7 +75,7 @@ void ObjectDAG::add(const RC<Object> &object, std::set<RC<Object>> &processed)
         return;
     for(auto &d : object->get_dependent_objects())
         add(d, processed);
-    assert(!processed_objects.contains(object));
+    assert(!processed.contains(object));
     processed.insert(object);
     sorted_.push_back(object);
 }

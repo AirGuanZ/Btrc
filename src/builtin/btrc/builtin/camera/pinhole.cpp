@@ -34,6 +34,31 @@ void PinholeCamera::set_duration(float beg, float end)
     end_time_.set(end);
 }
 
+const Vec3f &PinholeCamera::get_eye() const
+{
+    return eye_.get();
+}
+
+const Vec3f &PinholeCamera::get_dst() const
+{
+    return dst_.get();
+}
+
+const Vec3f &PinholeCamera::get_up() const
+{
+    return up_.get();
+}
+
+float PinholeCamera::get_fov_y_deg() const
+{
+    return fov_y_deg_.get();
+}
+
+float PinholeCamera::get_w_over_h() const
+{
+    return w_over_h_.get();
+}
+
 void PinholeCamera::commit()
 {
     const Vec3f forward = normalize(dst_.get() - eye_.get());
@@ -43,9 +68,9 @@ void PinholeCamera::commit()
     const float y_len = 2 * std::tan(0.5f * fov_y_deg_.get() * btrc_pi / 180);
     const float x_len = w_over_h_.get() * y_len;
 
-    left_bottom_corner_.set(eye_.get() + forward - 0.5f * (x_len * ex + y_len * ey));
-    film_x_.set(x_len * ex);
-    film_y_.set(y_len * ey);
+    left_bottom_corner_ = eye_.get() + forward - 0.5f * (x_len * ex + y_len * ey);
+    film_x_ = x_len * ex;
+    film_y_ = y_len * ey;
 }
 
 Camera::SampleWeResult PinholeCamera::generate_ray_inline(

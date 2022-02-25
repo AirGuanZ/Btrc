@@ -132,7 +132,7 @@ RC<T> Factory<T>::create(RC<const Node> node, Context &ctx)
     auto it = creators_.find(type);
     if(it == creators_.end())
     {
-        throw BtrcException(std::format(
+        throw BtrcException(fmt::format(
             "unknown {} type: {}", get_object_typename<T>(), type));
     }
     auto creator = it->second.get();
@@ -172,7 +172,7 @@ RC<T> Context::create(RC<const Node> node)
     object_pool_[node] = obj;
     return obj;
 
-    BTRC_HI_WRAP(std::format("in creating {}", get_object_typename<T>()))
+    BTRC_HI_WRAP(fmt::format("in creating {}", get_object_typename<T>()))
 }
 
 template<typename T>

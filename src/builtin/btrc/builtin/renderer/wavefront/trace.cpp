@@ -1,7 +1,11 @@
+#include <fstream>
+
 #include <btrc/utils/cmath/cmath.h>
 #include <btrc/utils/cuda/buffer.h>
 #include <btrc/utils/cuda/error.h>
+#include <btrc/utils/file.h>
 #include <btrc/utils/optix/device_funcs.h>
+#include <btrc/utils/ptx_cache.h>
 
 #include "./trace.h"
 
@@ -16,9 +20,17 @@ namespace
     const char *MISS_TRACE_NAME       = "__miss__trace";
     const char *CLOSESTHIT_TRACE_NAME = "__closesthit__trace";
 
+    const char *KERNEL_CACHE_RELATIVE_PATH = "./.btrc_cache/wfpt_trace.ptx";
+
     std::string generate_trace_kernel()
     {
         using namespace cuj;
+
+        const std::string cache_filename = (get_executable_filename().parent_path() / KERNEL_CACHE_RELATIVE_PATH).string();
+
+        auto cached_ptx = load_kernel_cache(cache_filename);
+        if(!cached_ptx.empty())
+            return cached_ptx;
 
         ScopedModule cuj_module;
 
@@ -86,6 +98,7 @@ namespace
         });
         gen.generate(cuj_module);
 
+        create_kernel_cache(cache_filename, gen.get_ptx());
         return gen.get_ptx();
     }
 

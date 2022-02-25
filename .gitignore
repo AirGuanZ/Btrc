@@ -1,7 +1,9 @@
 ﻿asset/
 data/
 build-debug/
+build-debug-clangcl/
 build-release/
+build-release-clangcl/
 output.png
 output.exr
 output_albedo.png

@@ -14,7 +14,7 @@ namespace
             return Texture::AddressMode::Wrap;
         if(str == "border")
             return Texture::AddressMode::Border;
-        throw BtrcException(std::format("unknown address mode: {}", str));
+        throw BtrcException(fmt::format("unknown address mode: {}", str));
     }
 
     Texture::FilterMode string_to_filter_mode(std::string_view str)
@@ -23,7 +23,7 @@ namespace
             return Texture::FilterMode::Point;
         if(str == "linear")
             return Texture::FilterMode::Linear;
-        throw BtrcException(std::format("unknown filter mode: {}", str));
+        throw BtrcException(fmt::format("unknown filter mode: {}", str));
     }
 
     Texture::Description parse_texture2d_desc(const RC<const factory::Node> &node)

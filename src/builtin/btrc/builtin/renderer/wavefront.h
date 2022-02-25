@@ -46,8 +46,6 @@ public:
 
 private:
 
-    void build_pipeline(bool offline) const;
-
     void new_preview_image() const;
 
     struct Impl;

@@ -34,6 +34,7 @@ Window::Window(const std::string &title, int width, int height)
     BTRC_SCOPE_FAIL{ glfwDestroyWindow(impl_->glfw_window); };
 
     glfwMakeContextCurrent(impl_->glfw_window);
+    glfwSwapInterval(1);
 
     if(glewInit() != GLEW_OK)
         throw std::runtime_error("failed to iniailize glew");

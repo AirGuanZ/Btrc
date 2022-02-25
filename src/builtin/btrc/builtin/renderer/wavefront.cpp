@@ -2,11 +2,11 @@
 
 #include "./wavefront/generate.h"
 #include "./wavefront/path_state.h"
+#include "./wavefront/preview.h"
 #include "./wavefront/shade.h"
 #include "./wavefront/shadow.h"
 #include "./wavefront/sort.h"
 #include "./wavefront/trace.h"
-#include "./wavefront/wfpt_preview.h"
 
 BTRC_BUILTIN_BEGIN
 
@@ -22,13 +22,14 @@ struct WavefrontPathTracer::Impl
     int width = 512;
     int height = 512;
 
-    Film                   film;
-    wfpt::PathState        path_state;
-    wfpt::GeneratePipeline generate;
-    wfpt::TracePipeline    trace;
-    wfpt::SortPipeline     sort;
-    wfpt::ShadePipeline    shade;
-    wfpt::ShadowPipeline   shadow;
+    Film                        film;
+    wfpt::PathState             path_state;
+    wfpt::GeneratePipeline      generate;
+    wfpt::TracePipeline         trace;
+    wfpt::SortPipeline          sort;
+    wfpt::ShadePipeline         shade;
+    wfpt::ShadowPipeline        shadow;
+    wfpt::PreviewImageGenerator preview;
 
     cuda::CUDABuffer<Vec4f> device_preview_image;
     Image<Vec4f>            preview_image;
@@ -86,13 +87,66 @@ std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
 
 void WavefrontPathTracer::recompile(bool offline)
 {
-    build_pipeline(offline);
+    CompileContext cc(offline);
+
+    auto &params = impl_->params;
+
+    // film
+
+    impl_->film = Film(impl_->width, impl_->height);
+    impl_->film.add_output(Film::OUTPUT_RADIANCE, Film::Float3);
+    impl_->film.add_output(Film::OUTPUT_WEIGHT, Film::Float);
+    if(params.albedo)
+        impl_->film.add_output(Film::OUTPUT_ALBEDO, Film::Float3);
+    if(params.normal)
+        impl_->film.add_output(Film::OUTPUT_NORMAL, Film::Float3);
+
+    // pipelines
+
+    impl_->generate = wfpt::GeneratePipeline(
+        cc, *impl_->camera,
+        { impl_->width, impl_->height },
+        params.spp, params.state_count);
+
+    impl_->trace = wfpt::TracePipeline(
+        *impl_->optix_ctx,
+        impl_->scene->has_motion_blur(),
+        impl_->scene->is_triangle_only(),
+        2);
+
+    impl_->sort = wfpt::SortPipeline();
+
+    impl_->shade = wfpt::ShadePipeline(
+        cc, impl_->film, *impl_->scene,
+        wfpt::ShadePipeline::ShadeParams{
+            .min_depth = params.min_depth,
+            .max_depth = params.max_depth,
+            .rr_threshold = params.rr_threshold,
+            .rr_cont_prob = params.rr_cont_prob
+        });
+
+    impl_->shadow = wfpt::ShadowPipeline(
+        impl_->film, *impl_->optix_ctx,
+        impl_->scene->has_motion_blur(),
+        impl_->scene->is_triangle_only(),
+        2);
+
+    // path state
+
+    impl_->path_state.initialize(params.state_count);
 }
 
 Renderer::RenderResult WavefrontPathTracer::render() const
 {
     impl_->generate.clear();
     impl_->path_state.clear();
+
+    impl_->film.clear_output(Film::OUTPUT_RADIANCE);
+    impl_->film.clear_output(Film::OUTPUT_WEIGHT);
+    if(impl_->film.has_output(Film::OUTPUT_ALBEDO))
+        impl_->film.clear_output(Film::OUTPUT_ALBEDO);
+    if(impl_->film.has_output(Film::OUTPUT_NORMAL))
+        impl_->film.clear_output(Film::OUTPUT_NORMAL);
 
     auto &scene = *impl_->scene;
     auto &soa = impl_->path_state;
@@ -104,6 +158,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     const uint64_t total_path_count = static_cast<uint64_t>(params.spp) * impl_->width * impl_->height;
     uint64_t finished_path_count = 0;
 
+    bool first_iter = true;
     int active_state_count = 0;
     while(!impl_->generate.is_done() || active_state_count > 0)
     {
@@ -191,8 +246,9 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 });
         }
 
-        if(should_stop())
+        if(!first_iter && should_stop())
             break;
+        first_iter = false;
 
         soa.next_iteration();
     }
@@ -257,57 +313,6 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     return result;
 }
 
-void WavefrontPathTracer::build_pipeline(bool offline) const
-{
-    CompileContext cc(offline);
-
-    auto &params = impl_->params;
-
-    // film
-
-    impl_->film = Film(impl_->width, impl_->height);
-    impl_->film.add_output(Film::OUTPUT_RADIANCE, Film::Float3);
-    impl_->film.add_output(Film::OUTPUT_WEIGHT, Film::Float);
-    if(params.albedo)
-        impl_->film.add_output(Film::OUTPUT_ALBEDO, Film::Float3);
-    if(params.normal)
-        impl_->film.add_output(Film::OUTPUT_NORMAL, Film::Float3);
-
-    // pipelines
-
-    impl_->generate = wfpt::GeneratePipeline(
-        cc, *impl_->camera,
-        { impl_->width, impl_->height },
-        params.spp, params.state_count);
-
-    impl_->trace = wfpt::TracePipeline(
-        *impl_->optix_ctx,
-        impl_->scene->has_motion_blur(),
-        impl_->scene->is_triangle_only(),
-        2);
-
-    impl_->sort = wfpt::SortPipeline();
-
-    impl_->shade = wfpt::ShadePipeline(
-        cc, impl_->film, *impl_->scene,
-        wfpt::ShadePipeline::ShadeParams{
-            .min_depth = params.min_depth,
-            .max_depth = params.max_depth,
-            .rr_threshold = params.rr_threshold,
-            .rr_cont_prob = params.rr_cont_prob
-        });
-
-    impl_->shadow = wfpt::ShadowPipeline(
-        impl_->film, *impl_->optix_ctx,
-        impl_->scene->has_motion_blur(),
-        impl_->scene->is_triangle_only(),
-        2);
-
-    // path state
-
-    impl_->path_state.initialize(params.state_count);
-}
-
 void WavefrontPathTracer::new_preview_image() const
 {
     const size_t texel_count = impl_->width * impl_->height;
@@ -317,7 +322,12 @@ void WavefrontPathTracer::new_preview_image() const
         impl_->preview_image = Image<Vec4f>(impl_->width, impl_->height);
     }
 
-    wfpt::compute_preview_image(
+    /*wfpt::compute_preview_image(
+        impl_->width, impl_->height,
+        impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).as<Vec4f>(),
+        impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
+        impl_->device_preview_image.get());*/
+    impl_->preview.generate(
         impl_->width, impl_->height,
         impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).as<Vec4f>(),
         impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),

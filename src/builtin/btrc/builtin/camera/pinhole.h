@@ -21,13 +21,6 @@ public:
 
     void set_duration(float beg, float end);
 
-    void commit() override;
-
-    SampleWeResult generate_ray_inline(
-        CompileContext &cc,
-        ref<CVec2f>     film_coord,
-        f32             time_sample) const override;
-
     const Vec3f &get_eye() const;
 
     const Vec3f &get_dst() const;
@@ -36,11 +29,14 @@ public:
 
     float get_fov_y_deg() const;
 
-    float get_ratio() const;
+    float get_w_over_h() const;
 
-    float get_duration_begin() const;
+    void commit() override;
 
-    float get_duration_end() const;
+    SampleWeResult generate_ray_inline(
+        CompileContext &cc,
+        ref<CVec2f>     film_coord,
+        f32             time_sample) const override;
 
 private:
 

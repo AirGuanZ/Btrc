@@ -16,6 +16,7 @@
 #include <btrc/utils/exception.h>
 #include <btrc/utils/file.h>
 
+#include "camera_controller.h"
 #include "reporter.h"
 #include "window.h"
 
@@ -90,7 +91,7 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
 
     if(dag.need_recompile())
     {
-        result.renderer->recompile(false);
+        result.renderer->recompile(true);
         dag.clear_recompile_flag();
     }
 
@@ -142,7 +143,7 @@ void run(const std::string &config_filename)
     Window window("BtrcGUI", 1024, 768);
 
     auto reporter = newRC<GUIPreviewer>();
-    reporter->set_preview_interval(50);
+    reporter->set_preview_interval(100);
 
     scene.renderer->set_reporter(reporter);
     scene.renderer->render_async();
@@ -163,6 +164,8 @@ void run(const std::string &config_filename)
         }
     };
 
+    //CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
+
     while(!window.should_close())
     {
         window.begin_frame();
@@ -177,6 +180,40 @@ void run(const std::string &config_filename)
 
         if(reporter->get_dirty_flag())
             reporter->access_image(update_image);
+
+        /*const bool update = camera_controller.update(CameraController::InputParams{
+            .cursor_pos = Vec2f(ImGui::GetMousePos().x / scene.width, ImGui::GetMousePos().y / scene.height),
+            .wheel_offset = 0,
+            .button_down = { false, ImGui::IsMouseDown(ImGuiMouseButton_Middle), false }
+        });*/
+
+        /*if(update)
+        {
+            if(scene.renderer->is_waitable())
+                scene.renderer->stop_async();
+
+            ObjectDAG dag(scene.renderer);
+
+            scene.camera->commit();
+            for(auto p : scene.camera->get_properties())
+                p->update();
+
+            //scene.scene->precommit();
+            //dag.commit();
+            //scene.scene->postcommit();
+
+            //if(dag.need_recompile())
+            //{
+            //    scene.renderer->recompile(false);
+            //    dag.clear_recompile_flag();
+            //}
+
+            //dag.update_properties();
+
+            reporter->progress(0);
+            reporter->set_preview_interval(100);
+            scene.renderer->render_async();
+        }*/
 
         if(!scene.renderer->is_rendering() && scene.renderer->is_waitable())
         {
@@ -219,8 +256,8 @@ void run(const std::string &config_filename)
                 ImGuiWindowFlags_NoDocking |
                 ImGuiWindowFlags_NoBringToFrontOnFocus |
                 ImGuiWindowFlags_NoNavFocus;
-
-            if(ImGui::Begin("display", nullptr, window_flags))
+            ImGui::Begin("display", nullptr, window_flags);
+            ImGui::PopStyleVar(3);
             {
                 ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.1f, 0.8f, 0.1f, 1));
                 ImGui::ProgressBar(reporter->get_percentage() / 100.0f);

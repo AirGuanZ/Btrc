@@ -71,7 +71,7 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
 
     CSpectrum albedo() const
     {
-        return fresnel.eval(0);
+        return fresnel.eval(1);
     }
 
     void eval_and_pdf(

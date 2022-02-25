@@ -131,7 +131,7 @@ template<typename Impl>
 Shader::SampleResult BSDFComponentClosure<Impl>::sample(
     CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
 {
-    const std::string name = std::format(
+    const std::string name = fmt::format(
         "sample_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
     auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<CVec3f> _sam)
@@ -144,7 +144,7 @@ template<typename Impl>
 CSpectrum BSDFComponentClosure<Impl>::eval(
     CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
 {
-    const std::string name = std::format(
+    const std::string name = fmt::format(
         "eval_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
     auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwi, ref<CVec3f> _lwo)
@@ -157,7 +157,7 @@ template<typename Impl>
 f32 BSDFComponentClosure<Impl>::pdf(
     CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
 {
-    const std::string name = std::format(
+    const std::string name = fmt::format(
         "pdf_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
     auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwi, ref<CVec3f> _lwo)
@@ -169,7 +169,7 @@ f32 BSDFComponentClosure<Impl>::pdf(
 template<typename Impl>
 CSpectrum BSDFComponentClosure<Impl>::albedo(CompileContext &cc) const
 {
-    const std::string name = std::format("albedo_component_{}", name_);
+    const std::string name = fmt::format("albedo_component_{}", name_);
     auto action = [](ref<Impl> impl) { return impl.albedo(); };
     return cc.record_object_action(
         material_, name, action, ref(impl_));

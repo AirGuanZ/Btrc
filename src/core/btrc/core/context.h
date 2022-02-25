@@ -1,13 +1,12 @@
 #pragma once
 
-#include <format>
 #include <map>
 #include <string>
 
-#include <cuj.h>
-#include <mem_fn_traits.h>
-
 #include <cuda_runtime.h>
+#include <cuj.h>
+#include <fmt/format.h>
+#include <mem_fn_traits.h>
 
 #include <btrc/utils/any.h>
 #include <btrc/utils/bind.h>
@@ -611,7 +610,7 @@ auto CompileContext::record_object_action(
         return func(args...);
     }
 
-    const auto func_symbol_name = std::format(
+    const auto func_symbol_name = fmt::format(
         "btrc_{}_of_object_{}", action_name, static_cast<const void*>(object.get()));
 
     auto func = cuj::function(func_symbol_name, action);
