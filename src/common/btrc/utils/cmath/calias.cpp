@@ -9,7 +9,7 @@ CAliasTable::CAliasTable(const AliasTable &table)
 
 u32 CAliasTable::sample(f32 _u) const
 {
-    static auto func = cuj::function(
+    static auto func = cuj::function_contextless(
         "btrc_sample_alias_table",
         [](ptr<Unit> table, u32 n, f32 u)
     {

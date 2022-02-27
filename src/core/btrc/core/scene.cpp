@@ -38,6 +38,9 @@ void Scene::precommit()
 
 void Scene::postcommit()
 {
+    tlas_ = {};
+    materials_ = {};
+
     std::vector<optix::Context::Instance> blas_instances;
 
     std::vector<InstanceInfo>   instance_info;
@@ -97,9 +100,28 @@ void Scene::postcommit()
         instance_to_material[i] = instance_info[i].material_id;
 
     tlas_ = optix_ctx_->create_instance_as(blas_instances);
-    instance_info_ = cuda::CUDABuffer<InstanceInfo>(instance_info);
-    geometry_info_ = cuda::CUDABuffer<GeometryInfo>(geometry_info);
-    instance_to_material_ = cuda::CUDABuffer<int32_t>(instance_to_material);
+
+    if(!instance_info_)
+        instance_info_.initialize(instance_info.size());
+    assert(instance_info_.get_size() == instance_info.size());
+    instance_info_.from_cpu(instance_info.data());
+
+    if(!geometry_info_)
+        geometry_info_.initialize(geometry_info.size());
+    assert(geometry_info_.get_size() == geometry_info.size());
+    geometry_info_.from_cpu(geometry_info.data());
+
+    if(!instance_to_material_)
+        instance_to_material_.initialize(instance_to_material.size());
+    assert(instance_to_material_.get_size() == instance_to_material.size());
+    instance_to_material_.from_cpu(instance_to_material.data());
+}
+
+void Scene::clear_device_data()
+{
+    instance_info_ = {};
+    geometry_info_ = {};
+    instance_to_material_ = {};
 }
 
 OptixTraversableHandle Scene::get_tlas() const
@@ -118,7 +140,6 @@ void Scene::collect_objects(std::set<RC<Object>> &output) const
     }
     if(env_light_)
         output.insert(env_light_);
-    output.insert(light_sampler_);
 }
 
 const GeometryInfo *Scene::get_device_geometry_info() const

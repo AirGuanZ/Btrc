@@ -25,7 +25,6 @@ const char *get_object_typename();
 REGISTER_OBJECT_TYPENAME(Camera,       camera)
 REGISTER_OBJECT_TYPENAME(Geometry,     geometry)
 REGISTER_OBJECT_TYPENAME(Light,        light)
-REGISTER_OBJECT_TYPENAME(LightSampler, light_sampler)
 REGISTER_OBJECT_TYPENAME(Material,     material)
 REGISTER_OBJECT_TYPENAME(Renderer,     renderer)
 REGISTER_OBJECT_TYPENAME(Texture2D,    texture2d)
@@ -87,7 +86,6 @@ private:
         Camera,
         Geometry,
         Light,
-        LightSampler,
         Material,
         Renderer,
         Texture2D

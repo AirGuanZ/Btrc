@@ -3,7 +3,6 @@
 #include <btrc/builtin/light/gradient_sky.h>
 #include <btrc/builtin/light/ibl.h>
 #include <btrc/builtin/light/mesh_light.h>
-#include <btrc/builtin/light_sampler/uniform_light_sampler.h>
 #include <btrc/builtin/material/black.h>
 #include <btrc/builtin/material/diffuse.h>
 #include <btrc/builtin/material/glass.h>
@@ -32,11 +31,6 @@ void register_builtin_creators(factory::Factory<Light> &factory)
     factory.add_creator(newBox<MeshLightCreator>());
 }
 
-void register_builtin_creators(factory::Factory<LightSampler> &factory)
-{
-    factory.add_creator(newBox<UniformLightSamplerCreator>());
-}
-
 void register_builtin_creators(factory::Factory<Material> &factory)
 {
     factory.add_creator(newBox<BlackCreator>());
@@ -61,7 +55,6 @@ void register_builtin_creators(factory::Context &context)
     register_builtin_creators(context.get_factory<Camera>());
     register_builtin_creators(context.get_factory<Geometry>());
     register_builtin_creators(context.get_factory<Light>());
-    register_builtin_creators(context.get_factory<LightSampler>());
     register_builtin_creators(context.get_factory<Material>());
     register_builtin_creators(context.get_factory<Renderer>());
     register_builtin_creators(context.get_factory<Texture2D>());

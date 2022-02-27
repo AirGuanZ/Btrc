@@ -1,13 +1,12 @@
-#include <btrc/builtin/light_sampler/uniform_light_sampler.h>
+#include <btrc/core/light_sampler.h>
 
-BTRC_BUILTIN_BEGIN
+BTRC_BEGIN
 
 void UniformLightSampler::clear()
 {
     lights_ = {};
     envir_light_index_ = -1;
     envir_light_ = {};
-    set_recompile();
 }
 
 void UniformLightSampler::add_light(RC<Light> light)
@@ -19,15 +18,6 @@ void UniformLightSampler::add_light(RC<Light> light)
         envir_light_index_ = static_cast<int>(lights_.size());
     }
     lights_.push_back(std::move(light));
-    set_recompile();
-}
-
-std::vector<RC<Object>> UniformLightSampler::get_dependent_objects()
-{
-    std::vector<RC<Object>> result;
-    for(auto &l : lights_)
-        result.push_back(l);
-    return result;
 }
 
 UniformLightSampler::SampleResult UniformLightSampler::sample(
@@ -77,9 +67,4 @@ int UniformLightSampler::get_envir_light_index() const
     return envir_light_index_;
 }
 
-RC<LightSampler> UniformLightSamplerCreator::create(RC<const factory::Node> node, factory::Context &context)
-{
-    return newRC<UniformLightSampler>();
-}
-
-BTRC_BUILTIN_END
+BTRC_END

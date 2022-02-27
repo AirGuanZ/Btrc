@@ -46,8 +46,7 @@ RC<Scene> create_scene(const RC<const Node> &scene_root, Context &context)
         result->set_envir_light(std::move(env_light));
     }
 
-    auto light_sampler = context.create<LightSampler>(scene_root->child_node("light_sampler"));
-    result->set_light_sampler(std::move(light_sampler));
+    result->set_light_sampler(newRC<UniformLightSampler>());
 
     return result;
 }

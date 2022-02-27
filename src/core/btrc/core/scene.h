@@ -56,6 +56,8 @@ public:
     void precommit();
 
     void postcommit();
+
+    void clear_device_data();
     
     OptixTraversableHandle get_tlas() const;
 
