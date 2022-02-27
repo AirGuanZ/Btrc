@@ -44,20 +44,20 @@ namespace
         case Array::Format::F32x1: return { cudaCreateChannelDesc<float1>(),  4 * width * 1 };
         case Array::Format::F32x2: return { cudaCreateChannelDesc<float2>(),  4 * width * 2 };
         case Array::Format::F32x4: return { cudaCreateChannelDesc<float4>(),  4 * width * 4 };
-        case Array::Format::UNorm8x1:  return { cudaCreateChannelDesc<cudaChannelFormatKindUnsignedNormalized8X1>(),  1 * width * 1 };
-        case Array::Format::UNorm8x2:  return { cudaCreateChannelDesc<cudaChannelFormatKindUnsignedNormalized8X2>(),  1 * width * 2 };
-        case Array::Format::UNorm8x4:  return { cudaCreateChannelDesc<cudaChannelFormatKindUnsignedNormalized8X4>(),  1 * width * 4 };
-        case Array::Format::SNorm8x1:  return { cudaCreateChannelDesc<cudaChannelFormatKindSignedNormalized8X1>(),    1 * width * 1 };
-        case Array::Format::SNorm8x2:  return { cudaCreateChannelDesc<cudaChannelFormatKindSignedNormalized8X2>(),    1 * width * 2 };
-        case Array::Format::SNorm8x4:  return { cudaCreateChannelDesc<cudaChannelFormatKindSignedNormalized8X4>(),    1 * width * 4 };
-        case Array::Format::UNorm16x1: return { cudaCreateChannelDesc<cudaChannelFormatKindUnsignedNormalized16X1>(), 2 * width * 1 };
-        case Array::Format::UNorm16x2: return { cudaCreateChannelDesc<cudaChannelFormatKindUnsignedNormalized16X2>(), 2 * width * 2 };
-        case Array::Format::UNorm16x4: return { cudaCreateChannelDesc<cudaChannelFormatKindUnsignedNormalized16X4>(), 2 * width * 4 };
-        case Array::Format::SNorm16x1: return { cudaCreateChannelDesc<cudaChannelFormatKindSignedNormalized16X1>(),   2 * width * 1 };
-        case Array::Format::SNorm16x2: return { cudaCreateChannelDesc<cudaChannelFormatKindSignedNormalized16X2>(),   2 * width * 2 };
-        case Array::Format::SNorm16x4: return { cudaCreateChannelDesc<cudaChannelFormatKindSignedNormalized16X4>(),   2 * width * 4 };
+        case Array::Format::UNorm8x1:  return { cudaCreateChannelDesc(8, 0, 0, 0, cudaChannelFormatKindUnsigned),  1 * width * 1 };
+        case Array::Format::UNorm8x2:  return { cudaCreateChannelDesc(8, 8, 0, 0, cudaChannelFormatKindUnsigned),  1 * width * 2 };
+        case Array::Format::UNorm8x4:  return { cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKindUnsigned),  1 * width * 4 };
+        case Array::Format::SNorm8x1:  return { cudaCreateChannelDesc(8, 0, 0, 0, cudaChannelFormatKindSigned),    1 * width * 1 };
+        case Array::Format::SNorm8x2:  return { cudaCreateChannelDesc(8, 8, 0, 0, cudaChannelFormatKindSigned),    1 * width * 2 };
+        case Array::Format::SNorm8x4:  return { cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKindSigned),    1 * width * 4 };
+        case Array::Format::UNorm16x1: return { cudaCreateChannelDesc(16, 0, 0, 0, cudaChannelFormatKindUnsigned), 2 * width * 1 };
+        case Array::Format::UNorm16x2: return { cudaCreateChannelDesc(16, 16, 0, 0, cudaChannelFormatKindUnsigned), 2 * width * 2 };
+        case Array::Format::UNorm16x4: return { cudaCreateChannelDesc(16, 16, 16, 16, cudaChannelFormatKindUnsigned), 2 * width * 4 };
+        case Array::Format::SNorm16x1: return { cudaCreateChannelDesc(16, 0, 0, 0, cudaChannelFormatKindSigned),   2 * width * 1 };
+        case Array::Format::SNorm16x2: return { cudaCreateChannelDesc(16, 16, 0, 0, cudaChannelFormatKindSigned),   2 * width * 2 };
+        case Array::Format::SNorm16x4: return { cudaCreateChannelDesc(16, 16, 16, 16, cudaChannelFormatKindSigned),   2 * width * 4 };
         }
-        unreachable();
+        throw BtrcException("unsupported channel format");
     }
 
 } // namespace anonymous
@@ -94,7 +94,8 @@ void Array::load_from_memory(
     };
     BTRC_SCOPE_FAIL
     {
-        if(new_arr) cudaFreeArray(new_arr);
+        if(new_arr)
+            cudaFreeArray(new_arr);
     };
 
     const auto &format_desc = get_format_desc(format, width);

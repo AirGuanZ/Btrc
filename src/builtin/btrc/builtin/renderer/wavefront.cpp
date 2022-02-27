@@ -158,10 +158,12 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     const uint64_t total_path_count = static_cast<uint64_t>(params.spp) * impl_->width * impl_->height;
     uint64_t finished_path_count = 0;
 
-    bool first_iter = true;
     int active_state_count = 0;
     while(!impl_->generate.is_done() || active_state_count > 0)
     {
+        const int64_t limited_state_count = reporter.need_fast_preview() ?
+            impl_->width * impl_->height : (std::numeric_limits<int64_t>::max)();
+
         const int new_state_count = impl_->generate.generate(
             active_state_count,
             wfpt::GeneratePipeline::SOAParams{
@@ -175,7 +177,8 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .output_bsdf_pdf      = soa.bsdf_pdf,
                 .output_depth         = soa.depth,
                 .output_path_radiance = soa.path_radiance
-            });
+            },
+            limited_state_count);
         active_state_count += new_state_count;
 
         impl_->trace.trace(
@@ -229,9 +232,6 @@ Renderer::RenderResult WavefrontPathTracer::render() const
         reporter.progress(100.0f * finished_path_count / total_path_count);
         active_state_count = shade_counters.active_state_counter;
 
-        if(reporter.need_preview())
-            new_preview_image();
-
         if(shade_counters.shadow_ray_counter)
         {
             impl_->shadow.test(
@@ -246,11 +246,13 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 });
         }
 
-        if(!first_iter && should_stop())
-            break;
-        first_iter = false;
+        if(reporter.need_preview())
+            new_preview_image();
 
         soa.next_iteration();
+
+        if(should_stop())
+            break;
     }
 
     throw_on_error(cudaStreamSynchronize(nullptr));

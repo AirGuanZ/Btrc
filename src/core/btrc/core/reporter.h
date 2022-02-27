@@ -21,6 +21,14 @@ public:
     virtual bool need_preview() const { return false; }
 
     virtual void new_preview(const Image<Vec4f> &preview) { }
+
+    void set_fast_preview(bool enable_fast_preview) { fast_preview_ = enable_fast_preview; }
+
+    bool need_fast_preview() const { return fast_preview_; }
+
+private:
+
+    std::atomic<bool> fast_preview_ = false;
 };
 
 BTRC_END

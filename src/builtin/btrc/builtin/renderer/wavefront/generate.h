@@ -71,8 +71,9 @@ public:
 
     // returns number of new states
     int generate(
-        int active_state_count,
-        const SOAParams &launch_params);
+        int              active_state_count,
+        const SOAParams &launch_params,
+        int64_t          limit_max_state_count);
 
     float get_generated_percentage() const;
 

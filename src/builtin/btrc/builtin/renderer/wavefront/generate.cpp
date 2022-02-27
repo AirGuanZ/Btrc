@@ -163,19 +163,24 @@ void GeneratePipeline::initialize(
 }
 
 int GeneratePipeline::generate(
-    int active_state_count,
-    const SOAParams &launch_params)
+    int              active_state_count,
+    const SOAParams &launch_params,
+    int64_t          limit_max_state_count)
 {
     if(is_done())
         return 0;
-    const int64_t max_state_count = state_count_ - active_state_count;
-    if(!max_state_count)
+
+    const int64_t total_state_count = (std::min)(state_count_, limit_max_state_count);
+    const int64_t rest_state_count = total_state_count - active_state_count;
+    if(rest_state_count <= 0)
         return 0;
+
     const int64_t unfinished_path_count = (spp_ - finished_spp_) * pixel_count_ - finished_pixel_;
-    if(unfinished_path_count > max_state_count &&
-       max_state_count + max_state_count < state_count_)
+    if(unfinished_path_count > rest_state_count &&
+       rest_state_count + rest_state_count < total_state_count)
         return 0;
-    const int new_state_count = static_cast<int>((std::min)(max_state_count, unfinished_path_count));
+
+    const int new_state_count = static_cast<int>((std::min)(rest_state_count, unfinished_path_count));
 
     constexpr int BLOCK_DIM = 256;
     const int thread_count = new_state_count;

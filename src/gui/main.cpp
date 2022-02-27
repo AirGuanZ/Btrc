@@ -144,7 +144,8 @@ void run(const std::string &config_filename)
     Window window("BtrcGUI", 1024, 768);
 
     auto reporter = newRC<GUIPreviewer>();
-    reporter->set_preview_interval(100);
+    reporter->set_preview_interval(0);
+    reporter->set_fast_preview(true);
 
     scene.renderer->set_reporter(reporter);
     scene.renderer->render_async();
@@ -155,9 +156,14 @@ void run(const std::string &config_filename)
         throw std::runtime_error("failed to create gl texture");
     glTextureStorage2D(tex_handle, 1, GL_RGBA32F, scene.width, scene.height);
 
+    CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
+
+    constexpr int MIN_UPDATED_IMAGE_COUNT = 2;
+    int updated_image_count = 0;
+
     auto update_image = [&](const Image<Vec4f> &image)
     {
-        if(image)
+        if(image && ++updated_image_count >= MIN_UPDATED_IMAGE_COUNT)
         {
             glTextureSubImage2D(
                 tex_handle, 0, 0, 0, scene.width, scene.height,
@@ -165,58 +171,70 @@ void run(const std::string &config_filename)
         }
     };
 
-    CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
-
     while(!window.should_close())
     {
         window.begin_frame();
 
         if(ImGui::IsKeyDown(ImGuiKey_Escape))
             window.set_close(true);
-        
-        if(reporter->get_percentage() > 20)
-            reporter->set_preview_interval(1000);
-        else if(reporter->get_percentage() > 5)
-            reporter->set_preview_interval(200);
 
-        if(reporter->get_dirty_flag())
-            reporter->access_image(update_image);
-
-        const bool update = camera_controller.update(CameraController::InputParams{
-            .cursor_pos = Vec2f(ImGui::GetMousePos().x / scene.width, ImGui::GetMousePos().y / scene.height),
-            .wheel_offset = 0,
-            .button_down = { false, ImGui::IsMouseDown(ImGuiMouseButton_Middle), false }
-        });
-
-        if(update)
+        if(scene.renderer->is_rendering())
+            reporter->access_dirty_image(update_image);
+        else
         {
-            if(scene.renderer->is_waitable())
-                scene.renderer->stop_async();
-
-            ObjectDAG dag(scene.renderer);
-            const bool need_recompile = dag.need_recompile();
-
-            if(need_recompile)
-                scene.scene->clear_device_data();
-
-            scene.scene->precommit();
-            dag.commit();
-            scene.scene->postcommit();
-
-            if(need_recompile)
-            {
-                scene.renderer->recompile(false);
-                dag.clear_recompile_flag();
-            }
-
-            dag.update_properties();
-
-            reporter->progress(0);
-            reporter->set_preview_interval(100);
-            scene.renderer->render_async();
+            updated_image_count = MIN_UPDATED_IMAGE_COUNT;
+            reporter->access_image(update_image);
         }
 
-        if(!scene.renderer->is_rendering() && scene.renderer->is_waitable())
+        if(updated_image_count >= MIN_UPDATED_IMAGE_COUNT)
+        {
+            const bool update = camera_controller.update(CameraController::InputParams{
+                .cursor_pos = Vec2f(ImGui::GetMousePos().x / scene.width, ImGui::GetMousePos().y / scene.height),
+                .wheel_offset = 0,
+                .button_down = { false, ImGui::IsMouseDown(ImGuiMouseButton_Middle), false }
+            });
+
+            if(update)
+            {
+                if(scene.renderer->is_waitable())
+                    scene.renderer->stop_async();
+
+                ObjectDAG dag(scene.renderer);
+                const bool need_recompile = dag.need_recompile();
+
+                if(need_recompile)
+                    scene.scene->clear_device_data();
+
+                scene.scene->precommit();
+                dag.commit();
+                scene.scene->postcommit();
+
+                if(need_recompile)
+                {
+                    scene.renderer->recompile(false);
+                    dag.clear_recompile_flag();
+                }
+
+                dag.update_properties();
+
+                reporter->progress(0);
+                reporter->set_preview_interval(0);
+                reporter->set_fast_preview(true);
+
+                updated_image_count = 0;
+                scene.renderer->render_async();
+            }
+            else if(updated_image_count == MIN_UPDATED_IMAGE_COUNT)
+            {
+                reporter->set_preview_interval(100);
+                reporter->set_fast_preview(false);
+            }
+        }
+
+        if(reporter->get_percentage() > 5)
+            reporter->set_preview_interval(1000);
+
+        /*if(!scene.renderer->is_rendering() && scene.renderer->is_waitable())
         {
             auto result = scene.renderer->wait_async();
 
@@ -237,7 +255,7 @@ void run(const std::string &config_filename)
                 std::cout << "write normal to " << normal_filename << std::endl;
                 result.normal.save(normal_filename);
             }
-        }
+        }*/
 
         {
             auto viewport = ImGui::GetMainViewport();

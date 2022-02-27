@@ -36,11 +36,6 @@ void GUIPreviewer::set_preview_interval(int ms)
     preview_interval_ms_ = ms;
 }
 
-bool GUIPreviewer::get_dirty_flag() const
-{
-    return true;
-}
-
 float GUIPreviewer::get_percentage() const
 {
     return progress_;

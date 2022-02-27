@@ -47,8 +47,6 @@ void PathState::initialize(int state_count)
         next_time_mask,
         next_beta_le,
         next_bsdf_pdf);
-
-    clear();
 }
 
 void PathState::clear()
@@ -58,9 +56,10 @@ void PathState::clear()
     for(int i = 0; i < state_count; ++i)
         rng_init_data[i].state = static_cast<uint32_t>(i + 1);
 
-    std::default_random_engine random_engine{ std::random_device{}() };
+    std::default_random_engine random_engine{ 42 };
     std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
     rng.from_cpu(rng_init_data.data());
+    next_rng.from_cpu(rng_init_data.data());
 }
 
 void PathState::next_iteration()
