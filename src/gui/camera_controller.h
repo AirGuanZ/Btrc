@@ -21,7 +21,11 @@ public:
 
 private:
 
-    void translate_camera(const Vec2f &old_cursor, const Vec2f &new_cursor);
+    void translate(const Vec2f &old_cursor, const Vec2f &new_cursor);
+
+    void rotate(const Vec2f &old_cursor, const Vec2f &new_cursor);
+
+    bool adjust_distance(float wheel_offset);
 
     RC<builtin::PinholeCamera> camera_;
 

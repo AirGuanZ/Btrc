@@ -1,3 +1,5 @@
+#include <btrc/utils/local_angle.h>
+
 #include "camera_controller.h"
 
 CameraController::CameraController(RC<builtin::PinholeCamera> camera)
@@ -8,6 +10,13 @@ CameraController::CameraController(RC<builtin::PinholeCamera> camera)
 
 bool CameraController::update(const InputParams &params)
 {
+    if(params.cursor_pos.x < 0 || params.cursor_pos.x > 1 ||
+       params.cursor_pos.y < 0 || params.cursor_pos.y > 1)
+    {
+        last_cursor_pos_ = params.cursor_pos;
+        return false;
+    }
+
     bool result = false;
 
     // translate
@@ -16,18 +25,33 @@ bool CameraController::update(const InputParams &params)
     {
         if(params.cursor_pos.x != last_cursor_pos_.x || params.cursor_pos.y != last_cursor_pos_.y)
         {
-            translate_camera(last_cursor_pos_, params.cursor_pos);
+            translate(last_cursor_pos_, params.cursor_pos);
             result = true;
         }
     }
-    last_cursor_pos_ = params.cursor_pos;
 
-    // TODO: rotate, dist
+    // rotate
+
+    if(params.button_down[2])
+    {
+        if(params.cursor_pos.x != last_cursor_pos_.x || params.cursor_pos.y != last_cursor_pos_.y)
+        {
+            rotate(last_cursor_pos_, params.cursor_pos);
+            result = true;
+        }
+    }
+
+    // distance
+
+    if(params.wheel_offset != 0)
+        result |= adjust_distance(params.wheel_offset);
+
+    last_cursor_pos_ = params.cursor_pos;
 
     return result;
 }
 
-void CameraController::translate_camera(const Vec2f &old_cursor, const Vec2f &new_cursor)
+void CameraController::translate(const Vec2f &old_cursor, const Vec2f &new_cursor)
 {
     const Vec3f eye = camera_->get_eye();
     const Vec3f dst = camera_->get_dst();
@@ -44,15 +68,51 @@ void CameraController::translate_camera(const Vec2f &old_cursor, const Vec2f &ne
     const Vec3f film_x = x_len * ex;
     const Vec3f film_y = y_len * ey;
 
-    // old_world_pos = dst     - 0.5f * (x_len * ex + y_len * ey) + old_cursor.x * film_x + old_cursor.y * film_y;
-    // new_world_pos = new_dst - 0.5f * (x_len * ex + y_len * ey) + new_cursor.x * film_x + new_cursor.y * film_y
-    // let new_world_pos == old_world_pos
-    // dst     + old_cursor.x * film_x + old_cursor.y * film_y ==
-    // new_dst + new_cursor.x * film_x + new_cursor.y * film_y
-
     const Vec3f new_dst = dst + (old_cursor.x - new_cursor.x) * film_x + (old_cursor.y - new_cursor.y) * film_y;
     const Vec3f new_eye = eye + (new_dst - dst);
 
     camera_->set_dst(new_dst);
     camera_->set_eye(new_eye);
+}
+
+bool CameraController::adjust_distance(float wheel_offset)
+{
+    const Vec3f eye = camera_->get_eye();
+    const Vec3f dst = camera_->get_dst();
+    const Vec3f dir = normalize(dst - eye);
+    float dist = length(eye - dst);
+    if(wheel_offset > 0)
+        dist /= 1.1f;
+    else
+        dist *= 1.1f;
+    camera_->set_eye(dst - dist * dir);
+    return true;
+}
+
+void CameraController::rotate(const Vec2f &old_cursor, const Vec2f &new_cursor)
+{
+    const Vec3f eye = camera_->get_eye();
+    const Vec3f dst = camera_->get_dst();
+    const Vec3f up = camera_->get_up();
+    const Frame frame = Frame::from_z(up);
+
+    const Vec3f dir = normalize(frame.global_to_local(dst - eye));
+    float hori = local_angle::phi(dir);
+    float vert = std::asin(std::clamp(dir.z, -1.0f, 1.0f));
+
+    hori += (new_cursor.x - old_cursor.x) * 2.0f;
+    vert -= (new_cursor.y - old_cursor.y) * 2.0f;
+
+    while(hori > 2 * btrc_pi)
+        hori -= 2 * btrc_pi;
+    while(hori < 0)
+        hori += 2 * btrc_pi;
+
+    vert = std::clamp(vert, -0.5f * btrc_pi + 0.01f, 0.5f * btrc_pi - 0.01f);
+
+    const Vec3f new_dir = frame.local_to_global(Vec3f(
+        std::cos(hori) * std::cos(vert), std::sin(hori) * std::cos(vert), std::sin(vert)));
+    const float dist = length(dst - eye);
+
+    camera_->set_eye(dst - dist * new_dir);
 }

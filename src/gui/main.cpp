@@ -39,6 +39,12 @@ struct BtrcScene
     RC<Renderer> renderer;
 };
 
+struct Rect2D
+{
+    Vec2f lower;
+    Vec2f upper;
+};
+
 BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context)
 {
     BtrcScene result;
@@ -103,17 +109,16 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
     return result;
 }
 
-void display_image(GLuint tex_handle, int scene_width, int scene_height)
+Rect2D compute_preview_image_rect(const Vec2f &window_size, const Vec2f &scene_size)
 {
-    const auto [window_width, window_height] = ImGui::GetWindowSize();
-    if(window_width < 50 || window_height < 50)
-        return;
+    if(window_size.x < 50 || window_size.y < 50)
+        return Rect2D{ { 0, 0 }, { 0, 0 } };
 
-    const float avail_width = (std::max)(window_width * 0.9f, window_width - 50);
-    const float avail_height = (std::max)(window_height * 0.9f, window_height - 50);
+    const float avail_width  = (std::max)(window_size.x * 0.9f, window_size.x - 50);
+    const float avail_height = (std::max)(window_size.y * 0.9f, window_size.y - 50);
 
     const float window_ratio = avail_width / avail_height;
-    const float image_ratio = static_cast<float>(scene_width) / scene_height;
+    const float image_ratio = static_cast<float>(scene_size.x) / scene_size.y;
 
     float display_size_x, display_size_y;
     if(window_ratio > image_ratio)
@@ -127,11 +132,22 @@ void display_image(GLuint tex_handle, int scene_width, int scene_height)
         display_size_y = display_size_x / image_ratio;
     }
 
-    ImGui::SetCursorPosX(0.5f * (window_width - display_size_x));
-    ImGui::SetCursorPosY(0.5f * (window_height - display_size_y));
+    Rect2D result;
+    result.lower = {
+            0.5f * (window_size.x - display_size_x),
+            0.5f * (window_size.y - display_size_y)
+    };
+    result.upper = result.lower + Vec2f(display_size_x, display_size_y);
+    return result;
+}
 
+void display_image(GLuint tex_handle, const Rect2D &rect)
+{
+    if(rect.lower.x == rect.upper.x)
+        return;
     const auto im_tex = reinterpret_cast<ImTextureID>(static_cast<size_t>(tex_handle));
-    ImGui::Image(im_tex, ImVec2(display_size_x, display_size_y));
+    ImGui::SetCursorPos({ rect.lower.x, rect.lower.y });
+    ImGui::Image(im_tex, ImVec2({ rect.upper.x - rect.lower.x, rect.upper.y - rect.lower.y }));
 }
 
 void run(const std::string &config_filename)
@@ -186,12 +202,32 @@ void run(const std::string &config_filename)
             reporter->access_image(update_image);
         }
 
+        const auto imgui_viewport = ImGui::GetMainViewport();
+        const Rect2D display_rect = compute_preview_image_rect(
+            {
+                imgui_viewport->WorkSize.x,
+                imgui_viewport->WorkSize.y
+            },
+            {
+                static_cast<float>(scene.width),
+                static_cast<float>(scene.height)
+            });
+
         if(updated_image_count >= MIN_UPDATED_IMAGE_COUNT)
         {
+            const auto mouse_pos = ImGui::GetMousePos();
+            const auto relative_mouse_pos = Vec2f(
+                (mouse_pos.x - display_rect.lower.x) / (display_rect.upper.x - display_rect.lower.x),
+                (mouse_pos.y - display_rect.lower.y) / (display_rect.upper.y - display_rect.lower.y));
+
             const bool update = camera_controller.update(CameraController::InputParams{
-                .cursor_pos = Vec2f(ImGui::GetMousePos().x / scene.width, ImGui::GetMousePos().y / scene.height),
-                .wheel_offset = 0,
-                .button_down = { false, ImGui::IsMouseDown(ImGuiMouseButton_Middle), false }
+                .cursor_pos = relative_mouse_pos,
+                .wheel_offset = ImGui::GetIO().MouseWheel,
+                .button_down = {
+                    ImGui::IsMouseDown(ImGuiMouseButton_Left),
+                    ImGui::IsMouseDown(ImGuiMouseButton_Middle),
+                    ImGui::IsMouseDown(ImGuiMouseButton_Right)
+                }
             });
 
             if(update)
@@ -281,7 +317,7 @@ void run(const std::string &config_filename)
                 ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.1f, 0.8f, 0.1f, 1));
                 ImGui::ProgressBar(reporter->get_percentage() / 100.0f);
                 ImGui::PopStyleColor();
-                display_image(tex_handle, scene.width, scene.height);
+                display_image(tex_handle, display_rect);
             }
             ImGui::End();
         }
