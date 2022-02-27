@@ -23,6 +23,9 @@ public:
     void set_preview_interval(int ms);
 
     template<typename F>
+    void access_image(const F &f);
+
+    template<typename F>
     void access_dirty_image(const F &f);
 
     float get_percentage() const;
@@ -40,6 +43,14 @@ private:
     std::atomic<int> preview_interval_ms_ = 1000;
     PreviewClock::time_point last_preview_time_ = PreviewClock::now();
 };
+
+template<typename F>
+void GUIPreviewer::access_image(const F &f)
+{
+    std::lock_guard lock(image_lock_);
+    f(image_);
+    dirty_flag_ = false;
+}
 
 template<typename F>
 void GUIPreviewer::access_dirty_image(const F &f)
