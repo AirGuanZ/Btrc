@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <vector>
 
@@ -91,7 +92,7 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
 
     if(dag.need_recompile())
     {
-        result.renderer->recompile(true);
+        result.renderer->recompile(false);
         dag.clear_recompile_flag();
     }
 
@@ -164,7 +165,7 @@ void run(const std::string &config_filename)
         }
     };
 
-    //CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
+    CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
 
     while(!window.should_close())
     {
@@ -181,39 +182,39 @@ void run(const std::string &config_filename)
         if(reporter->get_dirty_flag())
             reporter->access_image(update_image);
 
-        /*const bool update = camera_controller.update(CameraController::InputParams{
+        const bool update = camera_controller.update(CameraController::InputParams{
             .cursor_pos = Vec2f(ImGui::GetMousePos().x / scene.width, ImGui::GetMousePos().y / scene.height),
             .wheel_offset = 0,
             .button_down = { false, ImGui::IsMouseDown(ImGuiMouseButton_Middle), false }
-        });*/
+        });
 
-        /*if(update)
+        if(update)
         {
             if(scene.renderer->is_waitable())
                 scene.renderer->stop_async();
 
             ObjectDAG dag(scene.renderer);
+            const bool need_recompile = dag.need_recompile();
 
-            scene.camera->commit();
-            for(auto p : scene.camera->get_properties())
-                p->update();
+            if(need_recompile)
+                scene.scene->clear_device_data();
 
-            //scene.scene->precommit();
-            //dag.commit();
-            //scene.scene->postcommit();
+            scene.scene->precommit();
+            dag.commit();
+            scene.scene->postcommit();
 
-            //if(dag.need_recompile())
-            //{
-            //    scene.renderer->recompile(false);
-            //    dag.clear_recompile_flag();
-            //}
+            if(need_recompile)
+            {
+                scene.renderer->recompile(false);
+                dag.clear_recompile_flag();
+            }
 
-            //dag.update_properties();
+            dag.update_properties();
 
             reporter->progress(0);
             reporter->set_preview_interval(100);
             scene.renderer->render_async();
-        }*/
+        }
 
         if(!scene.renderer->is_rendering() && scene.renderer->is_waitable())
         {
