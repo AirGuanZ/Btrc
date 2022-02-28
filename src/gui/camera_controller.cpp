@@ -8,7 +8,7 @@ CameraController::CameraController(RC<builtin::PinholeCamera> camera)
 
 }
 
-bool CameraController::update(const InputParams &params)
+bool CameraController::update(const InputParams &params, const ControlParams &control)
 {
     if(params.cursor_pos.x < 0 || params.cursor_pos.x > 1 ||
        params.cursor_pos.y < 0 || params.cursor_pos.y > 1)
@@ -36,7 +36,7 @@ bool CameraController::update(const InputParams &params)
     {
         if(params.cursor_pos.x != last_cursor_pos_.x || params.cursor_pos.y != last_cursor_pos_.y)
         {
-            rotate(last_cursor_pos_, params.cursor_pos);
+            rotate(last_cursor_pos_, params.cursor_pos, { control.rotate_speed_hori, control.rotate_speed_vert });
             result = true;
         }
     }
@@ -44,7 +44,7 @@ bool CameraController::update(const InputParams &params)
     // distance
 
     if(params.wheel_offset != 0)
-        result |= adjust_distance(params.wheel_offset);
+        result |= adjust_distance(params.wheel_offset, control.dist_adjust_speed);
 
     last_cursor_pos_ = params.cursor_pos;
 
@@ -75,21 +75,21 @@ void CameraController::translate(const Vec2f &old_cursor, const Vec2f &new_curso
     camera_->set_eye(new_eye);
 }
 
-bool CameraController::adjust_distance(float wheel_offset)
+bool CameraController::adjust_distance(float wheel_offset, float speed)
 {
     const Vec3f eye = camera_->get_eye();
     const Vec3f dst = camera_->get_dst();
     const Vec3f dir = normalize(dst - eye);
     float dist = length(eye - dst);
     if(wheel_offset > 0)
-        dist /= 1.1f;
+        dist /= 1 + speed;
     else
-        dist *= 1.1f;
+        dist *= 1 + speed;
     camera_->set_eye(dst - dist * dir);
     return true;
 }
 
-void CameraController::rotate(const Vec2f &old_cursor, const Vec2f &new_cursor)
+void CameraController::rotate(const Vec2f &old_cursor, const Vec2f &new_cursor, const Vec2f &speed)
 {
     const Vec3f eye = camera_->get_eye();
     const Vec3f dst = camera_->get_dst();
@@ -100,8 +100,8 @@ void CameraController::rotate(const Vec2f &old_cursor, const Vec2f &new_cursor)
     float hori = local_angle::phi(dir);
     float vert = std::asin(std::clamp(dir.z, -1.0f, 1.0f));
 
-    hori += (new_cursor.x - old_cursor.x) * 2.0f;
-    vert -= (new_cursor.y - old_cursor.y) * 2.0f;
+    hori += (new_cursor.x - old_cursor.x) * speed.x;
+    vert -= (new_cursor.y - old_cursor.y) * speed.y;
 
     while(hori > 2 * btrc_pi)
         hori -= 2 * btrc_pi;

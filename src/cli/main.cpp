@@ -77,6 +77,40 @@ void run(const std::string &scene_filename)
 
     auto result = renderer->render();
 
+    std::cout << "apply tone mapping" << std::endl;
+
+    if(auto tm = root_node->find_child_node("tone_mapping"))
+    {
+        if(auto exposure_node = tm->find_child_node("aces_exposure"))
+        {
+            const float exposure = exposure_node->parse<float>();
+
+            auto aces = [](float x)
+            {
+                constexpr float tA = 2.51f;
+                constexpr float tB = 0.03f;
+                constexpr float tC = 2.43f;
+                constexpr float tD = 0.59f;
+                constexpr float tE = 0.14f;
+                return std::clamp(x * (tA * x + tB) / (x * (tC * x + tD) + tE), 0.0f, 1.0f);
+            };
+
+            for(int y = 0; y < result.value.height(); ++y)
+            {
+                for(int x = 0; x < result.value.width(); ++x)
+                {
+                    auto &v = result.value(x, y);
+                    v.x = aces(v.x * exposure);
+                    v.y = aces(v.y * exposure);
+                    v.z = aces(v.z * exposure);
+                }
+            }
+        }
+
+        const float gamma = 1.0f / tm->parse_child_or("gamma", 1.0f);
+        result.value.pow_(gamma);
+    }
+
     const auto value_filename = root_node->parse_child_or<std::string>("value_filename", "output.exr");
     std::cout << "write value to " << value_filename << std::endl;
     result.value.save(value_filename);

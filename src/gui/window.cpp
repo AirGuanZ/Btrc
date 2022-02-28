@@ -44,6 +44,10 @@ Window::Window(const std::string &title, int width, int height)
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     ImGui::GetIO().IniFilename = nullptr;
 
+    ImFontConfig font_config = {};
+    font_config.SizePixels = 16;
+    ImGui::GetIO().Fonts->AddFontDefault(&font_config);
+
     ImGui_ImplGlfw_InitForOpenGL(impl_->glfw_window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 

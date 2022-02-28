@@ -18,6 +18,7 @@
 #include <btrc/utils/file.h>
 
 #include "camera_controller.h"
+#include "message_box.h"
 #include "reporter.h"
 #include "window.h"
 
@@ -25,8 +26,7 @@ using namespace btrc;
 
 struct BtrcScene
 {
-    Box<ScopedPropertyPool> property_pool;
-    Box<factory::Context>   object_context;
+    Box<factory::Context> object_context;
 
     int width  = 0;
     int height = 0;
@@ -49,9 +49,7 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
 {
     BtrcScene result;
 
-    std::cout << "create btrc context" << std::endl;
-
-    result.property_pool = newBox<ScopedPropertyPool>();
+    std::cout << "create object context" << std::endl;
 
     result.object_context = newBox<factory::Context>(optix_context);
     builtin::register_builtin_creators(*result.object_context);
@@ -154,6 +152,7 @@ void run(const std::string &config_filename)
 {
     cuda::Context cuda_context(0);
     optix::Context optix_context(nullptr);
+    ScopedPropertyPool property_pool;
 
     auto scene = initialize_btrc_scene(config_filename, optix_context);
 
@@ -173,6 +172,7 @@ void run(const std::string &config_filename)
     glTextureStorage2D(tex_handle, 1, GL_RGBA32F, scene.width, scene.height);
 
     CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
+    CameraController::ControlParams controller_params;
 
     constexpr int MIN_UPDATED_IMAGE_COUNT = 2;
     int updated_image_count = 0;
@@ -202,8 +202,57 @@ void run(const std::string &config_filename)
             reporter->access_image(update_image);
         }
 
+        bool open_still_rendering_window = false;
+        if(ImGui::BeginMainMenuBar())
+        {
+            if(ImGui::MenuItem("Save"))
+            {
+                if(!scene.renderer->is_rendering())
+                {
+                    if(scene.renderer->is_waitable())
+                    {
+                        auto result = scene.renderer->wait_async();
+
+                        const auto value_filename = scene.root->parse_child_or<std::string>("value_filename", "output.exr");
+                        std::cout << "write value to " << value_filename << std::endl;
+                        result.value.save(value_filename);
+
+                        if(result.albedo)
+                        {
+                            const auto albedo_filename = scene.root->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
+                            std::cout << "write albedo to " << albedo_filename << std::endl;
+                            result.albedo.save(albedo_filename);
+                        }
+                        if(result.normal)
+                        {
+                            const auto normal_filename = scene.root->parse_child_or<std::string>("normal_filename", "output_normal.png");
+                            std::cout << "write normal to " << normal_filename << std::endl;
+                            result.normal.save(normal_filename);
+                        }
+                    }
+                }
+                else
+                    open_still_rendering_window = true;
+            }
+
+            if(ImGui::BeginMenu("Camera"))
+            {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
+                ImGui::SliderFloat("RotateAxisX Speed", &controller_params.rotate_speed_hori, 0.1f, 3.0f);
+                ImGui::SliderFloat("RotateAxisY Speed", &controller_params.rotate_speed_vert, 0.1f, 3.0f);
+                ImGui::SliderFloat("Distance Speed", &controller_params.dist_adjust_speed, 0.05f, 0.3f);
+                ImGui::PopStyleColor();
+                ImGui::EndMenu();
+            }
+        }
+        ImGui::EndMainMenuBar();
+
+        if(open_still_rendering_window)
+            ImGui::EnableMessageBox("StillRenderingWindow");
+        ImGui::DisplayMessageBox("StillRenderingWindow", "rendering is not done");
+
         const auto imgui_viewport = ImGui::GetMainViewport();
-        const Rect2D display_rect = compute_preview_image_rect(
+        Rect2D display_rect = compute_preview_image_rect(
             {
                 imgui_viewport->WorkSize.x,
                 imgui_viewport->WorkSize.y
@@ -212,10 +261,12 @@ void run(const std::string &config_filename)
                 static_cast<float>(scene.width),
                 static_cast<float>(scene.height)
             });
-
         if(updated_image_count >= MIN_UPDATED_IMAGE_COUNT)
         {
-            const auto mouse_pos = ImGui::GetMousePos();
+            auto mouse_pos = ImGui::GetMousePos();
+            mouse_pos.x -= imgui_viewport->WorkPos.x;
+            mouse_pos.y -= imgui_viewport->WorkPos.y;
+
             const auto relative_mouse_pos = Vec2f(
                 (mouse_pos.x - display_rect.lower.x) / (display_rect.upper.x - display_rect.lower.x),
                 (mouse_pos.y - display_rect.lower.y) / (display_rect.upper.y - display_rect.lower.y));
@@ -228,7 +279,7 @@ void run(const std::string &config_filename)
                     ImGui::IsMouseDown(ImGuiMouseButton_Middle),
                     ImGui::IsMouseDown(ImGuiMouseButton_Right)
                 }
-            });
+            }, controller_params);
 
             if(update)
             {
@@ -269,29 +320,6 @@ void run(const std::string &config_filename)
 
         if(reporter->get_percentage() > 5)
             reporter->set_preview_interval(1000);
-
-        /*if(!scene.renderer->is_rendering() && scene.renderer->is_waitable())
-        {
-            auto result = scene.renderer->wait_async();
-
-            const auto value_filename = scene.root->parse_child_or<std::string>("value_filename", "output.exr");
-            std::cout << "write value to " << value_filename << std::endl;
-            result.value.save(value_filename);
-
-            if(result.albedo)
-            {
-                const auto albedo_filename = scene.root->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
-                std::cout << "write albedo to " << albedo_filename << std::endl;
-                result.albedo.save(albedo_filename);
-            }
-
-            if(result.normal)
-            {
-                const auto normal_filename = scene.root->parse_child_or<std::string>("normal_filename", "output_normal.png");
-                std::cout << "write normal to " << normal_filename << std::endl;
-                result.normal.save(normal_filename);
-            }
-        }*/
 
         {
             auto viewport = ImGui::GetMainViewport();
