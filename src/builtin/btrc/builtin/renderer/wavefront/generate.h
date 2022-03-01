@@ -13,16 +13,16 @@ namespace generate_pipeline_detail
 
     struct SOAParams
     {
-        cstd::LCGData *rng;
-        Vec2f         *output_pixel_coord;
-        Vec4f         *output_ray_o_t0;
-        Vec4f         *output_ray_d_t1;
-        Vec2u         *output_ray_time_mask;
-        Spectrum      *output_beta;
-        Spectrum      *output_beta_le;
-        float         *output_bsdf_pdf;
-        int           *output_depth;
-        Spectrum      *output_path_radiance;
+        RNG::Data *rng;
+        Vec2f     *output_pixel_coord;
+        Vec4f     *output_ray_o_t0;
+        Vec4f     *output_ray_d_t1;
+        Vec2u     *output_ray_time_mask;
+        Spectrum  *output_beta;
+        Spectrum  *output_beta_le;
+        float     *output_bsdf_pdf;
+        int       *output_depth;
+        Spectrum  *output_path_radiance;
     };
 
     CUJ_PROXY_CLASS(

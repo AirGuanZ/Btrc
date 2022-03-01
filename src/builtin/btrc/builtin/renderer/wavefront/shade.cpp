@@ -180,7 +180,8 @@ void ShadePipeline::initialize(
 
         // basic path state
 
-        var soa_index = soa_params.active_state_indices[thread_index];
+        var inct_inst_launch_index = load_aligned(soa_params.inct_inst_launch_index + thread_index);
+        var soa_index = inct_inst_launch_index.y;
 
         var rng = soa_params.rng[soa_index];
         
@@ -190,8 +191,8 @@ void ShadePipeline::initialize(
         var pixel_coord = load_aligned(soa_params.pixel_coord + soa_index);
         var depth = soa_params.depth[soa_index];
 
-        var<f32> inct_t = soa_params.inct_t[soa_index];
-        $if(inct_t < 0)
+        var inst_id = inct_inst_launch_index.x;
+        $if(inst_id == u32(-1))
         {
             handle_miss(cc, light_sampler, soa_params, soa_index, path_radiance);
             $if(depth == 0)
@@ -210,12 +211,14 @@ void ShadePipeline::initialize(
         var ray_d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
         var ray_time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
 
-        var inct_uv_id = load_aligned(soa_params.inct_uv_id + soa_index);
-        var inst_id = inct_uv_id.w;
+        var inct_t_prim_uv = load_aligned(soa_params.inct_t_prim_uv + soa_index);
+        var inct_t = bitcast<f32>(inct_t_prim_uv.x);
+        var prim_id = inct_t_prim_uv.y;
+        var uv = CVec2f(bitcast<f32>(inct_t_prim_uv.z), bitcast<f32>(inct_t_prim_uv.w));
+
         ref instance = instances[inst_id];
         ref geometry = geometries[instance.geometry_id];
-        var uv = CVec2f(bitcast<f32>(inct_uv_id.x), bitcast<f32>(inct_uv_id.y));
-        var inct = get_intersection(inct_t, ray_o, ray_d, instance, geometry, inct_uv_id.z, uv);
+        var inct = get_intersection(inct_t, ray_o, ray_d, instance, geometry, prim_id, uv);
 
         // handle intersected light
 
@@ -513,7 +516,7 @@ void ShadePipeline::handle_miss(
     CompileContext     &cc,
     const LightSampler *light_sampler,
     ref<CSOAParams>     soa_params,
-    i32                 soa_index,
+    u32                 soa_index,
     ref<CSpectrum>      path_rad)
 {
     var time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);

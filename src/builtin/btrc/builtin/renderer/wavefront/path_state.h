@@ -16,7 +16,7 @@ struct PathState
 
     void next_iteration();
 
-    cuda::CUDABuffer<cstd::LCGData> rng;
+    cuda::CUDABuffer<RNG::Data> rng;
 
     // ==== generate output ====
 
@@ -40,15 +40,14 @@ struct PathState
 
     // ==== trace output ====
 
-    cuda::CUDABuffer<float>   inct_t;
-    cuda::CUDABuffer<Vec4u>   inct_uv_id;
-    cuda::CUDABuffer<int32_t> active_state_indices;
+    cuda::CUDABuffer<Vec2u> inct_inst_launch_index;
+    cuda::CUDABuffer<Vec4u> inct_t_prim_uv;
 
     // ==== shade output ====
 
     // 'state' state
 
-    cuda::CUDABuffer<cstd::LCGData> next_rng;
+    cuda::CUDABuffer<RNG::Data> next_rng;
 
     // path state
 

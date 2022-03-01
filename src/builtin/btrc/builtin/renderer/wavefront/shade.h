@@ -14,9 +14,7 @@ namespace shade_pipeline_detail
 
     struct SOAParams
     {
-        cstd::LCGData *rng;
-
-        int32_t *active_state_indices;
+        RNG::Data *rng;
 
         // per path
 
@@ -32,8 +30,8 @@ namespace shade_pipeline_detail
 
         // last intersection
 
-        float *inct_t;
-        Vec4u *inct_uv_id;
+        Vec2u *inct_inst_launch_index;
+        Vec4u *inct_t_prim_uv;
 
         // last ray
 
@@ -43,7 +41,7 @@ namespace shade_pipeline_detail
 
         // always output
 
-        cstd::LCGData *output_rng;
+        RNG::Data *output_rng;
 
         // ouput when active
 
@@ -73,15 +71,14 @@ namespace shade_pipeline_detail
     CUJ_PROXY_CLASS(
         CSOAParams, SOAParams,
         rng,
-        active_state_indices,
         path_radiance,
         pixel_coord,
         depth,
         beta,
         beta_le,
         bsdf_pdf,
-        inct_t,
-        inct_uv_id,
+        inct_inst_launch_index,
+        inct_t_prim_uv,
         ray_o_t0,
         ray_d_t1,
         ray_time_mask,
@@ -156,7 +153,7 @@ private:
         CompileContext     &cc,
         const LightSampler *light_sampler,
         ref<CSOAParams>     soa_params,
-        i32                 soa_index,
+        u32                 soa_index,
         ref<CSpectrum>      path_rad);
 
     CUDAModule                kernel_;

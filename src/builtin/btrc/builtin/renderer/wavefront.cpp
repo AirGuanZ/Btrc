@@ -162,7 +162,8 @@ Renderer::RenderResult WavefrontPathTracer::render() const
     while(!impl_->generate.is_done() || active_state_count > 0)
     {
         const int64_t limited_state_count = reporter.need_fast_preview() ?
-            impl_->width * impl_->height : (std::numeric_limits<int64_t>::max)();
+            (active_state_count ? active_state_count : impl_->width * impl_->height) :
+            (std::numeric_limits<int64_t>::max)();
 
         const int new_state_count = impl_->generate.generate(
             active_state_count,
@@ -185,12 +186,11 @@ Renderer::RenderResult WavefrontPathTracer::render() const
             scene.get_tlas(),
             active_state_count,
             wfpt::TracePipeline::SOAParams{
-                .ray_o_t0      = soa.o_t0,
-                .ray_d_t1      = soa.d_t1,
-                .ray_time_mask = soa.time_mask,
-                .inct_t        = soa.inct_t,
-                .inct_uv_id    = soa.inct_uv_id,
-                .state_index   = soa.active_state_indices
+                .ray_o_t0               = soa.o_t0,
+                .ray_d_t1               = soa.d_t1,
+                .ray_time_mask          = soa.time_mask,
+                .inct_inst_launch_index = soa.inct_inst_launch_index,
+                .inct_t_prim_uv         = soa.inct_t_prim_uv
             });
 
         // impl_->sort.sort(active_state_count, soa.inct_t, soa.inct_uv_id, soa.active_state_indices);
@@ -199,15 +199,14 @@ Renderer::RenderResult WavefrontPathTracer::render() const
             active_state_count,
             wfpt::ShadePipeline::SOAParams{
                 .rng                         = soa.rng,
-                .active_state_indices        = soa.active_state_indices,
                 .path_radiance               = soa.path_radiance,
                 .pixel_coord                 = soa.pixel_coord,
                 .depth                       = soa.depth,
                 .beta                        = soa.beta,
                 .beta_le                     = soa.beta_le,
                 .bsdf_pdf                    = soa.bsdf_pdf,
-                .inct_t                      = soa.inct_t,
-                .inct_uv_id                  = soa.inct_uv_id,
+                .inct_inst_launch_index      = soa.inct_inst_launch_index,
+                .inct_t_prim_uv              = soa.inct_t_prim_uv,
                 .ray_o_t0                    = soa.o_t0,
                 .ray_d_t1                    = soa.d_t1,
                 .ray_time_mask               = soa.time_mask,
@@ -324,11 +323,6 @@ void WavefrontPathTracer::new_preview_image() const
         impl_->preview_image = Image<Vec4f>(impl_->width, impl_->height);
     }
 
-    /*wfpt::compute_preview_image(
-        impl_->width, impl_->height,
-        impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).as<Vec4f>(),
-        impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
-        impl_->device_preview_image.get());*/
     impl_->preview.generate(
         impl_->width, impl_->height,
         impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).as<Vec4f>(),

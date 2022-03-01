@@ -55,8 +55,6 @@ namespace
             var time = bitcast<f32>(time_mask.x);
             var mask = time_mask.y;
 
-            launch_params.state_index[launch_idx] = i32(launch_idx);
-
             optix::trace(
                 launch_params.handle,
                 o, d, t0, t1, time, mask, OPTIX_RAY_FLAG_NONE,
@@ -69,7 +67,8 @@ namespace
         {
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
-            launch_params.inct_t[launch_idx] = -1;
+            var inct_inst_launch_index = CVec2u(u32(-1), launch_idx);
+            save_aligned(inct_inst_launch_index, launch_params.inct_inst_launch_index + launch_idx);
         });
 
         kernel(
@@ -84,10 +83,11 @@ namespace
             var prim_id = optix::get_primitive_index();
             var inst_id = optix::get_instance_id();
 
-            launch_params.inct_t[launch_idx] = t;
+            var inct_inst_launch_index = CVec2u(inst_id, launch_idx);
+            var inct_t_prim_uv = CVec4u(bitcast<u32>(t), prim_id, bitcast<u32>(uv.x), bitcast<u32>(uv.y));
 
-            var uv_id = CVec4u(bitcast<u32>(uv.x), bitcast<u32>(uv.y), prim_id, inst_id);
-            save_aligned(uv_id, launch_params.inct_uv_id + launch_idx);
+            save_aligned(inct_inst_launch_index, launch_params.inct_inst_launch_index + launch_idx);
+            save_aligned(inct_t_prim_uv, launch_params.inct_t_prim_uv + launch_idx);
         });
 
         PTXGenerator gen;
@@ -143,13 +143,12 @@ void TracePipeline::trace(
     const SOAParams &soa_params) const
 {
     const LaunchParams launch_params = {
-        .handle        = handle,
-        .ray_o_t0      = soa_params.ray_o_t0,
-        .ray_d_t1      = soa_params.ray_d_t1,
-        .ray_time_mask = soa_params.ray_time_mask,
-        .inct_t        = soa_params.inct_t,
-        .inct_uv_id    = soa_params.inct_uv_id,
-        .state_index   = soa_params.state_index
+        .handle                 = handle,
+        .ray_o_t0               = soa_params.ray_o_t0,
+        .ray_d_t1               = soa_params.ray_d_t1,
+        .ray_time_mask          = soa_params.ray_time_mask,
+        .inct_inst_launch_index = soa_params.inct_inst_launch_index,
+        .inct_t_prim_uv         = soa_params.inct_t_prim_uv
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(
