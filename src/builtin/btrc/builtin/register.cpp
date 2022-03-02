@@ -40,6 +40,11 @@ void register_builtin_creators(factory::Factory<Material> &factory)
     factory.add_creator(newBox<MirrorCreator>());
 }
 
+void register_builtin_creators(factory::Factory<Medium> &factory)
+{
+    
+}
+
 void register_builtin_creators(factory::Factory<Renderer> &factory)
 {
     factory.add_creator(newBox<WavefrontPathTracerCreator>());
@@ -56,6 +61,7 @@ void register_builtin_creators(factory::Context &context)
     register_builtin_creators(context.get_factory<Geometry>());
     register_builtin_creators(context.get_factory<Light>());
     register_builtin_creators(context.get_factory<Material>());
+    register_builtin_creators(context.get_factory<Medium>());
     register_builtin_creators(context.get_factory<Renderer>());
     register_builtin_creators(context.get_factory<Texture2D>());
 }

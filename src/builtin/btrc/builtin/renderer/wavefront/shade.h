@@ -159,7 +159,6 @@ private:
     CUDAModule                kernel_;
     const GeometryInfo       *geo_info_;
     const InstanceInfo       *inst_info_;
-    const int32_t            *inst_to_mat_;
     cuda::CUDABuffer<int32_t> counters_;
     ShadeParams               shade_params_;
 };

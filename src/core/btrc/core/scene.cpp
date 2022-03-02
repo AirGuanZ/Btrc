@@ -40,6 +40,7 @@ void Scene::postcommit()
 {
     tlas_ = {};
     materials_ = {};
+    mediums_ = {};
 
     std::vector<optix::Context::Instance> blas_instances;
 
@@ -47,6 +48,7 @@ void Scene::postcommit()
     std::vector<GeometryInfo>   geometry_info;
     std::map<RC<Geometry>, int> geometry_info_indices;
     std::map<RC<Material>, int> material_indices;
+    std::map<RC<Medium>, int>   medium_indices = { { nullptr, -1 } };
 
     int next_light_idx = 0;
 
@@ -74,6 +76,26 @@ void Scene::postcommit()
         }
         const int mat_id = mat_it->second;
 
+        // medium id
+
+        auto med_it = medium_indices.find(inst.inner_medium);
+        if(med_it == medium_indices.end())
+        {
+            const int id = static_cast<int>(mediums_.size());
+            med_it = medium_indices.insert({ inst.inner_medium, id }).first;
+            mediums_.push_back(inst.inner_medium);
+        }
+        const int inner_med_id = med_it->second;
+
+        med_it = medium_indices.find(inst.outer_medium);
+        if(med_it == medium_indices.end())
+        {
+            const int id = static_cast<int>(mediums_.size());
+            med_it = medium_indices.insert({ inst.outer_medium, id }).first;
+            mediums_.push_back(inst.outer_medium);
+        }
+        const int outer_med_id = med_it->second;
+
         // light id
 
         int light_idx = -1;
@@ -81,12 +103,14 @@ void Scene::postcommit()
             light_idx = next_light_idx++;
 
         instance_info.push_back(InstanceInfo{
-            .geometry_id = geo_id,
-            .material_id = mat_id,
-            .light_id = light_idx,
-            .transform = inst.transform
-            });
-        
+            .geometry_id     = geo_id,
+            .material_id     = mat_id,
+            .light_id        = light_idx,
+            .transform       = inst.transform,
+            .inner_medium_id = inner_med_id,
+            .outer_medium_id = outer_med_id
+        });
+
         blas_instances.push_back(optix::Context::Instance{
             .local_to_world = inst.transform.to_transform_matrix(),
             .id             = static_cast<uint32_t>(blas_instances.size()),
@@ -110,18 +134,12 @@ void Scene::postcommit()
         geometry_info_.initialize(geometry_info.size());
     assert(geometry_info_.get_size() == geometry_info.size());
     geometry_info_.from_cpu(geometry_info.data());
-
-    if(!instance_to_material_)
-        instance_to_material_.initialize(instance_to_material.size());
-    assert(instance_to_material_.get_size() == instance_to_material.size());
-    instance_to_material_.from_cpu(instance_to_material.data());
 }
 
 void Scene::clear_device_data()
 {
     instance_info_ = {};
     geometry_info_ = {};
-    instance_to_material_ = {};
 }
 
 OptixTraversableHandle Scene::get_tlas() const
@@ -150,11 +168,6 @@ const GeometryInfo *Scene::get_device_geometry_info() const
 const InstanceInfo *Scene::get_device_instance_info() const
 {
     return instance_info_;
-}
-
-const int32_t *Scene::get_device_instance_to_material() const
-{
-    return instance_to_material_;
 }
 
 const LightSampler *Scene::get_light_sampler() const

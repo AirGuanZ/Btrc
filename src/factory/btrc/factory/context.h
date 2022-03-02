@@ -4,6 +4,7 @@
 #include <btrc/core/geometry.h>
 #include <btrc/core/light.h>
 #include <btrc/core/material.h>
+#include <btrc/core/medium.h>
 #include <btrc/core/renderer.h>
 #include <btrc/core/texture2d.h>
 #include <btrc/factory/node/node.h>
@@ -26,6 +27,7 @@ REGISTER_OBJECT_TYPENAME(Camera,       camera)
 REGISTER_OBJECT_TYPENAME(Geometry,     geometry)
 REGISTER_OBJECT_TYPENAME(Light,        light)
 REGISTER_OBJECT_TYPENAME(Material,     material)
+REGISTER_OBJECT_TYPENAME(Medium,       medium)
 REGISTER_OBJECT_TYPENAME(Renderer,     renderer)
 REGISTER_OBJECT_TYPENAME(Texture2D,    texture2d)
 
@@ -87,6 +89,7 @@ private:
         Geometry,
         Light,
         Material,
+        Medium,
         Renderer,
         Texture2D
     > factorys_;

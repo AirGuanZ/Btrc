@@ -5,6 +5,7 @@
 #include <btrc/core/light_sampler.h>
 #include <btrc/core/geometry.h>
 #include <btrc/core/material.h>
+#include <btrc/core/medium.h>
 #include <btrc/utils/optix/as.h>
 
 BTRC_BEGIN
@@ -15,6 +16,8 @@ struct InstanceInfo
     int32_t   material_id = 0;
     int32_t   light_id = 0;
     Transform transform;
+    int32_t   inner_medium_id = -1;
+    int32_t   outer_medium_id = -1;
 };
 
 CUJ_PROXY_CLASS(
@@ -23,7 +26,9 @@ CUJ_PROXY_CLASS(
     geometry_id,
     material_id,
     light_id,
-    transform);
+    transform,
+    inner_medium_id,
+    outer_medium_id);
 
 class Scene
 {
@@ -35,6 +40,8 @@ public:
         RC<Material>  material;
         RC<AreaLight> light;
         Transform     transform;
+        RC<Medium>    inner_medium;
+        RC<Medium>    outer_medium;
     };
 
     explicit Scene(optix::Context &optix_ctx);
@@ -67,8 +74,6 @@ public:
 
     const InstanceInfo *get_device_instance_info() const;
 
-    const int32_t *get_device_instance_to_material() const;
-
     const LightSampler *get_light_sampler() const;
 
     int get_material_count() const;
@@ -88,10 +93,10 @@ private:
 
     optix::InstanceAS              tlas_;
     std::vector<RC<Material>>      materials_;
+    std::vector<RC<Medium>>        mediums_;
     RC<LightSampler>               light_sampler_;
     cuda::CUDABuffer<InstanceInfo> instance_info_;
     cuda::CUDABuffer<GeometryInfo> geometry_info_;
-    cuda::CUDABuffer<int32_t>      instance_to_material_;
 };
 
 BTRC_END

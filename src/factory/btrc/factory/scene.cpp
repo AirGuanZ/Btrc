@@ -19,6 +19,14 @@ RC<Scene> create_scene(const RC<const Node> &scene_root, Context &context)
         auto material = context.create<Material>(entity->child_node("material"));
         auto transform = entity->parse_child_or("local_to_world", Transform{});
 
+        RC<Medium> inner_medium;
+        if(auto node = entity->find_child_node("inner_medium"))
+            inner_medium = context.create<Medium>(node);
+
+        RC<Medium> outer_medium;
+        if(auto node = entity->find_child_node("outer_medium"))
+            outer_medium = context.create<Medium>(node);
+
         RC<AreaLight> area_light;
         if(auto light_node = entity->find_child_node("light"))
         {
@@ -30,10 +38,12 @@ RC<Scene> create_scene(const RC<const Node> &scene_root, Context &context)
         }
 
         result->add_instance(Scene::Instance{
-            .geometry = std::move(geometry),
-            .material = std::move(material),
-            .light = std::move(area_light),
-            .transform = transform
+            .geometry     = std::move(geometry),
+            .material     = std::move(material),
+            .light        = std::move(area_light),
+            .transform    = transform,
+            .inner_medium = std::move(inner_medium),
+            .outer_medium = std::move(outer_medium)
         });
     }
 

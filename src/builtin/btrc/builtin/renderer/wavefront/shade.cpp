@@ -106,7 +106,6 @@ void ShadePipeline::swap(ShadePipeline &other) noexcept
     std::swap(kernel_,       other.kernel_);
     std::swap(geo_info_,     other.geo_info_);
     std::swap(inst_info_,    other.inst_info_);
-    std::swap(inst_to_mat_,  other.inst_to_mat_);
     std::swap(counters_,     other.counters_);
     std::swap(shade_params_, other.shade_params_);
 }
@@ -141,7 +140,6 @@ ShadePipeline::StateCounters ShadePipeline::shade(
         active_state_counter,
         inactive_state_counter,
         shadow_ray_counter,
-        inst_to_mat_,
         soa);
 
     std::array<int32_t, 3> counter_data;
@@ -169,7 +167,6 @@ void ShadePipeline::initialize(
             ptr<i32>           active_state_counter,
             ptr<i32>           inactive_state_counter,
             ptr<i32>           shadow_ray_counter,
-            ptr<i32>           instance_id_to_material_id,
             CSOAParams         soa_params)
     {
         var thread_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
@@ -395,7 +392,7 @@ void ShadePipeline::initialize(
             is_bsdf_delta = shader->is_delta(cc);
         };
 
-        var mat_id = instance_id_to_material_id[inst_id];
+        var mat_id = instance.material_id;
         $switch(mat_id)
         {
             for(int i = 0; i < scene.get_material_count(); ++i)
@@ -507,7 +504,6 @@ void ShadePipeline::initialize(
 
     geo_info_ = scene.get_device_geometry_info();
     inst_info_ = scene.get_device_instance_info();
-    inst_to_mat_ = scene.get_device_instance_to_material();
 
     counters_ = cuda::CUDABuffer<int32_t>(3);
 }
