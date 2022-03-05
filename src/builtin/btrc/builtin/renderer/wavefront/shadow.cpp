@@ -12,7 +12,7 @@ namespace
     const char *MISS_SHADOW_NAME       = "__miss__shadow";
     const char *CLOSESTHIT_SHADOW_NAME = "__closesthit__shadow";
 
-    std::string generate_shadow_kernel(Film &film)
+    std::string generate_shadow_kernel(CompileContext &cc, const Scene &scene, Film &film)
     {
         using namespace cuj;
 
@@ -49,13 +49,37 @@ namespace
 
         kernel(
             MISS_SHADOW_NAME,
-            [&film, global_launch_params]
+            [&cc, &scene, &film, global_launch_params]
         {
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
 
             var pixel_coord = load_aligned(launch_params.pixel_coord + launch_idx);
             var beta = load_aligned(launch_params.beta_li + launch_idx);
+
+            var medium_id = launch_params.ray_medium_id[launch_idx];
+            $if(medium_id != MEDIUM_ID_VOID)
+            {
+                var tr = CSpectrum::one();
+                var ray_o = optix::get_ray_o();
+                var ray_d = optix::get_ray_d();
+                var ray_t1 = optix::get_ray_tmax();
+                $switch(medium_id)
+                {
+                    for(int i = 0; i < scene.get_medium_count(); ++i)
+                    {
+                        $case(i)
+                        {
+                            tr = scene.get_medium(i)->tr(cc, ray_o, ray_o + ray_d * ray_t1);
+                        };
+                    }
+                    $default
+                    {
+                        cstd::unreachable();
+                    };
+                };
+                beta = beta * tr;
+            };
 
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, beta.to_rgb());
         });
@@ -76,16 +100,20 @@ namespace
 } // namespace anonymous
 
 ShadowPipeline::ShadowPipeline(
+    bool               offline_mode,
+    const Scene       &scene,
     Film              &film,
     OptixDeviceContext context,
     bool               motion_blur,
     bool               triangle_only,
     int                traversable_depth)
 {
+    CompileContext cc(offline_mode);
+
     pipeline_ = optix::SimpleOptixPipeline(
         context,
         optix::SimpleOptixPipeline::Program{
-            .ptx                = generate_shadow_kernel(film),
+            .ptx                = generate_shadow_kernel(cc, scene, film),
             .launch_params_name = LAUNCH_PARAMS_NAME,
             .raygen_name        = RAYGEN_SHADOW_NAME,
             .miss_name          = MISS_SHADOW_NAME,
@@ -97,7 +125,7 @@ ShadowPipeline::ShadowPipeline(
             .motion_blur       = motion_blur,
             .triangle_only     = triangle_only
         });
-    device_launch_params_ = cuda::CUDABuffer<LaunchParams>(1);
+    device_launch_params_ = cuda::Buffer<LaunchParams>(1);
 }
 
 ShadowPipeline::ShadowPipeline(ShadowPipeline &&other) noexcept
@@ -134,6 +162,7 @@ void ShadowPipeline::test(
         .ray_o_t0      = soa_params.ray_o_t0,
         .ray_d_t1      = soa_params.ray_d_t1,
         .ray_time_mask = soa_params.ray_time_mask,
+        .ray_medium_id = soa_params.ray_medium_id,
         .beta_li       = soa_params.beta_li
     };
     device_launch_params_.from_cpu(&launch_params);

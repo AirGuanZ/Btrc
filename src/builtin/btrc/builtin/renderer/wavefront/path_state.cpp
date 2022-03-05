@@ -8,7 +8,7 @@ namespace
 {
 
     template<typename...Ts>
-    void init(int state_count, cuda::CUDABuffer<Ts> &...buffers)
+    void init(int state_count, cuda::Buffer<Ts> &...buffers)
     {
         ((buffers.initialize(state_count)), ...);
     }
@@ -23,6 +23,7 @@ void PathState::initialize(int state_count)
         o_t0,
         d_t1,
         time_mask,
+        medium_id,
         beta_le,
         bsdf_pdf,
         beta,
@@ -41,9 +42,11 @@ void PathState::initialize(int state_count)
         shadow_d_t1,
         shadow_time_mask,
         shadow_beta_li,
+        shadow_medium_id,
         next_o_t0, 
         next_d_t1,
         next_time_mask,
+        next_medium_id,
         next_beta_le,
         next_bsdf_pdf);
 }
@@ -68,6 +71,7 @@ void PathState::next_iteration()
     o_t0.swap(next_o_t0);
     d_t1.swap(next_d_t1);
     time_mask.swap(next_time_mask);
+    medium_id.swap(next_medium_id);
     pixel_coord.swap(next_pixel_coord);
 
     beta.swap(next_beta);

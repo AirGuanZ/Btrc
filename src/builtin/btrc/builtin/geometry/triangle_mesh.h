@@ -36,12 +36,12 @@ private:
     std::string filename_;
     bool transform_to_unit_cube_ = false;
 
-    cuda::CUDABuffer<Vec4f> geo_info_buf_;
-    GeometryInfo            geo_info_ = {};
-    optix::TriangleAS       as_;
+    cuda::Buffer<Vec4f> geo_info_buf_;
+    GeometryInfo        geo_info_ = {};
+    optix::TriangleAS   as_;
 
     // { ax, ay, az, bax, bay, baz, cax, cay, caz } * triangle_count
-    cuda::CUDABuffer<float> positions_;
+    cuda::Buffer<float> positions_;
 
     CAliasTable alias_table_;
     float       total_area_ = 0;

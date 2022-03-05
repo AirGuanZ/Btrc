@@ -36,6 +36,11 @@ public:
         CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const = 0;
 };
 
+using MediumID = uint32_t;
+using CMediumID = cuj::cxx<MediumID>;
+
+constexpr MediumID MEDIUM_ID_VOID = MediumID(-1);
+
 class Medium : public Object
 {
 public:
@@ -43,12 +48,16 @@ public:
     struct SampleResult
     {
         boolean         scattered;
+        CSpectrum       throughput;
+        CVec3f          position;
         RC<PhaseShader> shader;
     };
 
-    virtual SampleResult sample(ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const = 0;
+    virtual SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const = 0;
 
-    virtual CSpectrum tr(ref<CVec3f> a, ref<CVec3f> b) const = 0;
+    virtual CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b) const = 0;
+
+    virtual float get_priority() const = 0;
 };
 
 BTRC_END

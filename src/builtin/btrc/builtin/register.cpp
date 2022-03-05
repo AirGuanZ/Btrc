@@ -8,6 +8,7 @@
 #include <btrc/builtin/material/glass.h>
 #include <btrc/builtin/material/metal.h>
 #include <btrc/builtin/material/mirror.h>
+#include <btrc/builtin/medium/homogeneous.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
 #include <btrc/builtin/register.h>
@@ -42,7 +43,7 @@ void register_builtin_creators(factory::Factory<Material> &factory)
 
 void register_builtin_creators(factory::Factory<Medium> &factory)
 {
-    
+    factory.add_creator(newBox<HomogeneousMediumCreator>());
 }
 
 void register_builtin_creators(factory::Factory<Renderer> &factory)

@@ -16,7 +16,7 @@ namespace
 
     constexpr float EPS = 1.5e-4f;
 
-    constexpr char SHADE_KERNEL_NAME[] = "shade";
+    constexpr char SHADE_KERNEL_NAME[] = "shade_kernel";
 
     SurfacePoint get_intersection(
         f32                inct_t,
@@ -35,13 +35,13 @@ namespace
         
         // geometry frame
 
-        var gx_ua  = geometry.geometry_ex_tex_coord_u_a [prim_id];
-        var gy_uba = geometry.geometry_ey_tex_coord_u_ba[prim_id];
-        var gz_uca = geometry.geometry_ez_tex_coord_u_ca[prim_id];
+        var gx_ua  = load_aligned(geometry.geometry_ex_tex_coord_u_a  + prim_id);
+        var gy_uba = load_aligned(geometry.geometry_ey_tex_coord_u_ba + prim_id);
+        var gz_uca = load_aligned(geometry.geometry_ez_tex_coord_u_ca + prim_id);
 
-        var sn_v_a  = geometry.shading_normal_tex_coord_v_a [prim_id];
-        var sn_v_ba = geometry.shading_normal_tex_coord_v_ba[prim_id];
-        var sn_v_ca = geometry.shading_normal_tex_coord_v_ca[prim_id];
+        var sn_v_a  = load_aligned(geometry.shading_normal_tex_coord_v_a  + prim_id);
+        var sn_v_ba = load_aligned(geometry.shading_normal_tex_coord_v_ba + prim_id);
+        var sn_v_ca = load_aligned(geometry.shading_normal_tex_coord_v_ca + prim_id);
 
         CFrame geometry_frame = CFrame(gx_ua.xyz(), gy_uba.xyz(), gz_uca.xyz());
 
@@ -79,87 +79,13 @@ namespace
 
 } // namespace anonymous
 
-ShadePipeline::ShadePipeline(
-    CompileContext    &cc,
-    Film              &film,
-    const Scene       &scene,
-    const ShadeParams &shade_params)
-    : ShadePipeline()
+void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Scene &scene, const ShadeParams &shade_params)
 {
-    initialize(cc, film, scene, shade_params);
-}
-
-ShadePipeline::ShadePipeline(ShadePipeline &&other) noexcept
-    : ShadePipeline()
-{
-    swap(other);
-}
-
-ShadePipeline &ShadePipeline::operator=(ShadePipeline &&other) noexcept
-{
-    swap(other);
-    return *this;
-}
-
-void ShadePipeline::swap(ShadePipeline &other) noexcept
-{
-    std::swap(kernel_,       other.kernel_);
-    std::swap(geo_info_,     other.geo_info_);
-    std::swap(inst_info_,    other.inst_info_);
-    std::swap(counters_,     other.counters_);
-    std::swap(shade_params_, other.shade_params_);
-}
-
-ShadePipeline::operator bool() const
-{
-    return kernel_.is_linked();
-}
-
-ShadePipeline::StateCounters ShadePipeline::shade(
-    int total_state_count,
-    const SOAParams &soa)
-{
-    assert(kernel_.is_linked());
-    counters_.clear_bytes(0);
-
-    int32_t *active_state_counter   = counters_.get();
-    int32_t *inactive_state_counter = active_state_counter + 1;
-    int32_t *shadow_ray_counter     = active_state_counter + 2;
-
-    constexpr int BLOCK_DIM = 256;
-    const int thread_count = total_state_count;
-    const int block_count = up_align(thread_count, BLOCK_DIM) / BLOCK_DIM;
-
-    kernel_.launch(
-        SHADE_KERNEL_NAME,
-        { block_count, 1, 1 },
-        { BLOCK_DIM, 1, 1 },
-        total_state_count,
-        inst_info_,
-        geo_info_,
-        active_state_counter,
-        inactive_state_counter,
-        shadow_ray_counter,
-        soa);
-
-    std::array<int32_t, 3> counter_data;
-    counters_.to_cpu(counter_data.data());
-    return { counter_data[0], counter_data[2] };
-}
-
-void ShadePipeline::initialize(
-    CompileContext    &cc,
-    Film              &film,
-    const Scene       &scene,
-    const ShadeParams &shade_params)
-{
-    shade_params_ = shade_params;
+    using namespace cuj;
 
     auto light_sampler = scene.get_light_sampler();
-
-    ScopedModule cuj_module;
-
-    auto shade_kernel = kernel(
+    
+    kernel(
         SHADE_KERNEL_NAME, [&](
             i32                total_state_count,
             ptr<CInstanceInfo> instances,
@@ -179,8 +105,6 @@ void ShadePipeline::initialize(
 
         var inct_inst_launch_index = load_aligned(soa_params.inct_inst_launch_index + thread_index);
         var soa_index = inct_inst_launch_index.y;
-
-        var rng = soa_params.rng[soa_index];
         
         var beta = load_aligned(soa_params.beta + soa_index);
         var path_radiance = load_aligned(soa_params.path_radiance + soa_index);
@@ -188,20 +112,28 @@ void ShadePipeline::initialize(
         var pixel_coord = load_aligned(soa_params.pixel_coord + soa_index);
         var depth = soa_params.depth[soa_index];
 
+        var rng = soa_params.rng[soa_index];
+
         var inst_id = inct_inst_launch_index.x;
-        $if(inst_id == u32(-1))
+        $if(inst_id == INST_ID_MISS)
         {
             handle_miss(cc, light_sampler, soa_params, soa_index, path_radiance);
             $if(depth == 0)
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
             };
-            film.splat_atomic(
-                pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-            var output_index = total_state_count - 1
-                             - cstd::atomic_add(inactive_state_counter, 1);
+            film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
+
+            var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
             soa_params.output_rng[output_index] = rng;
             $return();
+        };
+
+        boolean scattered = false;
+        $if((inst_id & INST_ID_MEDIUM_MASK) != 0)
+        {
+            scattered = true;
+            inst_id = inst_id & ~INST_ID_MEDIUM_MASK;
         };
 
         var ray_o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_t0 + soa_index));
@@ -217,6 +149,8 @@ void ShadePipeline::initialize(
         ref geometry = geometries[instance.geometry_id];
         var inct = get_intersection(inct_t, ray_o, ray_d, instance, geometry, prim_id, uv);
 
+        var medium_id = soa_params.ray_medium_id[soa_index];
+
         // handle intersected light
 
         auto handle_intersected_light = [&](int light_id)
@@ -229,16 +163,35 @@ void ShadePipeline::initialize(
             var le = area->eval_le(cc, inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
             var beta_le = load_aligned(soa_params.beta_le + soa_index);
             var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
+
+            $if(scattered & medium_id != MEDIUM_ID_VOID)
+            {
+                var tr = CSpectrum::one();
+                $switch(medium_id)
+                {
+                    for(int i = 0; i < scene.get_medium_count(); ++i)
+                    {
+                        $case(i)
+                        {
+                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position);
+                        };
+                    }
+                    $default
+                    {
+                        cstd::unreachable();
+                    };
+                };
+                beta_le = beta_le * tr;
+            };
+
             $if(bsdf_pdf < 0)
             {
                 path_radiance = path_radiance + beta_le * le / -bsdf_pdf;
             }
             $else
             {
-                var select_light_pdf = light_sampler->pdf(
-                    ray_o, ray_time, light_id);
-                var light_dir_pdf = area->pdf_li(
-                    cc, ray_o, inct.position, inct.frame.z);
+                var select_light_pdf = light_sampler->pdf(ray_o, ray_time, light_id);
+                var light_dir_pdf = area->pdf_li(cc, ray_o, inct.position, inct.frame.z);
                 var light_pdf = select_light_pdf * light_dir_pdf;
                 path_radiance = path_radiance + beta_le * le / (bsdf_pdf + light_pdf);
             };
@@ -260,12 +213,17 @@ void ShadePipeline::initialize(
             };
         };
 
+        $if(scattered)
+        {
+            $return();
+        };
+
         // rr
 
         var rr_exit = false;
-        $if(depth >= shade_params_.min_depth)
+        $if(depth >= shade_params.min_depth)
         {
-            $if(depth >= shade_params_.max_depth)
+            $if(depth >= shade_params.max_depth)
             {
                 rr_exit = true;
             }
@@ -273,15 +231,15 @@ void ShadePipeline::initialize(
             {
                 var sam = rng.uniform_float();
                 var lum = beta.get_lum();
-                $if(lum < shade_params_.rr_threshold)
+                $if(lum < shade_params.rr_threshold)
                 {
-                    $if(sam > shade_params_.rr_cont_prob)
+                    $if(sam > shade_params.rr_cont_prob)
                     {
                         rr_exit = true;
                     }
                     $else
                     {
-                        beta = beta / shade_params_.rr_cont_prob;
+                        beta = beta / shade_params.rr_cont_prob;
                     };
                 };
             };
@@ -293,23 +251,21 @@ void ShadePipeline::initialize(
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
             };
-            film.splat_atomic(
-                pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-            var output_index = total_state_count - 1
-                             - cstd::atomic_add(inactive_state_counter, 1);
+            film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
+
+            var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
             soa_params.output_rng[output_index] = rng;
             $return();
         };
 
         // sample light
 
-        auto select_light = light_sampler->sample(
-            inct.position, ray_time, rng.uniform_float());
+        auto select_light = light_sampler->sample(inct.position, ray_time, rng.uniform_float());
         var light_id = select_light.light_idx;
         
         CVec3f shadow_o, shadow_d;
-        f32 shadow_t1, light_dir_pdf;
-        CSpectrum li;
+        var shadow_t1 = 0.0f, light_dir_pdf = 0.0f;
+        var li = CSpectrum::zero();
         $if(light_id >= 0)
         {
             $switch(light_id)
@@ -387,8 +343,7 @@ void ShadePipeline::initialize(
 
             // sample bsdf
 
-            bsdf_sample = shader->sample(
-                cc, -ray_d, CVec3f(rng), TransportMode::Radiance);
+            bsdf_sample = shader->sample(cc, -ray_d, CVec3f(rng), TransportMode::Radiance);
             is_bsdf_delta = shader->is_delta(cc);
         };
 
@@ -427,6 +382,15 @@ void ShadePipeline::initialize(
             var beta_li = li * beta * shadow_bsdf_val * cos / (shadow_bsdf_pdf + light_pdf);
 
             save_aligned(beta_li, soa_params.output_shadow_beta_li + shadow_soa_index);
+
+            $if(dot(inct.frame.z, shadow_d) > 0)
+            {
+                soa_params.output_shadow_ray_medium_id[shadow_soa_index] = instance.outer_medium_id;
+            }
+            $else
+            {
+                soa_params.output_shadow_ray_medium_id[shadow_soa_index] = instance.inner_medium_id;
+            };
         };
 
         $if(depth == 0)
@@ -479,33 +443,79 @@ void ShadePipeline::initialize(
 
             var stored_pdf = cstd::select(is_bsdf_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
             soa_params.output_bsdf_pdf[output_index] = stored_pdf;
+
+            soa_params.output_new_ray_medium_id[output_index] = medium_id;
+
+            $if(dot(inct.frame.z, next_ray_d) > 0)
+            {
+                soa_params.output_shadow_ray_medium_id[output_index] = instance.outer_medium_id;
+            }
+            $else
+            {
+                soa_params.output_shadow_ray_medium_id[output_index] = instance.inner_medium_id;
+            };
         }
         $else
         {
-            film.splat_atomic(
-                pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-            var output_index = total_state_count - 1
-                             - cstd::atomic_add(inactive_state_counter, 1);
+            film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
+            var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
             soa_params.output_rng[output_index] = rng;
         };
     });
+}
 
-    PTXGenerator ptx_gen;
-    ptx_gen.set_options(Options{
-        .opt_level        = OptimizationLevel::O3,
-        .fast_math        = true,
-        .approx_math_func = true
-    });
-    ptx_gen.generate(cuj_module);
-
-    const std::string &ptx = ptx_gen.get_ptx();
-    kernel_.load_ptx_from_memory(ptx.data(), ptx.size());
-    kernel_.link();
-
+void ShadePipeline::initialize(RC<cuda::Module> cuda_module, RC<cuda::Buffer<StateCounters>> counters, const Scene &scene)
+{
+    kernel_ = std::move(cuda_module);
     geo_info_ = scene.get_device_geometry_info();
     inst_info_ = scene.get_device_instance_info();
+    counters_ = std::move(counters);
+}
 
-    counters_ = cuda::CUDABuffer<int32_t>(3);
+ShadePipeline::ShadePipeline(ShadePipeline &&other) noexcept
+    : ShadePipeline()
+{
+    swap(other);
+}
+
+ShadePipeline &ShadePipeline::operator=(ShadePipeline &&other) noexcept
+{
+    swap(other);
+    return *this;
+}
+
+void ShadePipeline::swap(ShadePipeline &other) noexcept
+{
+    std::swap(kernel_,    other.kernel_);
+    std::swap(geo_info_,  other.geo_info_);
+    std::swap(inst_info_, other.inst_info_);
+    std::swap(counters_,  other.counters_);
+}
+
+void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
+{
+    assert(kernel_.is_linked());
+
+    StateCounters *device_counters = counters_->get();
+    int32_t *active_state_counter   = reinterpret_cast<int32_t *>(device_counters);
+    int32_t *inactive_state_counter = active_state_counter + 1;
+    int32_t *shadow_ray_counter     = active_state_counter + 2;
+
+    constexpr int BLOCK_DIM = 256;
+    const int thread_count = total_state_count;
+    const int block_count = up_align(thread_count, BLOCK_DIM) / BLOCK_DIM;
+
+    kernel_->launch(
+        SHADE_KERNEL_NAME,
+        { block_count, 1, 1 },
+        { BLOCK_DIM, 1, 1 },
+        total_state_count,
+        inst_info_,
+        geo_info_,
+        active_state_counter,
+        inactive_state_counter,
+        shadow_ray_counter,
+        soa);
 }
 
 void ShadePipeline::handle_miss(

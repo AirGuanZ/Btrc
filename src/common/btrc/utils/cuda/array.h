@@ -5,7 +5,7 @@
 #include <btrc/utils/image.h>
 #include <btrc/utils/uncopyable.h>
 
-BTRC_BEGIN
+BTRC_CUDA_BEGIN
 
 class Array : public Uncopyable
 {
@@ -86,4 +86,4 @@ private:
     cudaArray_t arr_;
 };
 
-BTRC_END
+BTRC_CUDA_END

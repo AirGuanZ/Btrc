@@ -61,7 +61,7 @@ void Film::add_output(std::string name, Format format)
         assert(format == Float3);
         count *= 4;
     }
-    cuda::CUDABuffer<float> buffer(count);
+    cuda::Buffer<float> buffer(count);
     buffer.clear_bytes(0);
     buffers_.insert(
         { std::move(name), FilmBuffer{ format, std::move(buffer) } });
@@ -167,7 +167,7 @@ void Film::clear_output(std::string_view name)
     it->second.buffer.clear_bytes(0);
 }
 
-const cuda::CUDABuffer<float> &Film::get_float_output(std::string_view name) const
+const cuda::Buffer<float> &Film::get_float_output(std::string_view name) const
 {
     auto it = buffers_.find(name);
     if(it == buffers_.end())
@@ -177,7 +177,7 @@ const cuda::CUDABuffer<float> &Film::get_float_output(std::string_view name) con
     return it->second.buffer;
 }
 
-const cuda::CUDABuffer<float> &Film::get_float3_output(std::string_view name) const
+const cuda::Buffer<float> &Film::get_float3_output(std::string_view name) const
 {
     auto it = buffers_.find(name);
     if(it == buffers_.end())

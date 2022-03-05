@@ -83,7 +83,7 @@ private:
 
     optix::SimpleOptixPipeline pipeline_;
 
-    mutable cuda::CUDABuffer<LaunchParams> device_launch_params_;
+    mutable cuda::Buffer<LaunchParams> device_launch_params_;
 };
 
 BTRC_WFPT_END

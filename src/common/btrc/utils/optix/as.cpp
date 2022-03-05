@@ -8,9 +8,7 @@ SingleBufferAS::SingleBufferAS()
     
 }
 
-SingleBufferAS::SingleBufferAS(
-    OptixTraversableHandle handle,
-    cuda::CUDABuffer<>     buffer)
+SingleBufferAS::SingleBufferAS(OptixTraversableHandle handle, cuda::Buffer<> buffer)
     : handle_(handle), buffer_(std::move(buffer))
 {
 

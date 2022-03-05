@@ -23,7 +23,7 @@ public:
 
 private:
 
-    cuda::CUDABuffer<AliasTable::Unit> units_;
+    cuda::Buffer<AliasTable::Unit> units_;
 };
 
 BTRC_END

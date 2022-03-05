@@ -155,7 +155,7 @@ void Context::log_callback(
         context->message_callback_(level, tag, msg);
 }
 
-std::pair<OptixTraversableHandle, cuda::CUDABuffer<>>
+std::pair<OptixTraversableHandle, cuda::Buffer<>>
     Context::build_accel(const OptixBuildInput &build_input)
 {
     // memory usage
@@ -176,8 +176,8 @@ std::pair<OptixTraversableHandle, cuda::CUDABuffer<>>
 
     const size_t compacted_size_offset = up_align(uncompacted_size, 8);
 
-    cuda::CUDABuffer as_temp_buffer(uncompacted_sizes.tempSizeInBytes);
-    cuda::CUDABuffer as_buffer(compacted_size_offset + sizeof(size_t));
+    cuda::Buffer as_temp_buffer(uncompacted_sizes.tempSizeInBytes);
+    cuda::Buffer as_buffer(compacted_size_offset + sizeof(size_t));
 
     // build
 
@@ -203,7 +203,7 @@ std::pair<OptixTraversableHandle, cuda::CUDABuffer<>>
         sizeof(size_t), cudaMemcpyDeviceToHost));
     if(compacted_size < uncompacted_size)
     {
-        cuda::CUDABuffer compacted_as_buffer(compacted_size);
+        cuda::Buffer compacted_as_buffer(compacted_size);
         throw_on_error(optixAccelCompact(
             context_, nullptr, handle,
             compacted_as_buffer, compacted_size, &handle));

@@ -4,7 +4,7 @@
 
 #include <btrc/utils/cuda/array.h>
 
-BTRC_BEGIN
+BTRC_CUDA_BEGIN
 
 class Texture : public Uncopyable
 {
@@ -53,4 +53,4 @@ private:
     cudaTextureObject_t tex_;
 };
 
-BTRC_END
+BTRC_CUDA_END

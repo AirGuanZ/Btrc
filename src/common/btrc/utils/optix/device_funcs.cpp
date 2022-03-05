@@ -313,6 +313,36 @@ f32 get_ray_tmax()
     return result;
 }
 
+CVec3f get_ray_o()
+{
+    f32 x, y, z;
+    cuj::inline_asm(
+        "call ($0), _optix_get_world_ray_origin_x, ();",
+        { { "=f", x } }, {}, {});
+    cuj::inline_asm(
+        "call ($0), _optix_get_world_ray_origin_y, ();",
+        { { "=f", y } }, {}, {});
+    cuj::inline_asm(
+        "call ($0), _optix_get_world_ray_origin_z, ();",
+        { { "=f", z } }, {}, {});
+    return CVec3f(x, y, z);
+}
+
+CVec3f get_ray_d()
+{
+    f32 x, y, z;
+    cuj::inline_asm(
+        "call ($0), _optix_get_world_ray_direction_x, ();",
+        { { "=f", x } }, {}, {});
+    cuj::inline_asm(
+        "call ($0), _optix_get_world_ray_direction_y, ();",
+        { { "=f", y } }, {}, {});
+    cuj::inline_asm(
+        "call ($0), _optix_get_world_ray_direction_z, ();",
+        { { "=f", z } }, {}, {});
+    return CVec3f(x, y, z);
+}
+
 CVec2f get_triangle_barycentrics()
 {
     f32 u, v;

@@ -66,16 +66,16 @@ public:
 
     void clear_output(std::string_view name);
 
-    const cuda::CUDABuffer<float> &get_float_output(std::string_view name) const;
+    const cuda::Buffer<float> &get_float_output(std::string_view name) const;
 
-    const cuda::CUDABuffer<float> &get_float3_output(std::string_view name) const;
+    const cuda::Buffer<float> &get_float3_output(std::string_view name) const;
 
 private:
 
     struct FilmBuffer
     {
-        Format                  format;
-        cuda::CUDABuffer<float> buffer;
+        Format              format;
+        cuda::Buffer<float> buffer;
     };
 
     int width_;

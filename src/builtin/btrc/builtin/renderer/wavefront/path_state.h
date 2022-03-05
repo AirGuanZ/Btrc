@@ -16,64 +16,67 @@ struct PathState
 
     void next_iteration();
 
-    cuda::CUDABuffer<RNG::Data> rng;
+    cuda::Buffer<RNG::Data> rng;
 
     // ==== generate output ====
 
     // ray
 
-    cuda::CUDABuffer<Vec4f> o_t0;
-    cuda::CUDABuffer<Vec4f> d_t1;
-    cuda::CUDABuffer<Vec2u> time_mask;
+    cuda::Buffer<Vec4f>    o_t0;
+    cuda::Buffer<Vec4f>    d_t1;
+    cuda::Buffer<Vec2u>    time_mask;
+    cuda::Buffer<uint32_t> medium_id;
 
     // for direct illum with bsdf sampling
 
-    cuda::CUDABuffer<Spectrum> beta_le;
-    cuda::CUDABuffer<float>    bsdf_pdf;
+    cuda::Buffer<Spectrum> beta_le;
+    cuda::Buffer<float>    bsdf_pdf;
 
     // path state
 
-    cuda::CUDABuffer<Spectrum> beta;
-    cuda::CUDABuffer<int32_t>  depth;
-    cuda::CUDABuffer<Vec2f>    pixel_coord;
-    cuda::CUDABuffer<Spectrum> path_radiance;
+    cuda::Buffer<Spectrum> beta;
+    cuda::Buffer<int32_t>  depth;
+    cuda::Buffer<Vec2f>    pixel_coord;
+    cuda::Buffer<Spectrum> path_radiance;
 
     // ==== trace output ====
 
-    cuda::CUDABuffer<Vec2u> inct_inst_launch_index;
-    cuda::CUDABuffer<Vec4u> inct_t_prim_uv;
+    cuda::Buffer<Vec2u> inct_inst_launch_index;
+    cuda::Buffer<Vec4u> inct_t_prim_uv;
 
     // ==== shade output ====
 
     // 'state' state
 
-    cuda::CUDABuffer<RNG::Data> next_rng;
+    cuda::Buffer<RNG::Data> next_rng;
 
     // path state
 
-    cuda::CUDABuffer<Spectrum> next_beta;
-    cuda::CUDABuffer<int32_t>  next_depth;
-    cuda::CUDABuffer<Vec2f>    next_pixel_coord;
-    cuda::CUDABuffer<Spectrum> next_path_radiance;
+    cuda::Buffer<Spectrum> next_beta;
+    cuda::Buffer<int32_t>  next_depth;
+    cuda::Buffer<Vec2f>    next_pixel_coord;
+    cuda::Buffer<Spectrum> next_path_radiance;
 
     // direct illum with light sampling
 
-    cuda::CUDABuffer<Vec2f>    shadow_pixel_coord;
-    cuda::CUDABuffer<Vec4f>    shadow_o_t0;
-    cuda::CUDABuffer<Vec4f>    shadow_d_t1;
-    cuda::CUDABuffer<Vec2u>    shadow_time_mask;
-    cuda::CUDABuffer<Spectrum> shadow_beta_li;
+    cuda::Buffer<Vec2f>    shadow_pixel_coord;
+    cuda::Buffer<Vec4f>    shadow_o_t0;
+    cuda::Buffer<Vec4f>    shadow_d_t1;
+    cuda::Buffer<Vec2u>    shadow_time_mask;
+    cuda::Buffer<Spectrum> shadow_beta_li;
+    cuda::Buffer<uint32_t> shadow_medium_id;
 
     // next ray
 
-    cuda::CUDABuffer<Vec4f> next_o_t0;
-    cuda::CUDABuffer<Vec4f> next_d_t1;
-    cuda::CUDABuffer<Vec2u> next_time_mask;
+    cuda::Buffer<Vec4f>    next_o_t0;
+    cuda::Buffer<Vec4f>    next_d_t1;
+    cuda::Buffer<Vec2u>    next_time_mask;
+    cuda::Buffer<uint32_t> next_medium_id;
 
     // next direct illum with bsdf sampling
 
-    cuda::CUDABuffer<Spectrum> next_beta_le;
-    cuda::CUDABuffer<float>    next_bsdf_pdf;
+    cuda::Buffer<Spectrum> next_beta_le;
+    cuda::Buffer<float>    next_bsdf_pdf;
 };
 
 BTRC_WFPT_END

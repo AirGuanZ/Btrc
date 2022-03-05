@@ -161,7 +161,7 @@ void TriangleMesh::commit()
         }
     }
 
-    positions_ = cuda::CUDABuffer<float>(positions);
+    positions_ = cuda::Buffer<float>(positions);
 
     AliasTable table(triangle_areas);
     alias_table_ = CAliasTable(table);

@@ -1,3 +1,4 @@
+#include <btrc/core/medium.h>
 #include <btrc/utils/cmath/cmath.h>
 
 #include "./generate.h"
@@ -7,7 +8,7 @@ BTRC_WFPT_BEGIN
 namespace
 {
 
-    const char *GENERATE_KERNEL_NAME = "generate";
+    const char *GENERATE_KERNEL_NAME = "generate_kernel";
 
 } // namespace anonymous
 
@@ -18,80 +19,13 @@ GeneratePipeline::GeneratePipeline()
 
 }
 
-GeneratePipeline::GeneratePipeline(
-    CompileContext &cc,
-    const Camera   &camera,
-    const Vec2i    &film_res,
-    int             spp,
-    int             state_count)
-    : GeneratePipeline()
-{
-    initialize(cc, camera, film_res, spp, state_count);
-}
-
-GeneratePipeline::GeneratePipeline(GeneratePipeline &&other) noexcept
-    : GeneratePipeline()
-{
-    swap(other);
-}
-
-GeneratePipeline &GeneratePipeline::operator=(GeneratePipeline &&other) noexcept
-{
-    swap(other);
-    return *this;
-}
-
-void GeneratePipeline::swap(GeneratePipeline &other) noexcept
-{
-    std::swap(film_res_, other.film_res_);
-    std::swap(pixel_count_, other.pixel_count_);
-    std::swap(spp_, other.spp_);
-    std::swap(state_count_, other.state_count_);
-    std::swap(finished_spp_, other.finished_spp_);
-    std::swap(finished_pixel_, other.finished_pixel_);
-    std::swap(kernel_, other.kernel_);
-}
-
-GeneratePipeline::operator bool() const
-{
-    return spp_ > 0;
-}
-
-bool GeneratePipeline::is_done() const
-{
-    return finished_spp_ >= spp_;
-}
-
-void GeneratePipeline::clear()
-{
-    finished_spp_ = 0;
-    finished_pixel_ = 0;
-}
-
-void GeneratePipeline::initialize(
-    CompileContext &cc,
-    const Camera   &camera,
-    const Vec2i    &film_res,
-    int             spp,
-    int             state_count)
+void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &camera, const Vec2i &film_res)
 {
     using namespace cuj;
 
-    assert(!spp_ && !state_count_);
-    assert(spp > 0 && state_count > 0);
-
-    film_res_       = film_res;
-    pixel_count_    = film_res_.x * film_res_.y;
-    spp_            = spp;
-    state_count_    = state_count;
-    finished_spp_   = 0;
-    finished_pixel_ = 0;
-
-    ScopedModule cuj_module;
-
-    auto generate_kernel = kernel(
+    kernel(
         GENERATE_KERNEL_NAME,
-        [&cc, &camera, this](
+        [&cc, &camera, &film_res](
             CSOAParams soa_params,
             i32        initial_pixel_index,
             i32        new_state_count,
@@ -104,18 +38,18 @@ void GeneratePipeline::initialize(
         };
 
         i32 state_index = active_state_count + thread_idx;
-        i32 pixel_index = (initial_pixel_index + thread_idx) % static_cast<int>(pixel_count_);
+        i32 pixel_index = (initial_pixel_index + thread_idx) % (film_res.x * film_res.y);
 
         ref rng = soa_params.rng[state_index];
 
-        i32 pixel_x = pixel_index % film_res_.x;
-        i32 pixel_y = pixel_index / film_res_.y;
+        i32 pixel_x = pixel_index % film_res.x;
+        i32 pixel_y = pixel_index / film_res.y;
 
         f32 pixel_xf = f32(pixel_x) + rng.uniform_float();
         f32 pixel_yf = f32(pixel_y) + rng.uniform_float();
 
-        f32 film_x = pixel_xf / static_cast<float>(film_res_.x);
-        f32 film_y = pixel_yf / static_cast<float>(film_res_.y);
+        f32 film_x = pixel_xf / static_cast<float>(film_res.x);
+        f32 film_y = pixel_yf / static_cast<float>(film_res.y);
 
         f32 time_sample = rng.uniform_float();
 
@@ -147,19 +81,58 @@ void GeneratePipeline::initialize(
         save_aligned(sample_we_result.throughput, soa_params.output_beta + state_index);
         save_aligned(sample_we_result.throughput, soa_params.output_beta_le + state_index);
         save_aligned(CSpectrum::zero(), soa_params.output_path_radiance + state_index);
-    });
 
-    PTXGenerator ptx_gen;
-    ptx_gen.set_options(Options{
-        .opt_level        = OptimizationLevel::O3,
-        .fast_math        = true,
-        .approx_math_func = true
+        soa_params.output_ray_medium_id[state_index] = MEDIUM_ID_VOID;
     });
-    ptx_gen.generate(cuj_module);
+}
 
-    const std::string &ptx = ptx_gen.get_ptx();
-    kernel_.load_ptx_from_memory(ptx.data(), ptx.size());
-    kernel_.link();
+void GeneratePipeline::initialize(RC<cuda::Module> cuda_module, int spp, int state_count, const Vec2i &film_res)
+{
+    assert(!spp_ && !state_count_);
+    assert(spp > 0 && state_count > 0);
+
+    film_res_ = film_res;
+    pixel_count_ = film_res_.x * film_res_.y;
+    spp_ = spp;
+    state_count_ = state_count;
+    finished_spp_ = 0;
+    finished_pixel_ = 0;
+
+    cuda_module_ = std::move(cuda_module);
+}
+
+GeneratePipeline::GeneratePipeline(GeneratePipeline &&other) noexcept
+    : GeneratePipeline()
+{
+    swap(other);
+}
+
+GeneratePipeline &GeneratePipeline::operator=(GeneratePipeline &&other) noexcept
+{
+    swap(other);
+    return *this;
+}
+
+void GeneratePipeline::swap(GeneratePipeline &other) noexcept
+{
+    std::swap(film_res_, other.film_res_);
+    std::swap(pixel_count_, other.pixel_count_);
+    std::swap(spp_, other.spp_);
+    std::swap(state_count_, other.state_count_);
+    std::swap(finished_spp_, other.finished_spp_);
+    std::swap(finished_pixel_, other.finished_pixel_);
+    std::swap(cuda_module_, other.cuda_module_);
+}
+
+bool GeneratePipeline::is_done() const
+{
+    return finished_spp_ >= spp_;
+}
+
+void GeneratePipeline::clear()
+{
+    finished_spp_ = 0;
+    finished_pixel_ = 0;
 }
 
 int GeneratePipeline::generate(
@@ -186,7 +159,7 @@ int GeneratePipeline::generate(
     const int thread_count = new_state_count;
     const int block_count = up_align(thread_count, BLOCK_DIM) / BLOCK_DIM;
 
-    kernel_.launch(
+    cuda_module_->launch(
         GENERATE_KERNEL_NAME,
         { block_count, 1, 1 },
         { BLOCK_DIM, 1, 1 },

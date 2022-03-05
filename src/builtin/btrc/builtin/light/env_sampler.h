@@ -22,9 +22,9 @@ public:
 
 private:
 
-    Vec2i                   lut_res_;
-    cuda::CUDABuffer<float> tile_probs_;
-    CAliasTable             tile_alias_;
+    Vec2i               lut_res_;
+    cuda::Buffer<float> tile_probs_;
+    CAliasTable         tile_alias_;
 };
 
 BTRC_BUILTIN_END

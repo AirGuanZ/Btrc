@@ -74,11 +74,11 @@ void EnvirLightSampler::preprocess(const RC<const Texture2D> &tex, const Vec2i &
 {
     const std::string ptx = generate_sample_texture_kernel(tex, lut_res, n_samples);
 
-    CUDAModule cuda_module;
+    cuda::Module cuda_module;
     cuda_module.load_ptx_from_memory(ptx.data(), ptx.size());
     cuda_module.link();
 
-    cuda::CUDABuffer<float> device_table(lut_res.x * lut_res.y);
+    cuda::Buffer<float> device_table(lut_res.x * lut_res.y);
     constexpr int BLOCK_SIZE = 8;
     const int block_cnt_x = up_align(lut_res.x, BLOCK_SIZE) / BLOCK_SIZE;
     const int block_cnt_y = up_align(lut_res.y, BLOCK_SIZE) / BLOCK_SIZE;
@@ -101,7 +101,7 @@ void EnvirLightSampler::preprocess(const RC<const Texture2D> &tex, const Vec2i &
     }
 
     lut_res_ = lut_res;
-    tile_probs_ = cuda::CUDABuffer<float>(table);
+    tile_probs_ = cuda::Buffer<float>(table);
     tile_alias_ = CAliasTable(AliasTable(table));
 }
 

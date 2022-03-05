@@ -5,23 +5,23 @@
 
 #include <btrc/utils/uncopyable.h>
 
-BTRC_BEGIN
+BTRC_CUDA_BEGIN
 
-class CUDAModule : public Uncopyable
+class Module : public Uncopyable
 {
 public:
 
     struct Dim3 { int x = 1, y = 1, z = 1; };
 
-    CUDAModule();
+    Module();
 
-    CUDAModule(CUDAModule &&other) noexcept;
+    Module(Module &&other) noexcept;
 
-    CUDAModule &operator=(CUDAModule &&other) noexcept;
+    Module &operator=(Module &&other) noexcept;
 
-    ~CUDAModule();
+    ~Module();
 
-    void swap(CUDAModule &other) noexcept;
+    void swap(Module &other) noexcept;
 
     bool is_linked() const;
 
@@ -61,7 +61,7 @@ private:
 // ========================== impl ==========================
 
 template<typename ... Args>
-void CUDAModule::launch(
+void Module::launch(
     const std::string &entry_name,
     const Dim3        &block_cnt,
     const Dim3        &block_size,
@@ -78,17 +78,17 @@ void CUDAModule::launch(
 }
 
 template<typename Arg0>
-void CUDAModule::take_kernel_arg_ptrs(void **arg_ptrs, Arg0 &arg0) const
+void Module::take_kernel_arg_ptrs(void **arg_ptrs, Arg0 &arg0) const
 {
     *arg_ptrs = &arg0;
 }
 
 template<typename Arg0, typename Arg1, typename...Args>
-void CUDAModule::take_kernel_arg_ptrs(
+void Module::take_kernel_arg_ptrs(
     void **arg_ptrs, Arg0 &arg0, Arg1 &arg1, Args &...args) const
 {
     *arg_ptrs = &arg0;
     this->take_kernel_arg_ptrs(arg_ptrs + 1, arg1, args...);
 }
 
-BTRC_END
+BTRC_CUDA_END

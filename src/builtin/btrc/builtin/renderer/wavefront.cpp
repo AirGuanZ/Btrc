@@ -1,6 +1,7 @@
 #include <btrc/builtin/renderer/wavefront.h>
 
 #include "./wavefront/generate.h"
+#include "./wavefront/medium.h"
 #include "./wavefront/path_state.h"
 #include "./wavefront/preview.h"
 #include "./wavefront/shade.h"
@@ -26,13 +27,16 @@ struct WavefrontPathTracer::Impl
     wfpt::PathState             path_state;
     wfpt::GeneratePipeline      generate;
     wfpt::TracePipeline         trace;
+    wfpt::MediumPipeline        medium;
     wfpt::SortPipeline          sort;
     wfpt::ShadePipeline         shade;
     wfpt::ShadowPipeline        shadow;
     wfpt::PreviewImageGenerator preview;
 
-    cuda::CUDABuffer<Vec4f> device_preview_image;
-    Image<Vec4f>            preview_image;
+    RC<cuda::Buffer<wfpt::StateCounters>> state_counters;
+
+    cuda::Buffer<Vec4f> device_preview_image;
+    Image<Vec4f>        preview_image;
 };
 
 WavefrontPathTracer::WavefrontPathTracer(optix::Context &optix_ctx)
@@ -101,12 +105,48 @@ void WavefrontPathTracer::recompile(bool offline)
     if(params.normal)
         impl_->film.add_output(Film::OUTPUT_NORMAL, Film::Float3);
 
+    // counters
+
+    impl_->state_counters = newRC<cuda::Buffer<wfpt::StateCounters>>(1);
+
     // pipelines
 
-    impl_->generate = wfpt::GeneratePipeline(
-        cc, *impl_->camera,
-        { impl_->width, impl_->height },
-        params.spp, params.state_count);
+    const auto shade_params = wfpt::ShadeParams{
+        .min_depth = params.min_depth,
+        .max_depth = params.max_depth,
+        .rr_threshold = params.rr_threshold,
+        .rr_cont_prob = params.rr_cont_prob
+    };
+
+    impl_->generate = {};
+    impl_->trace = {};
+    impl_->medium = {};
+    impl_->sort = {};
+    impl_->shade = {};
+    impl_->shadow = {};
+
+    cuj::ScopedModule cuj_module;
+
+    impl_->generate.record_device_code(cc, *impl_->camera, { impl_->width, impl_->height });
+    impl_->medium.record_device_code(cc, impl_->film, *impl_->scene, shade_params);
+    impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, shade_params);
+
+    cuj::PTXGenerator ptx_gen;
+    ptx_gen.set_options(cuj::Options{
+        .opt_level = cuj::OptimizationLevel::O3,
+        .fast_math = true,
+        .approx_math_func = true
+    });
+    ptx_gen.generate(cuj_module);
+
+    auto &ptx = ptx_gen.get_ptx();
+    auto cuda_module = newRC<cuda::Module>();
+    cuda_module->load_ptx_from_memory(ptx.data(), ptx.size());
+    cuda_module->link();
+
+    impl_->generate.initialize(cuda_module, params.spp, params.state_count, { impl_->width, impl_->height });
+    impl_->medium.initialize(cuda_module, impl_->state_counters, *impl_->scene);
+    impl_->shade.initialize(cuda_module, impl_->state_counters, *impl_->scene);
 
     impl_->trace = wfpt::TracePipeline(
         *impl_->optix_ctx,
@@ -116,17 +156,8 @@ void WavefrontPathTracer::recompile(bool offline)
 
     impl_->sort = wfpt::SortPipeline();
 
-    impl_->shade = wfpt::ShadePipeline(
-        cc, impl_->film, *impl_->scene,
-        wfpt::ShadePipeline::ShadeParams{
-            .min_depth = params.min_depth,
-            .max_depth = params.max_depth,
-            .rr_threshold = params.rr_threshold,
-            .rr_cont_prob = params.rr_cont_prob
-        });
-
     impl_->shadow = wfpt::ShadowPipeline(
-        impl_->film, *impl_->optix_ctx,
+        offline, *impl_->scene, impl_->film, *impl_->optix_ctx,
         impl_->scene->has_motion_blur(),
         impl_->scene->is_triangle_only(),
         2);
@@ -173,6 +204,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .output_ray_o_t0      = soa.o_t0,
                 .output_ray_d_t1      = soa.d_t1,
                 .output_ray_time_mask = soa.time_mask,
+                .output_ray_medium_id = soa.medium_id,
                 .output_beta          = soa.beta,
                 .output_beta_le       = soa.beta_le,
                 .output_bsdf_pdf      = soa.bsdf_pdf,
@@ -180,6 +212,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .output_path_radiance = soa.path_radiance
             },
             limited_state_count);
+
         active_state_count += new_state_count;
 
         impl_->trace.trace(
@@ -193,9 +226,45 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .inct_t_prim_uv         = soa.inct_t_prim_uv
             });
 
+        cudaMemsetAsync(impl_->state_counters->get(), 0, sizeof(wfpt::StateCounters));
+
+        impl_->medium.sample_scattering(
+            active_state_count,
+            wfpt::MediumPipeline::SOAParams{
+                .rng                         = soa.rng,
+                .path_radiance               = soa.path_radiance,
+                .pixel_coord                 = soa.pixel_coord,
+                .depth                       = soa.depth,
+                .beta                        = soa.beta,
+                .beta_le                     = soa.beta_le,
+                .inct_inst_launch_index      = soa.inct_inst_launch_index,
+                .inct_t_prim_uv              = soa.inct_t_prim_uv,
+                .ray_o_t0                    = soa.o_t0,
+                .ray_d_t1                    = soa.d_t1,
+                .ray_time_mask               = soa.time_mask,
+                .ray_medium_id               = soa.medium_id,
+                .output_rng                  = soa.next_rng,
+                .output_path_radiance        = soa.next_path_radiance,
+                .output_pixel_coord          = soa.next_pixel_coord,
+                .output_depth                = soa.next_depth,
+                .output_beta                 = soa.next_beta,
+                .output_shadow_pixel_coord   = soa.shadow_pixel_coord,
+                .output_shadow_ray_o_t0      = soa.shadow_o_t0,
+                .output_shadow_ray_d_t1      = soa.shadow_d_t1,
+                .output_shadow_ray_time_mask = soa.shadow_time_mask,
+                .output_shadow_beta_li       = soa.shadow_beta_li,
+                .output_shadow_medium_id     = soa.shadow_medium_id,
+                .output_new_ray_o_t0         = soa.next_o_t0,
+                .output_new_ray_d_t1         = soa.next_d_t1,
+                .output_new_ray_time_mask    = soa.next_time_mask,
+                .output_new_ray_medium_id    = soa.next_medium_id,
+                .output_beta_le              = soa.next_beta_le,
+                .output_bsdf_pdf             = soa.next_bsdf_pdf
+            });
+
         // impl_->sort.sort(active_state_count, soa.inct_t, soa.inct_uv_id, soa.active_state_indices);
 
-        const auto shade_counters = impl_->shade.shade(
+        impl_->shade.shade(
             active_state_count,
             wfpt::ShadePipeline::SOAParams{
                 .rng                         = soa.rng,
@@ -210,6 +279,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .ray_o_t0                    = soa.o_t0,
                 .ray_d_t1                    = soa.d_t1,
                 .ray_time_mask               = soa.time_mask,
+                .ray_medium_id               = soa.medium_id,
                 .output_rng                  = soa.next_rng,
                 .output_path_radiance        = soa.next_path_radiance,
                 .output_pixel_coord          = soa.next_pixel_coord,
@@ -220,27 +290,33 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .output_shadow_ray_d_t1      = soa.shadow_d_t1,
                 .output_shadow_ray_time_mask = soa.shadow_time_mask,
                 .output_shadow_beta_li       = soa.shadow_beta_li,
+                .output_shadow_ray_medium_id = soa.shadow_medium_id,
                 .output_new_ray_o_t0         = soa.next_o_t0,
                 .output_new_ray_d_t1         = soa.next_d_t1,
                 .output_new_ray_time_mask    = soa.next_time_mask,
+                .output_new_ray_medium_id    = soa.next_medium_id,
                 .output_beta_le              = soa.next_beta_le,
                 .output_bsdf_pdf             = soa.next_bsdf_pdf
             });
 
-        finished_path_count += active_state_count - shade_counters.active_state_counter;
-        reporter.progress(100.0f * finished_path_count / total_path_count);
-        active_state_count = shade_counters.active_state_counter;
+        wfpt::StateCounters state_counters;
+        impl_->state_counters->to_cpu(&state_counters);
 
-        if(shade_counters.shadow_ray_counter)
+        finished_path_count += active_state_count - state_counters.active_state_counter;
+        reporter.progress(100.0f * finished_path_count / total_path_count);
+        active_state_count = state_counters.active_state_counter;
+
+        if(state_counters.shadow_ray_counter)
         {
             impl_->shadow.test(
                 scene.get_tlas(),
-                shade_counters.shadow_ray_counter,
+                state_counters.shadow_ray_counter,
                 wfpt::ShadowPipeline::SOAParams{
                     .pixel_coord   = soa.shadow_pixel_coord,
                     .ray_o_t0      = soa.shadow_o_t0,
                     .ray_d_t1      = soa.shadow_d_t1,
                     .ray_time_mask = soa.shadow_time_mask,
+                    .ray_medium_id = soa.shadow_medium_id,
                     .beta_li       = soa.shadow_beta_li
                 });
         }

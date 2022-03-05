@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <btrc/core/scene.h>
 #include <btrc/utils/optix/device_funcs.h>
 
@@ -44,11 +46,57 @@ void Scene::postcommit()
 
     std::vector<optix::Context::Instance> blas_instances;
 
-    std::vector<InstanceInfo>   instance_info;
-    std::vector<GeometryInfo>   geometry_info;
-    std::map<RC<Geometry>, int> geometry_info_indices;
+    std::vector<InstanceInfo> instance_info;
+    std::vector<GeometryInfo> geometry_info;
+
+    std::map<RC<Geometry>, int> geometry_indices;
+    {
+        for(auto &inst : instances_)
+            geometry_indices.insert({ inst.geometry, 0 });
+        int i = 0;
+        for(auto &p : geometry_indices)
+        {
+            p.second = i++;
+            geometry_info.push_back(p.first->get_geometry_info());
+        }
+    }
+
     std::map<RC<Material>, int> material_indices;
-    std::map<RC<Medium>, int>   medium_indices = { { nullptr, -1 } };
+    {
+        for(auto &inst : instances_)
+            material_indices.insert({ inst.material, 0 });
+        int i = 0;
+        for(auto &p : material_indices)
+        {
+            p.second = i++;
+            materials_.push_back(p.first);
+        }
+    }
+
+    std::map<RC<Medium>, MediumID> medium_indices;
+    {
+        for(auto &inst : instances_)
+        {
+            medium_indices[inst.inner_medium] = MEDIUM_ID_VOID;
+            medium_indices[inst.outer_medium] = MEDIUM_ID_VOID;
+        }
+        std::vector<RC<Medium>> ids;
+        for(auto &p : medium_indices)
+        {
+            if(p.first)
+                ids.push_back(p.first);
+        }
+        std::sort(ids.begin(), ids.end(), [](const auto &a, const auto &b)
+        {
+            return a->get_priority() < b->get_priority();
+        });
+        int i = 0;
+        for(auto &med : ids)
+        {
+            medium_indices.at(med) = i++;
+            mediums_.push_back(med);
+        }
+    }
 
     int next_light_idx = 0;
 
@@ -56,45 +104,16 @@ void Scene::postcommit()
     {
         // geometry id
 
-        auto geo_it = geometry_info_indices.find(inst.geometry);
-        if(geo_it == geometry_info_indices.end())
-        {
-            const int id = static_cast<int>(geometry_info.size());
-            geo_it = geometry_info_indices.insert({ inst.geometry, id }).first;
-            geometry_info.push_back(inst.geometry->get_geometry_info());
-        }
-        const int geo_id = geo_it->second;
+        const int geo_id = geometry_indices.at(inst.geometry);
 
         // material id
 
-        auto mat_it = material_indices.find(inst.material);
-        if(mat_it == material_indices.end())
-        {
-            const int id = static_cast<int>(materials_.size());
-            mat_it = material_indices.insert({ inst.material, id }).first;
-            materials_.push_back(inst.material);
-        }
-        const int mat_id = mat_it->second;
+        const int mat_id = material_indices.at(inst.material);
 
         // medium id
 
-        auto med_it = medium_indices.find(inst.inner_medium);
-        if(med_it == medium_indices.end())
-        {
-            const int id = static_cast<int>(mediums_.size());
-            med_it = medium_indices.insert({ inst.inner_medium, id }).first;
-            mediums_.push_back(inst.inner_medium);
-        }
-        const int inner_med_id = med_it->second;
-
-        med_it = medium_indices.find(inst.outer_medium);
-        if(med_it == medium_indices.end())
-        {
-            const int id = static_cast<int>(mediums_.size());
-            med_it = medium_indices.insert({ inst.outer_medium, id }).first;
-            mediums_.push_back(inst.outer_medium);
-        }
-        const int outer_med_id = med_it->second;
+        const MediumID inner_med_id = medium_indices.at(inst.inner_medium);
+        const MediumID outer_med_id = medium_indices.at(inst.outer_medium);
 
         // light id
 
@@ -118,10 +137,6 @@ void Scene::postcommit()
             .handle         = inst.geometry->get_blas()
         });
     }
-
-    std::vector<int32_t> instance_to_material(instance_info.size());
-    for(size_t i = 0; i < instances_.size(); ++i)
-        instance_to_material[i] = instance_info[i].material_id;
 
     tlas_ = optix_ctx_->create_instance_as(blas_instances);
 
@@ -155,6 +170,10 @@ void Scene::collect_objects(std::set<RC<Object>> &output) const
         output.insert(inst.material);
         if(inst.light)
             output.insert(inst.light);
+        if(inst.inner_medium)
+            output.insert(inst.inner_medium);
+        if(inst.outer_medium)
+            output.insert(inst.outer_medium);
     }
     if(env_light_)
         output.insert(env_light_);
@@ -183,6 +202,16 @@ int Scene::get_material_count() const
 const Material *Scene::get_material(int id) const
 {
     return materials_[id].get();
+}
+
+int Scene::get_medium_count() const
+{
+    return static_cast<int>(mediums_.size());
+}
+
+const Medium *Scene::get_medium(int id) const
+{
+    return mediums_[id].get();
 }
 
 bool Scene::has_motion_blur() const

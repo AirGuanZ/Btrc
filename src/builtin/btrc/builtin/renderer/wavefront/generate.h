@@ -18,6 +18,7 @@ namespace generate_pipeline_detail
         Vec4f     *output_ray_o_t0;
         Vec4f     *output_ray_d_t1;
         Vec2u     *output_ray_time_mask;
+        uint32_t  *output_ray_medium_id;
         Spectrum  *output_beta;
         Spectrum  *output_beta_le;
         float     *output_bsdf_pdf;
@@ -33,6 +34,7 @@ namespace generate_pipeline_detail
         output_ray_o_t0,
         output_ray_d_t1,
         output_ray_time_mask,
+        output_ray_medium_id,
         output_beta,
         output_beta_le,
         output_bsdf_pdf,
@@ -50,20 +52,15 @@ public:
 
     GeneratePipeline();
 
-    explicit GeneratePipeline(
-        CompileContext &cc,
-        const Camera   &camera,
-        const Vec2i    &film_res,
-        int             spp,
-        int             state_count);
+    void record_device_code(CompileContext &cc, const Camera &camera, const Vec2i &film_res);
+
+    void initialize(RC<cuda::Module> cuda_module, int spp, int state_count, const Vec2i &film_res);
 
     GeneratePipeline(GeneratePipeline &&other) noexcept;
 
     GeneratePipeline &operator=(GeneratePipeline &&other) noexcept;
 
     void swap(GeneratePipeline &other) noexcept;
-
-    operator bool() const;
 
     bool is_done() const;
 
@@ -79,14 +76,7 @@ public:
 
 private:
 
-    void initialize(
-        CompileContext &cc,
-        const Camera   &camera,
-        const Vec2i    &film_res,
-        int             spp,
-        int             state_count);
-
-    Vec2i film_res_;
+    Vec2i   film_res_;
     int64_t pixel_count_;
     int64_t spp_;
     int64_t state_count_;
@@ -94,7 +84,7 @@ private:
     int64_t finished_spp_;
     int64_t finished_pixel_;
 
-    CUDAModule kernel_;
+    RC<cuda::Module> cuda_module_;
 };
 
 BTRC_WFPT_END

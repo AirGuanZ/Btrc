@@ -22,9 +22,7 @@ public:
 
     SingleBufferAS();
 
-    SingleBufferAS(
-        OptixTraversableHandle handle,
-        cuda::CUDABuffer<>     buffer);
+    SingleBufferAS(OptixTraversableHandle handle, cuda::Buffer<> buffer);
 
     SingleBufferAS(SingleBufferAS &&other) noexcept;
 
@@ -39,7 +37,7 @@ public:
 private:
 
     OptixTraversableHandle handle_;
-    cuda::CUDABuffer<>     buffer_;
+    cuda::Buffer<>         buffer_;
 };
 
 using TriangleAS = SingleBufferAS;

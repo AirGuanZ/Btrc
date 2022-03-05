@@ -4,35 +4,35 @@ BTRC_BUILTIN_BEGIN
 
 namespace
 {
-    Texture::AddressMode string_to_address_mode(std::string_view str)
+    cuda::Texture::AddressMode string_to_address_mode(std::string_view str)
     {
         if(str == "clamp")
-            return Texture::AddressMode::Clamp;
+            return cuda::Texture::AddressMode::Clamp;
         if(str == "mirror")
-            return Texture::AddressMode::Mirror;
+            return cuda::Texture::AddressMode::Mirror;
         if(str == "wrap")
-            return Texture::AddressMode::Wrap;
+            return cuda::Texture::AddressMode::Wrap;
         if(str == "border")
-            return Texture::AddressMode::Border;
+            return cuda::Texture::AddressMode::Border;
         throw BtrcException(fmt::format("unknown address mode: {}", str));
     }
 
-    Texture::FilterMode string_to_filter_mode(std::string_view str)
+    cuda::Texture::FilterMode string_to_filter_mode(std::string_view str)
     {
         if(str == "point")
-            return Texture::FilterMode::Point;
+            return cuda::Texture::FilterMode::Point;
         if(str == "linear")
-            return Texture::FilterMode::Linear;
+            return cuda::Texture::FilterMode::Linear;
         throw BtrcException(fmt::format("unknown filter mode: {}", str));
     }
 
-    Texture::Description parse_texture2d_desc(const RC<const factory::Node> &node)
+    cuda::Texture::Description parse_texture2d_desc(const RC<const factory::Node> &node)
     {
         auto address_u = node->parse_child_or<std::string>("address_mode_u", "clamp");
         auto address_v = node->parse_child_or<std::string>("address_mode_v", "clamp");
         auto filter = node->parse_child_or<std::string>("filter", "linear");
 
-        Texture::Description desc;
+        cuda::Texture::Description desc;
         desc.address_modes[0] = string_to_address_mode(address_u);
         desc.address_modes[1] = string_to_address_mode(address_v);
         desc.address_modes[2] = desc.address_modes[0];
@@ -43,15 +43,15 @@ namespace
     }
 }
 
-void Array2D::initialize(RC<const Texture> cuda_texture)
+void Array2D::initialize(RC<const cuda::Texture> cuda_texture)
 {
     tex_ = std::move(cuda_texture);
     set_recompile();
 }
 
-void Array2D::initialize(const std::string &filename, const Texture::Description &desc)
+void Array2D::initialize(const std::string &filename, const cuda::Texture::Description &desc)
 {
-    auto tex = newRC<Texture>();
+    auto tex = newRC<cuda::Texture>();
     tex->initialize(filename, desc);
     tex_ = std::move(tex);
     set_recompile();

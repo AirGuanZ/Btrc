@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/film.h>
+#include <btrc/core/scene.h>
 #include <btrc/core/spectrum.h>
 #include <btrc/utils/optix/pipeline.h>
 #include <btrc/utils/uncopyable.h>
@@ -20,6 +21,7 @@ namespace shadow_pipeline_detail
         Vec4f    *ray_o_t0;
         Vec4f    *ray_d_t1;
         Vec2u    *ray_time_mask;
+        uint32_t *ray_medium_id;
         Spectrum *beta_li;
     };
 
@@ -31,6 +33,7 @@ namespace shadow_pipeline_detail
         ray_o_t0,
         ray_d_t1,
         ray_time_mask,
+        ray_medium_id,
         beta_li);
 
 } // namespace shadow_pipeline_detail
@@ -45,6 +48,7 @@ public:
         Vec4f    *ray_o_t0;
         Vec4f    *ray_d_t1;
         Vec2u    *ray_time_mask;
+        uint32_t *ray_medium_id;
         Spectrum *beta_li;
     };
 
@@ -54,6 +58,8 @@ public:
     ShadowPipeline() = default;
 
     ShadowPipeline(
+        bool               offline_mode,
+        const Scene       &scene,
         Film              &film,
         OptixDeviceContext context,
         bool               motion_blur,
@@ -76,7 +82,7 @@ public:
 private:
 
     optix::SimpleOptixPipeline pipeline_;
-    mutable cuda::CUDABuffer<LaunchParams> device_launch_params_;
+    mutable cuda::Buffer<LaunchParams> device_launch_params_;
 };
 
 BTRC_WFPT_END

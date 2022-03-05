@@ -4,7 +4,7 @@ BTRC_BEGIN
 
 CAliasTable::CAliasTable(const AliasTable &table)
 {
-    units_ = cuda::CUDABuffer(table.get_table());
+    units_ = cuda::Buffer(table.get_table());
 }
 
 u32 CAliasTable::sample(f32 _u) const

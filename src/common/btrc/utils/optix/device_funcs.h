@@ -169,6 +169,10 @@ u32 get_payload(i32 index);
 
 f32 get_ray_tmax();
 
+CVec3f get_ray_o();
+
+CVec3f get_ray_d();
+
 CVec2f get_triangle_barycentrics();
 
 u32 get_primitive_index();

@@ -58,7 +58,7 @@ private:
     static void log_callback(
         unsigned int level, const char *tag, const char *msg, void *data);
 
-    std::pair<OptixTraversableHandle, cuda::CUDABuffer<>>
+    std::pair<OptixTraversableHandle, cuda::Buffer<>>
         build_accel(const OptixBuildInput &build_input);
 
     template<typename Index>

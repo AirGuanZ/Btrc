@@ -10,49 +10,49 @@
 #include <btrc/utils/cuda/module.h>
 #include <btrc/utils/scope_guard.h>
 
-BTRC_BEGIN
+BTRC_CUDA_BEGIN
 
-struct CUDAModule::Impl
+struct Module::Impl
 {
     std::vector<std::string> ptx_data;
 
     CUmodule cu_module = nullptr;
 };
 
-CUDAModule::CUDAModule()
+Module::Module()
 {
     impl_ = std::make_unique<Impl>();
 }
 
-CUDAModule::CUDAModule(CUDAModule &&other) noexcept
-    : CUDAModule()
+Module::Module(Module &&other) noexcept
+    : Module()
 {
     std::swap(impl_, other.impl_);
 }
 
-CUDAModule &CUDAModule::operator=(CUDAModule &&other) noexcept
+Module &Module::operator=(Module &&other) noexcept
 {
     std::swap(impl_, other.impl_);
     return *this;
 }
 
-CUDAModule::~CUDAModule()
+Module::~Module()
 {
     if(impl_->cu_module)
         cuModuleUnload(impl_->cu_module);
 }
 
-bool CUDAModule::is_linked() const
+bool Module::is_linked() const
 {
     return impl_->cu_module != nullptr;
 }
 
-void CUDAModule::swap(CUDAModule &other) noexcept
+void Module::swap(Module &other) noexcept
 {
     impl_.swap(other.impl_);
 }
 
-void CUDAModule::load_ptx_from_memory(const void *data, size_t bytes)
+void Module::load_ptx_from_memory(const void *data, size_t bytes)
 {
     std::string new_data;
     new_data.resize(bytes);
@@ -60,7 +60,7 @@ void CUDAModule::load_ptx_from_memory(const void *data, size_t bytes)
     impl_->ptx_data.push_back(new_data);
 }
 
-void CUDAModule::load_ptx_from_file(const std::string &filename)
+void Module::load_ptx_from_file(const std::string &filename)
 {
     std::ifstream fin(filename, std::ios::in | std::ios::binary);
     if(!fin)
@@ -81,7 +81,7 @@ void CUDAModule::load_ptx_from_file(const std::string &filename)
     load_ptx_from_memory(data.data(), data.size());
 }
 
-void CUDAModule::link()
+void Module::link()
 {
     assert(!impl_->cu_module && !impl_->ptx_data.empty());
 
@@ -131,7 +131,7 @@ void CUDAModule::link()
     report_error(result);
 }
 
-void CUDAModule::launch_impl(
+void Module::launch_impl(
     const std::string &entry_name,
     const Dim3        &block_cnt,
     const Dim3        &block_size,
@@ -151,4 +151,4 @@ void CUDAModule::launch_impl(
         0, nullptr, kernel_args, nullptr));
 }
 
-BTRC_END
+BTRC_CUDA_END

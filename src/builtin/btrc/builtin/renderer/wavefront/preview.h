@@ -23,7 +23,7 @@ public:
 
 private:
 
-    CUDAModule cuda_module_;
+    cuda::Module cuda_module_;
 };
 
 BTRC_WFPT_END

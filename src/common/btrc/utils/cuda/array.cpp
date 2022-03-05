@@ -5,7 +5,7 @@
 #include <btrc/utils/scope_guard.h>
 #include <btrc/utils/unreachable.h>
 
-BTRC_BEGIN
+BTRC_CUDA_BEGIN
 
 namespace
 {
@@ -165,4 +165,4 @@ Array::Format Array::get_format() const
     return format_;
 }
 
-BTRC_END
+BTRC_CUDA_END

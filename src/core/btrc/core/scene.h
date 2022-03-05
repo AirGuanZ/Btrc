@@ -16,8 +16,8 @@ struct InstanceInfo
     int32_t   material_id = 0;
     int32_t   light_id = 0;
     Transform transform;
-    int32_t   inner_medium_id = -1;
-    int32_t   outer_medium_id = -1;
+    MediumID  inner_medium_id = MEDIUM_ID_VOID;
+    MediumID  outer_medium_id = MEDIUM_ID_VOID;
 };
 
 CUJ_PROXY_CLASS(
@@ -80,6 +80,10 @@ public:
 
     const Material *get_material(int id) const;
 
+    int get_medium_count() const;
+
+    const Medium *get_medium(int id) const;
+
     bool has_motion_blur() const;
 
     bool is_triangle_only() const;
@@ -91,12 +95,12 @@ private:
     std::vector<Instance> instances_;
     RC<EnvirLight>        env_light_;
 
-    optix::InstanceAS              tlas_;
-    std::vector<RC<Material>>      materials_;
-    std::vector<RC<Medium>>        mediums_;
-    RC<LightSampler>               light_sampler_;
-    cuda::CUDABuffer<InstanceInfo> instance_info_;
-    cuda::CUDABuffer<GeometryInfo> geometry_info_;
+    optix::InstanceAS          tlas_;
+    std::vector<RC<Material>>  materials_;
+    std::vector<RC<Medium>>    mediums_;
+    RC<LightSampler>           light_sampler_;
+    cuda::Buffer<InstanceInfo> instance_info_;
+    cuda::Buffer<GeometryInfo> geometry_info_;
 };
 
 BTRC_END
