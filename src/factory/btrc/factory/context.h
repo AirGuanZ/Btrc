@@ -7,6 +7,7 @@
 #include <btrc/core/medium.h>
 #include <btrc/core/renderer.h>
 #include <btrc/core/texture2d.h>
+#include <btrc/core/texture3d.h>
 #include <btrc/factory/node/node.h>
 #include <btrc/factory/path_resolver.h>
 #include <btrc/utils/exception.h>
@@ -30,6 +31,7 @@ REGISTER_OBJECT_TYPENAME(Material,     material)
 REGISTER_OBJECT_TYPENAME(Medium,       medium)
 REGISTER_OBJECT_TYPENAME(Renderer,     renderer)
 REGISTER_OBJECT_TYPENAME(Texture2D,    texture2d)
+REGISTER_OBJECT_TYPENAME(Texture3D,    texture3d)
 
 template<typename T> requires std::is_base_of_v<Object, T>
 class Creator
@@ -91,7 +93,8 @@ private:
         Material,
         Medium,
         Renderer,
-        Texture2D
+        Texture2D,
+        Texture3D
     > factorys_;
 
     optix::Context &optix_ctx_;
@@ -112,6 +115,21 @@ public:
     {
         auto value = node->parse_child<Spectrum>("value");
         auto result = newRC<Constant2D>();
+        result->set_value(value);
+        return result;
+    }
+};
+
+class Constant3DCreator : public Creator<Texture3D>
+{
+public:
+
+    std::string get_name() const override { return "constant"; }
+
+    RC<Texture3D> create(RC<const Node> node, Context &context) override
+    {
+        auto value = node->parse_child<Spectrum>("value");
+        auto result = newRC<Constant3D>();
         result->set_value(value);
         return result;
     }
@@ -144,6 +162,7 @@ inline Context::Context(optix::Context &optix_ctx)
     : optix_ctx_(optix_ctx)
 {
     std::get<Factory<Texture2D>>(factorys_).add_creator(newBox<Constant2DCreator>());
+    std::get<Factory<Texture3D>>(factorys_).add_creator(newBox<Constant3DCreator>());
 }
 
 template<typename T>
@@ -164,6 +183,16 @@ RC<T> Context::create(RC<const Node> node)
         if(node->get_type() == Node::Type::Value || node->get_type() == Node::Type::Array)
         {
             auto result = newRC<Constant2D>();
+            auto value = node->parse<Spectrum>();
+            result->set_value(value);
+            return result;
+        }
+    }
+    if constexpr(std::is_same_v<T, Texture3D>)
+    {
+        if(node->get_type() == Node::Type::Value || node->get_type() == Node::Type::Array)
+        {
+            auto result = newRC<Constant3D>();
             auto value = node->parse<Spectrum>();
             result->set_value(value);
             return result;

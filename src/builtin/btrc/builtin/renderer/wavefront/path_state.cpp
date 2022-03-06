@@ -48,7 +48,8 @@ void PathState::initialize(int state_count)
         next_time_mask,
         next_medium_id,
         next_beta_le,
-        next_bsdf_pdf);
+        next_bsdf_pdf,
+        shadow_rng);
 }
 
 void PathState::clear()
@@ -62,6 +63,9 @@ void PathState::clear()
     std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
     rng.from_cpu(rng_init_data.data());
     next_rng.from_cpu(rng_init_data.data());
+
+    std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
+    shadow_rng.from_cpu(rng_init_data.data());
 }
 
 void PathState::next_iteration()

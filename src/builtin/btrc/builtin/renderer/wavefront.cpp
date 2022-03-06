@@ -317,7 +317,8 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                     .ray_d_t1      = soa.shadow_d_t1,
                     .ray_time_mask = soa.shadow_time_mask,
                     .ray_medium_id = soa.shadow_medium_id,
-                    .beta_li       = soa.shadow_beta_li
+                    .beta_li       = soa.shadow_beta_li,
+                    .rng           = soa.shadow_rng
                 });
         }
 

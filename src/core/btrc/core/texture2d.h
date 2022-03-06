@@ -4,7 +4,6 @@
 #include <btrc/core/surface_point.h>
 #include <btrc/core/spectrum.h>
 #include <btrc/utils/cmath/cmath.h>
-#include <btrc/utils/variant.h>
 
 BTRC_BEGIN
 

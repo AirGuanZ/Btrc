@@ -11,6 +11,7 @@ void register_builtin_creators(factory::Factory<Material>     &factory);
 void register_builtin_creators(factory::Factory<Medium>       &factory);
 void register_builtin_creators(factory::Factory<Renderer>     &factory);
 void register_builtin_creators(factory::Factory<Texture2D>    &factory);
+void register_builtin_creators(factory::Factory<Texture3D>    &factory);
 
 void register_builtin_creators(factory::Context &context);
 

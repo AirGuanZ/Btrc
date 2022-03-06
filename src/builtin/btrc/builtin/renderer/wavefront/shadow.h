@@ -17,12 +17,13 @@ namespace shadow_pipeline_detail
     {
         OptixTraversableHandle handle;
 
-        Vec2f    *pixel_coord;
-        Vec4f    *ray_o_t0;
-        Vec4f    *ray_d_t1;
-        Vec2u    *ray_time_mask;
-        uint32_t *ray_medium_id;
-        Spectrum *beta_li;
+        Vec2f              *pixel_coord;
+        Vec4f              *ray_o_t0;
+        Vec4f              *ray_d_t1;
+        Vec2u              *ray_time_mask;
+        uint32_t           *ray_medium_id;
+        Spectrum           *beta_li;
+        cuj::cstd::LCGData *rng;
     };
 
     CUJ_PROXY_CLASS(
@@ -34,7 +35,8 @@ namespace shadow_pipeline_detail
         ray_d_t1,
         ray_time_mask,
         ray_medium_id,
-        beta_li);
+        beta_li,
+        rng);
 
 } // namespace shadow_pipeline_detail
 
@@ -44,12 +46,13 @@ public:
 
     struct SOAParams
     {
-        Vec2f    *pixel_coord;
-        Vec4f    *ray_o_t0;
-        Vec4f    *ray_d_t1;
-        Vec2u    *ray_time_mask;
-        uint32_t *ray_medium_id;
-        Spectrum *beta_li;
+        Vec2f         *pixel_coord;
+        Vec4f         *ray_o_t0;
+        Vec4f         *ray_d_t1;
+        Vec2u         *ray_time_mask;
+        uint32_t      *ray_medium_id;
+        Spectrum      *beta_li;
+        cstd::LCGData *rng;
     };
 
     using LaunchParams = shadow_pipeline_detail::LaunchParams;

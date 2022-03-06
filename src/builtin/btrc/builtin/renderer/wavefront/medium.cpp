@@ -209,7 +209,14 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
                         CVec2u(bitcast<u32>(ray_time), optix::RAY_MASK_ALL),
                         soa.output_shadow_ray_time_mask + shadow_soa_index);
 
-                    soa.output_shadow_medium_id[shadow_soa_index] = medium_id;
+                    $if(shadow_t1 > 1)
+                    {
+                        soa.output_shadow_medium_id[shadow_soa_index] = MEDIUM_ID_VOID;
+                    }
+                    $else
+                    {
+                        soa.output_shadow_medium_id[shadow_soa_index] = medium_id;
+                    };
 
                     var beta_li = shadow_li * beta * shadow_phase_val / (shadow_phase_pdf + shadow_light_pdf);
                     save_aligned(
@@ -219,7 +226,7 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
 
                 // generate next ray
 
-                auto phase_sample = sample_medium.shader->sample(cc, -ray_d, CVec3f(rng));
+                PhaseShader::SampleResult phase_sample = sample_medium.shader->sample(cc, -ray_d, CVec3f(rng));
                 $if(!phase_sample.phase.is_zero())
                 {
                     phase_sample.dir = normalize(phase_sample.dir);

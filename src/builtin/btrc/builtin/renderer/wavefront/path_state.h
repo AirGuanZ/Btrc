@@ -77,6 +77,10 @@ struct PathState
 
     cuda::Buffer<Spectrum> next_beta_le;
     cuda::Buffer<float>    next_bsdf_pdf;
+
+    // ==== shadow ====
+
+    cuda::Buffer<cstd::LCGData> shadow_rng;
 };
 
 BTRC_WFPT_END

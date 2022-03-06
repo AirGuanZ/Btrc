@@ -110,7 +110,7 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
         var path_radiance = load_aligned(soa_params.path_radiance + soa_index);
 
         var pixel_coord = load_aligned(soa_params.pixel_coord + soa_index);
-        var depth = soa_params.depth[soa_index];
+        i32 depth = soa_params.depth[soa_index];
 
         var rng = soa_params.rng[soa_index];
 
@@ -173,7 +173,7 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
                     {
                         $case(i)
                         {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position);
+                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position, rng);
                         };
                     }
                     $default

@@ -5,17 +5,19 @@
 
 BTRC_BUILTIN_BEGIN
 
-class HomogeneousMedium : public Medium
+class HetergeneousMedium : public Medium
 {
 public:
 
     void set_priority(float priority);
 
-    void set_sigma_t(float sigma_t);
+    void set_world_to_local(const Transform &transform);
 
-    void set_albedo(const Spectrum &albedo);
+    void set_sigma_t(RC<Texture3D> sigma_t);
 
-    void set_g(float g);
+    void set_albedo(RC<Texture3D> albedo);
+
+    void set_g(RC<Texture3D> g);
 
     SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const override;
 
@@ -26,16 +28,17 @@ public:
 private:
 
     float priority_ = 0.0f;
-    BTRC_PROPERTY(float, sigma_t_);
-    BTRC_PROPERTY(Spectrum, albedo_);
-    BTRC_PROPERTY(float, g_);
+    BTRC_PROPERTY(Transform, world_to_local_);
+    BTRC_OBJECT(Texture3D, sigma_t_);
+    BTRC_OBJECT(Texture3D, albedo_);
+    BTRC_OBJECT(Texture3D, g_);
 };
 
-class HomogeneousMediumCreator : public factory::Creator<Medium>
+class HetergeneousMediumCreator : public factory::Creator<Medium>
 {
 public:
 
-    std::string get_name() const override { return "homogeneous"; }
+    std::string get_name() const override { return "hetergeneous"; }
 
     RC<Medium> create(RC<const factory::Node> node, factory::Context &context) override;
 };

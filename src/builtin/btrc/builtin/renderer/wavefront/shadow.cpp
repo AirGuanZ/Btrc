@@ -56,6 +56,7 @@ namespace
 
             var pixel_coord = load_aligned(launch_params.pixel_coord + launch_idx);
             var beta = load_aligned(launch_params.beta_li + launch_idx);
+            var rng = launch_params.rng[launch_idx];
 
             var medium_id = launch_params.ray_medium_id[launch_idx];
             $if(medium_id != MEDIUM_ID_VOID)
@@ -64,13 +65,14 @@ namespace
                 var ray_o = optix::get_ray_o();
                 var ray_d = optix::get_ray_d();
                 var ray_t1 = optix::get_ray_tmax();
+
                 $switch(medium_id)
                 {
                     for(int i = 0; i < scene.get_medium_count(); ++i)
                     {
                         $case(i)
                         {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, ray_o + ray_d * ray_t1);
+                            tr = scene.get_medium(i)->tr(cc, ray_o, ray_o + ray_d * ray_t1, rng);
                         };
                     }
                     $default
@@ -81,6 +83,7 @@ namespace
                 beta = beta * tr;
             };
 
+            launch_params.rng[launch_idx] = rng;
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, beta.to_rgb());
         });
 
@@ -163,7 +166,8 @@ void ShadowPipeline::test(
         .ray_d_t1      = soa_params.ray_d_t1,
         .ray_time_mask = soa_params.ray_time_mask,
         .ray_medium_id = soa_params.ray_medium_id,
-        .beta_li       = soa_params.beta_li
+        .beta_li       = soa_params.beta_li,
+        .rng           = soa_params.rng
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(

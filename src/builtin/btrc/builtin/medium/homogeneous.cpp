@@ -38,7 +38,7 @@ Medium::SampleResult HomogeneousMedium::sample(CompileContext &cc, ref<CVec3f> a
     $if(sigma_s.is_zero())
     {
         result.scattered = false;
-        result.throughput = tr(cc, a, b);
+        result.throughput = tr(cc, a, b, rng);
         $exit_scope;
     };
 
@@ -62,7 +62,7 @@ Medium::SampleResult HomogeneousMedium::sample(CompileContext &cc, ref<CVec3f> a
     return result;
 }
 
-CSpectrum HomogeneousMedium::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b) const
+CSpectrum HomogeneousMedium::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const
 {
     var sigma_t = sigma_t_.read(cc);
     var albedo = albedo_.read(cc);

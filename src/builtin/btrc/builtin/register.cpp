@@ -9,6 +9,7 @@
 #include <btrc/builtin/material/metal.h>
 #include <btrc/builtin/material/mirror.h>
 #include <btrc/builtin/medium/homogeneous.h>
+#include <btrc/builtin/medium/hetergeneous.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
 #include <btrc/builtin/register.h>
@@ -44,6 +45,7 @@ void register_builtin_creators(factory::Factory<Material> &factory)
 void register_builtin_creators(factory::Factory<Medium> &factory)
 {
     factory.add_creator(newBox<HomogeneousMediumCreator>());
+    factory.add_creator(newBox<HetergeneousMediumCreator>());
 }
 
 void register_builtin_creators(factory::Factory<Renderer> &factory)
@@ -56,6 +58,11 @@ void register_builtin_creators(factory::Factory<Texture2D> &factory)
     factory.add_creator(newBox<Array2DCreator>());
 }
 
+void register_builtin_creators(factory::Factory<Texture3D> &factory)
+{
+
+}
+
 void register_builtin_creators(factory::Context &context)
 {
     register_builtin_creators(context.get_factory<Camera>());
@@ -65,6 +72,7 @@ void register_builtin_creators(factory::Context &context)
     register_builtin_creators(context.get_factory<Medium>());
     register_builtin_creators(context.get_factory<Renderer>());
     register_builtin_creators(context.get_factory<Texture2D>());
+    register_builtin_creators(context.get_factory<Texture3D>());
 }
 
 BTRC_BUILTIN_END
