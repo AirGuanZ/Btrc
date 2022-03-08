@@ -16,7 +16,7 @@ namespace medium_pipeline_detail
     {
         // rng is updated if not scattered
 
-        RNG::Data *rng;
+        CRNG::Data *rng;
 
         // per path
 
@@ -45,7 +45,7 @@ namespace medium_pipeline_detail
         // output only when scattered
         // and mark original inst_id with INST_ID_MEDIUM_MASK
 
-        RNG::Data *output_rng;
+        CRNG::Data *output_rng;
         Spectrum  *output_path_radiance;
         Vec2f     *output_pixel_coord;
         int32_t   *output_depth;

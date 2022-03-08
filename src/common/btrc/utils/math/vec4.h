@@ -22,6 +22,10 @@ public:
     BTRC_XPU Vec4(const Vec3<T> &xyz, T w);
 
     BTRC_XPU Vec3<T> xyz() const;
+
+    BTRC_XPU T operator[](size_t i) const;
+
+    BTRC_XPU T &operator[](size_t i);
 };
 
 using Vec4f = Vec4<float>;
@@ -90,6 +94,18 @@ template<typename T>
 BTRC_XPU Vec3<T> Vec4<T>::xyz() const
 {
     return Vec3<T>(x, y, z);
+}
+
+template<typename T>
+BTRC_XPU T Vec4<T>::operator[](size_t i) const
+{
+    return *(&x + i);
+}
+
+template<typename T>
+BTRC_XPU T &Vec4<T>::operator[](size_t i)
+{
+    return *(&x + i);
 }
 
 template<typename T>

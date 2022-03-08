@@ -6,7 +6,7 @@
 
 BTRC_BUILTIN_BEGIN
 
-class Array2D : public Texture2D, public Uncopyable
+class Array2D : public Texture2D
 {
 public:
 

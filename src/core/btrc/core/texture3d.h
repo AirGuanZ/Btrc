@@ -25,16 +25,16 @@ public:
         return sample_float_inline(cc, spt.position);
     }
 
-    CSpectrum sample_spectrum(CompileContext &cc, ref<CVec3f> uv) const
+    CSpectrum sample_spectrum(CompileContext &cc, ref<CVec3f> uvw) const
     {
         using T = CSpectrum(Texture3D:: *)(CompileContext &, ref<CVec3f>)const;
-        return record(cc, T(&Texture3D::sample_spectrum_inline), "sample_spectrum_uv", uv);
+        return record(cc, T(&Texture3D::sample_spectrum_inline), "sample_spectrum_uvw", uvw);
     }
 
-    f32 sample_float(CompileContext &cc, ref<CVec3f> uv) const
+    f32 sample_float(CompileContext &cc, ref<CVec3f> uvw) const
     {
         using T = f32(Texture3D:: *)(CompileContext &, ref<CVec3f>)const;
-        return record(cc, T(&Texture3D::sample_float_inline), "sample_float_uv", uv);
+        return record(cc, T(&Texture3D::sample_float_inline), "sample_float_uvw", uvw);
     }
 
     CSpectrum sample_spectrum(CompileContext &cc, ref<SurfacePoint> spt) const
@@ -55,6 +55,13 @@ public:
     {
         return get_max_spectrum(cc).r;
     }
+
+    virtual CSpectrum get_min_spectrum(CompileContext &cc) const = 0;
+
+    virtual f32 get_min_float(CompileContext &cc) const
+    {
+        return get_min_spectrum(cc).r;
+    }
 };
 
 class Constant3D : public Texture3D
@@ -74,6 +81,8 @@ public:
     CSpectrum sample_spectrum_inline(CompileContext &cc, ref<CVec3f> uvw) const override;
 
     CSpectrum get_max_spectrum(CompileContext &cc) const override;
+
+    CSpectrum get_min_spectrum(CompileContext &cc) const override;
 };
 
 BTRC_END

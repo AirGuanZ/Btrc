@@ -48,12 +48,20 @@ public:
         UNorm16x4,
         SNorm16x1,
         SNorm16x2,
-        SNorm16x4
+        SNorm16x4,
+        UNorm32x1,
+        UNorm32x2,
+        UNorm32x4,
+        SNorm32x1,
+        SNorm32x2,
+        SNorm32x4
     };
 
     Array();
 
     ~Array();
+
+    // init 2d
     
     void load_from_memory(
         int         width,
@@ -70,20 +78,52 @@ public:
 
     void load_from_image(const std::string &filename);
 
+    // init3d
+
+    void load_from_memory(
+        int         width,
+        int         height,
+        int         depth,
+        Format      format,
+        const void *linear_data);
+
+    void load_from_images(const std::vector<std::string> &filenames);
+
+    void load_from_text(const std::string &filename);
+
+    // query
+
+    bool is_2d() const;
+
+    bool is_3d() const;
+
     cudaArray_t get_arr() const;
 
     int get_width() const;
 
     int get_height() const;
 
+    int get_depth() const;
+
     Format get_format() const;
+
+    const Vec3f &get_min_value() const;
+
+    const Vec3f &get_max_value() const;
 
 private:
 
+    static std::pair<Vec3f, Vec3f> find_minmax_values(
+        int width, int height, int depth,
+        Format format, const void *data);
+
     int         width_;
     int         height_;
+    int         depth_;
     Format      format_;
     cudaArray_t arr_;
+    Vec3f       max_value_;
+    Vec3f       min_value_;
 };
 
 BTRC_CUDA_END

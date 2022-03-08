@@ -67,8 +67,6 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
 
         var ray_o_t0 = load_aligned(soa.ray_o_t0 + soa_index);
         var ray_o = ray_o_t0.xyz();
-        var ray_t0 = ray_o_t0.w;
-        var ray_beg = ray_o + ray_t0 * ray_d;
 
         var inct_t = bitcast<f32>(inct_t_prim_uv.x);
         var inct_pos = intersection_offset(ray_o + inct_t * ray_d, inct_nor, -ray_d);
@@ -81,7 +79,7 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
         var tr = CSpectrum::one();
         auto handle_medium = [&](const Medium *medium)
         {
-            auto sample_medium = medium->sample(cc, ray_beg, inct_pos, rng);
+            auto sample_medium = medium->sample(cc, ray_o, inct_pos, rng);
 
             var beta = soa.beta[soa_index];
             beta = beta * sample_medium.throughput;
@@ -94,6 +92,11 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
 
                 // mark this path as scattered
                 soa.inct_inst_launch_index[soa_index].x = inst_id | INST_ID_MEDIUM_MASK;
+
+                $if(depth == 0)
+                {
+                    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
+                };
 
                 // terminate
 
@@ -124,10 +127,6 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
 
                 $if(rr_exit)
                 {
-                    $if(depth == 0)
-                    {
-                        film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-                    };
                     film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
 
                     var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
@@ -139,7 +138,7 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
 
                 Function sample_light_for_medium_direct_illum = [&cc, &scene](
                     ref<CVec3f>    scatter_pos,
-                    ref<RNG>       rng,
+                    ref<CRNG>      rng,
                     f32            time,
                     ref<CVec3f>    shadow_d,
                     ref<f32>       shadow_t1,
@@ -345,7 +344,7 @@ void MediumPipeline::swap(MediumPipeline &other) noexcept
 
 void MediumPipeline::sample_scattering(int total_state_count, const SOAParams &soa)
 {
-    assert(cuda_module_.is_linked());
+    assert(cuda_module_->is_linked());
 
     StateCounters *device_counters = state_counters_->get();
     int32_t *active_state_counter = reinterpret_cast<int32_t *>(device_counters);

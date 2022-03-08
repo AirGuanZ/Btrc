@@ -32,4 +32,9 @@ CSpectrum Constant3D::get_max_spectrum(CompileContext &cc) const
     return value_.read(cc);
 }
 
+CSpectrum Constant3D::get_min_spectrum(CompileContext &cc) const
+{
+    return value_.read(cc);
+}
+
 BTRC_END

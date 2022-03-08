@@ -3,9 +3,9 @@
 BTRC_BEGIN
 
 CTransform::CTransform(
-    f32               _scale,
+    const CVec3f &_scale,
     const CQuaterion &_rotate,
-    const CVec3f     &_translate)
+    const CVec3f &_translate)
 {
     scale = _scale;
     rotate = _rotate;

@@ -128,7 +128,7 @@ namespace
         auto translate = node->parse_child_or("translate", Vec3f(0));
         auto rotate_axis = node->parse_child_or("rotate_axis", Vec3f(1, 0, 0));
         auto rotate_rad = node->parse_child_or("rotate_angle", Radian{ 0 });
-        auto scale = node->parse_child_or("scale", 1.0f);
+        auto scale = node->parse_child_or("scale", Vec3f(1));
         Transform ret;
         ret.translate = translate;
         ret.rotate = Quaterion(rotate_axis, rotate_rad.value);

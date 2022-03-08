@@ -14,7 +14,7 @@ namespace shade_pipeline_detail
 
     struct SOAParams
     {
-        RNG::Data *rng;
+        CRNG::Data *rng;
 
         // per path
 
@@ -42,7 +42,7 @@ namespace shade_pipeline_detail
 
         // always output
 
-        RNG::Data *output_rng;
+        CRNG::Data *output_rng;
 
         // ouput when active
 

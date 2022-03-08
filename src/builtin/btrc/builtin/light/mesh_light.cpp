@@ -47,7 +47,7 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
     var snor = normalize(ctrans.apply_to_vector(surface_sample.point.frame.z));
     var pos_to_ref = ref_pos - spos;
     var dist2 = length_square(pos_to_ref);
-    var pdf_sa = 1 / (local_to_world_.scale * local_to_world_.scale)
+    var pdf_sa = 1 / (local_to_world_.scale.x * local_to_world_.scale.x)
                * surface_sample.pdf * dist2 / cstd::abs(dot(snor, normalize(pos_to_ref)));
 
     CSpectrum rad;
@@ -85,7 +85,7 @@ f32 MeshLight::pdf_li_inline(
         var spt_to_ref = ref_pos - pos;
         var dist2 = length_square(spt_to_ref);
         var dist3 = cstd::sqrt(dist2) * dist2;
-        result = 1 / (local_to_world_.scale * local_to_world_.scale)
+        result = 1 / (local_to_world_.scale.x * local_to_world_.scale.x)
                * pdf_area * dist3 / cstd::abs(dot(nor, spt_to_ref));
     };
     return result;

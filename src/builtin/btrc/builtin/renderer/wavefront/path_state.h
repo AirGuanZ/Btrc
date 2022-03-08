@@ -16,7 +16,7 @@ struct PathState
 
     void next_iteration();
 
-    cuda::Buffer<RNG::Data> rng;
+    cuda::Buffer<CRNG::Data> rng;
 
     // ==== generate output ====
 
@@ -48,7 +48,7 @@ struct PathState
 
     // 'state' state
 
-    cuda::Buffer<RNG::Data> next_rng;
+    cuda::Buffer<CRNG::Data> next_rng;
 
     // path state
 
@@ -80,7 +80,7 @@ struct PathState
 
     // ==== shadow ====
 
-    cuda::Buffer<cstd::LCGData> shadow_rng;
+    cuda::Buffer<CRNG::Data> shadow_rng;
 };
 
 BTRC_WFPT_END

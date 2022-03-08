@@ -29,13 +29,13 @@ void HetergeneousMedium::set_g(RC<Texture3D> g)
     g_ = std::move(g);
 }
 
-Medium::SampleResult HetergeneousMedium::sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const
+Medium::SampleResult HetergeneousMedium::sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
 {
     var t_max = length(b - a), t = 0.0f;
     var inv_max_density = 1.0f / sigma_t_->get_max_float(cc);
     
-    var local_a = world_to_local_.read(cc).apply_to_point(a);
-    var local_b = world_to_local_.read(cc).apply_to_point(b);
+    var local_a = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(a);
+    var local_b = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(b);
 
     SampleResult result;
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
@@ -70,15 +70,13 @@ Medium::SampleResult HetergeneousMedium::sample(CompileContext &cc, ref<CVec3f> 
     return result;
 }
 
-CSpectrum HetergeneousMedium::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const
+CSpectrum HetergeneousMedium::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
 {
     var result = 1.0f, t = 0.0f, t_max = length(b - a);
     var inv_max_density = 1.0f / sigma_t_->get_max_float(cc);
 
-    var local_a = world_to_local_.read(cc).apply_to_point(a);
-    var local_b = world_to_local_.read(cc).apply_to_point(b);
-
-    cstd::print("%f, %f, %f, %f, %f, %f\n", a.x, a.y, a.z, b.x, b.y, b.z);
+    var local_a = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(a);
+    var local_b = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(b);
 
     $loop
     {
@@ -106,7 +104,7 @@ float HetergeneousMedium::get_priority() const
 RC<Medium> HetergeneousMediumCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
     const auto priority = node->parse_child_or("priority", 0.0f);
-
+    
     Transform world_to_local;
     if(auto tnode = node->find_child_node("world_to_local"))
         world_to_local = tnode->parse<Transform>();

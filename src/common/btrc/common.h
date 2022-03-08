@@ -3,6 +3,8 @@
 #include <memory>
 #include <stdexcept>
 
+#include <cuj.h>
+
 #ifdef __CUDACC__
 #define BTRC_IS_CUDACC 1
 #else
@@ -64,13 +66,13 @@ public:
 };
 
 template<typename T, typename I>
-BTRC_XPU constexpr T up_align(T val, I align)
+constexpr T up_align(T val, I align)
 {
     return (val + align - 1) / align * align;
 }
 
 template<typename T, typename I>
-BTRC_XPU constexpr T down_align(T val, I align)
+constexpr T down_align(T val, I align)
 {
     return val / align * align;
 }
@@ -82,15 +84,17 @@ template<typename T>
 using Box = std::unique_ptr<T>;
 
 template<typename T, typename...Args>
-BTRC_CPU auto newRC(Args &&...args)
+auto newRC(Args &&...args)
 {
     return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
 template<typename T, typename...Args>
-BTRC_CPU auto newBox(Args &&...args)
+auto newBox(Args &&...args)
 {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
+
+using CRNG = cuj::cstd::PCG;
 
 BTRC_END

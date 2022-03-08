@@ -73,4 +73,7 @@ CSpectrum operator/(const CSpectrum &a, f32 b);
 CSpectrum operator+(f32 a, const CSpectrum &b);
 CSpectrum operator*(f32 a, const CSpectrum &b);
 
+CSpectrum (max)(const CSpectrum &a, const CSpectrum &b);
+CSpectrum (min)(const CSpectrum &a, const CSpectrum &b);
+
 BTRC_END

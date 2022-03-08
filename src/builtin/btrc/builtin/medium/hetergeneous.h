@@ -19,9 +19,9 @@ public:
 
     void set_g(RC<Texture3D> g);
 
-    SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const override;
+    SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const override;
 
-    CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const override;
+    CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const override;
 
     float get_priority() const override;
 

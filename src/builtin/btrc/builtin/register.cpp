@@ -12,6 +12,8 @@
 #include <btrc/builtin/medium/hetergeneous.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
+#include <btrc/builtin/texture3d/array3d.h>
+#include <btrc/builtin/texture3d/binary.h>
 #include <btrc/builtin/register.h>
 
 BTRC_BUILTIN_BEGIN
@@ -60,7 +62,9 @@ void register_builtin_creators(factory::Factory<Texture2D> &factory)
 
 void register_builtin_creators(factory::Factory<Texture3D> &factory)
 {
-
+    factory.add_creator(newBox<Array3DCreator>());
+    factory.add_creator(newBox<Texture3DBinaryOperatorCreator<BinaryOp3D::Add>>());
+    factory.add_creator(newBox<Texture3DBinaryOperatorCreator<BinaryOp3D::Mul>>());
 }
 
 void register_builtin_creators(factory::Context &context)

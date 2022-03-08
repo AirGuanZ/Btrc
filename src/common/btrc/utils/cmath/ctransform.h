@@ -9,7 +9,7 @@ CUJ_PROXY_CLASS_EX(CTransform, Transform, translate, scale, rotate)
 {
     CUJ_BASE_CONSTRUCTORS
 
-    CTransform(f32 scale, const CQuaterion &rotate, const CVec3f &translate);
+    CTransform(const CVec3f &scale, const CQuaterion &rotate, const CVec3f &translate);
 
     CTransform(const Transform &t);
 

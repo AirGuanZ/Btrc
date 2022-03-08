@@ -9,8 +9,6 @@
 
 BTRC_WFPT_BEGIN
 
-using RNG = cuj::cstd::LCG;
-
 constexpr uint32_t INST_ID_MISS        = static_cast<uint32_t>(-1);
 constexpr uint32_t INST_ID_MEDIUM_MASK = 0x80000000;
 

@@ -55,9 +55,9 @@ void PathState::initialize(int state_count)
 void PathState::clear()
 {
     const int state_count = static_cast<int>(rng.get_size());
-    std::vector<RNG::Data> rng_init_data(state_count);
+    std::vector<CRNG::Data> rng_init_data(state_count);
     for(int i = 0; i < state_count; ++i)
-        rng_init_data[i] = RNG::Data(static_cast<uint32_t>(i));
+        rng_init_data[i] = CRNG::Data(static_cast<uint32_t>(i));
 
     std::default_random_engine random_engine{ 42 };
     std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);

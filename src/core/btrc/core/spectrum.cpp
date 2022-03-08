@@ -185,4 +185,14 @@ CSpectrum operator*(f32 a, const CSpectrum &b)
     return b * a;
 }
 
+CSpectrum (max)(const CSpectrum &a, const CSpectrum &b)
+{
+    return CSpectrum::from_rgb(cstd::max(a.r, b.r), cstd::max(a.g, b.g), cstd::max(a.b, b.b));
+}
+
+CSpectrum (min)(const CSpectrum &a, const CSpectrum &b)
+{
+    return CSpectrum::from_rgb(cstd::min(a.r, b.r), cstd::min(a.g, b.g), cstd::min(a.b, b.b));
+}
+
 BTRC_END

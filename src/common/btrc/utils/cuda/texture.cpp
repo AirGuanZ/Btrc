@@ -74,6 +74,10 @@ void Texture::initialize(RC<const Array> arr, const Description &desc)
         desc.filter_mode == FilterMode::Point ?
         cudaFilterModePoint : cudaFilterModeLinear;
     cu_desc.normalizedCoords = 1;
+    cu_desc.borderColor[0] = desc.border_value[0];
+    cu_desc.borderColor[1] = desc.border_value[1];
+    cu_desc.borderColor[2] = desc.border_value[2];
+    cu_desc.borderColor[3] = desc.border_value[3];
 
     const auto format = arr_->get_format();
     if(format == Array::Format::UNorm8x1 ||
@@ -109,6 +113,16 @@ void Texture::initialize(const std::string &filename, const Description &desc)
 cudaTextureObject_t Texture::get_tex() const
 {
     return tex_;
+}
+
+Vec3f Texture::get_min_value() const
+{
+    return arr_->get_min_value();
+}
+
+Vec3f Texture::get_max_value() const
+{
+    return arr_->get_max_value();
 }
 
 void Texture::destroy()

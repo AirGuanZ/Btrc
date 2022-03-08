@@ -6,4 +6,4 @@ Work in progress...
 
 ## Gallery
 
-![](./gallery/box.png)
+![](./gallery/0.png)

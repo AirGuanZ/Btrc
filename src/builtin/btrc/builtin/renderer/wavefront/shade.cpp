@@ -494,7 +494,7 @@ void ShadePipeline::swap(ShadePipeline &other) noexcept
 
 void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
 {
-    assert(kernel_.is_linked());
+    assert(kernel_->is_linked());
 
     StateCounters *device_counters = counters_->get();
     int32_t *active_state_counter   = reinterpret_cast<int32_t *>(device_counters);

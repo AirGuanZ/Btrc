@@ -53,9 +53,9 @@ public:
         RC<PhaseShader> shader;
     };
 
-    virtual SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const = 0;
+    virtual SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const = 0;
 
-    virtual CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<cstd::LCG> rng) const = 0;
+    virtual CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const = 0;
 
     virtual float get_priority() const = 0;
 };

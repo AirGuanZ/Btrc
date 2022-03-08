@@ -22,9 +22,10 @@ public:
 
     struct Description
     {
-        AddressMode address_modes[3];
-        FilterMode  filter_mode;
-        bool        srgb_to_linear;
+        AddressMode address_modes[3] = { AddressMode::Wrap, AddressMode::Wrap, AddressMode::Wrap };
+        FilterMode  filter_mode = FilterMode::Point;
+        bool        srgb_to_linear = false;
+        float       border_value[4] = { 0, 0, 0, 0 };
     };
 
     Texture();
@@ -44,6 +45,10 @@ public:
     void initialize(const std::string &filename, const Description &desc);
 
     cudaTextureObject_t get_tex() const;
+
+    Vec3f get_min_value() const;
+
+    Vec3f get_max_value() const;
 
 private:
 
