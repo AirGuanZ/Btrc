@@ -17,9 +17,14 @@ RC<Scene> create_scene(const RC<const Node> &scene_root, Context &context)
 
         auto geometry = context.create<Geometry>(entity->child_node("geometry"));
         auto material = context.create<Material>(entity->child_node("material"));
+
         auto transform = entity->parse_child_or("local_to_world", Transform{});
-        transform.scale.y = transform.scale.x;
-        transform.scale.z = transform.scale.x;
+        if(transform.scale.y != transform.scale.x ||
+           transform.scale.z != transform.scale.x)
+        {
+            throw BtrcException(
+                "non-uniformly scaled instance is not supported");
+        }
 
         RC<Medium> inner_medium;
         if(auto node = entity->find_child_node("inner_medium"))

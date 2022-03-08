@@ -16,15 +16,15 @@ CFrame::CFrame(const Frame &f)
 
 CFrame::CFrame(const CVec3f &_x, const CVec3f &_y, const CVec3f &_z)
 {
-    x = _x;
-    y = _y;
-    z = _z;
+    x = normalize(_x);
+    y = normalize(_y);
+    z = normalize(_z);
 }
 
 CFrame CFrame::from_x(const CVec3f &_x)
 {
     CVec3f new_x = normalize(_x), new_z;
-    $if(cstd::abs(cstd::abs(new_x.y) - 1) < 0.1f)
+    $if(1.0f - cstd::abs(new_x.y) < 0.1f)
     {
         new_z = cross(new_x, CVec3f(0, 0, 1));
     }
@@ -38,7 +38,7 @@ CFrame CFrame::from_x(const CVec3f &_x)
 CFrame CFrame::from_y(const CVec3f &_y)
 {
     CVec3f new_y = normalize(_y), new_x;
-    $if(cstd::abs(cstd::abs(new_y.z) - 1) < 0.1f)
+    $if(1.0f - cstd::abs(new_y.z) < 0.1f)
     {
         new_x = cross(new_y, CVec3f(1, 0, 0));
     }
@@ -52,7 +52,7 @@ CFrame CFrame::from_y(const CVec3f &_y)
 CFrame CFrame::from_z(const CVec3f &_z)
 {
     CVec3f new_z = normalize(_z), new_y;
-    $if(cstd::abs(cstd::abs(new_z.x) - 1) < 0.1f)
+    $if(1.0f - cstd::abs(new_z.x) < 0.1f)
     {
         new_y = cross(new_z, CVec3f(0, 1, 0));
     }

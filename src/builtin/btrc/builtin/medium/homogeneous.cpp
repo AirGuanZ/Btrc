@@ -26,30 +26,20 @@ void HomogeneousMedium::set_g(float g)
 
 Medium::SampleResult HomogeneousMedium::sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
 {
-    $declare_scope;
     SampleResult result;
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
     result.shader = shader;
 
     var sigma_t = sigma_t_.read(cc);
-    var albedo = albedo_.read(cc);
-    var sigma_s = sigma_t * albedo;
-
-    $if(sigma_s.is_zero())
-    {
-        result.scattered = false;
-        result.throughput = tr(cc, a, b, rng);
-        $exit_scope;
-    };
 
     var t_max = length(b - a);
-    var st = -cstd::log(rng.uniform_float()) / sigma_t;
+    var st = -cstd::log(1.0f - rng.uniform_float()) / sigma_t;
 
     $if(st < t_max)
     {
         var t = st / t_max;
         result.scattered = true;
-        result.throughput = albedo;
+        result.throughput = albedo_.read(cc);
         result.position = a * (1.0f - t) + b * t;
         shader->set_g(g_.read(cc));
     }

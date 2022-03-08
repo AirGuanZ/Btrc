@@ -9,7 +9,7 @@ Frame::Frame()
 }
 
 Frame::Frame(const Vec3f &x, const Vec3f &y, const Vec3f &z)
-    : x(x), y(y), z(z)
+    : x(normalize(x)), y(normalize(y)), z(normalize(z))
 {
     
 }
@@ -17,7 +17,7 @@ Frame::Frame(const Vec3f &x, const Vec3f &y, const Vec3f &z)
 Frame Frame::from_x(const Vec3f &x)
 {
     Vec3f new_x = normalize(x), new_z;
-    if(std::abs(std::abs(new_x.y) - 1) < 0.1f)
+    if(1 - std::abs(new_x.y) < 0.1f)
     {
         new_z = cross(new_x, Vec3f(0, 0, 1));
     }
@@ -31,7 +31,7 @@ Frame Frame::from_x(const Vec3f &x)
 Frame Frame::from_y(const Vec3f &y)
 {
     Vec3f new_y = normalize(y), new_x;
-    if(std::abs(std::abs(new_y.z) - 1) < 0.1f)
+    if(1 - std::abs(new_y.z) < 0.1f)
     {
         new_x = cross(new_y, Vec3f(1, 0, 0));
     }
@@ -45,7 +45,7 @@ Frame Frame::from_y(const Vec3f &y)
 Frame Frame::from_z(const Vec3f &z)
 {
     Vec3f new_z = normalize(z), new_y;
-    if(std::abs(std::abs(new_z.x) - 1) < 0.1f)
+    if(1 - std::abs(new_z.x) < 0.1f)
     {
         new_y = cross(new_z, Vec3f(0, 1, 0));
     }

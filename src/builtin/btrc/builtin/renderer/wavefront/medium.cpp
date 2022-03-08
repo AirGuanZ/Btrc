@@ -81,17 +81,17 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
         {
             auto sample_medium = medium->sample(cc, ray_o, inct_pos, rng);
 
-            var beta = soa.beta[soa_index];
-            beta = beta * sample_medium.throughput;
-
             $if(sample_medium.scattered)
             {
+                var beta = soa.beta[soa_index];
+                beta = beta * sample_medium.throughput;
+
                 var path_radiance = load_aligned(soa.path_radiance + soa_index);
                 var pixel_coord   = load_aligned(soa.pixel_coord + soa_index);
                 var depth         = soa.depth[soa_index];
 
                 // mark this path as scattered
-                soa.inct_inst_launch_index[soa_index].x = inst_id | INST_ID_MEDIUM_MASK;
+                soa.inct_inst_launch_index[thread_index].x = inst_id | INST_ID_MEDIUM_MASK;
 
                 $if(depth == 0)
                 {
@@ -281,6 +281,10 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
                     var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
                     soa.output_rng[output_index] = rng;
                 };
+            }
+            $else
+            {
+                tr = sample_medium.throughput;
             };
 
             $return();
