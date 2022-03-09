@@ -383,7 +383,13 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
 
             save_aligned(beta_li, soa_params.output_shadow_beta_li + shadow_soa_index);
 
-            $if(dot(inct.frame.z, shadow_d) > 0)
+            var shadow_d_out = dot(inct.frame.z, shadow_d) > 0;
+            var last_ray_out = dot(inct.frame.z, ray_d) < 0;
+            $if(shadow_d_out == last_ray_out)
+            {
+                soa_params.output_shadow_ray_medium_id[shadow_soa_index] = medium_id;
+            }
+            $elif(shadow_d_out)
             {
                 soa_params.output_shadow_ray_medium_id[shadow_soa_index] = instance.outer_medium_id;
             }
@@ -443,16 +449,15 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
 
             var stored_pdf = cstd::select(is_bsdf_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
             soa_params.output_bsdf_pdf[output_index] = stored_pdf;
-
-            soa_params.output_new_ray_medium_id[output_index] = medium_id;
-
-            $if(dot(inct.frame.z, next_ray_d) > 0)
+            
+            var next_ray_out = dot(inct.frame.z, next_ray_d) > 0;
+            $if(next_ray_out)
             {
-                soa_params.output_shadow_ray_medium_id[output_index] = instance.outer_medium_id;
+                soa_params.output_new_ray_medium_id[output_index] = instance.outer_medium_id;
             }
             $else
             {
-                soa_params.output_shadow_ray_medium_id[output_index] = instance.inner_medium_id;
+                soa_params.output_new_ray_medium_id[output_index] = instance.inner_medium_id;
             };
         }
         $else

@@ -58,7 +58,16 @@ namespace
             var beta = load_aligned(launch_params.beta_li + launch_idx);
             var rng = launch_params.rng[launch_idx];
 
-            var medium_id = launch_params.ray_medium_id[launch_idx];
+            CMediumID medium_id;
+            $if(optix::get_ray_tmax() == btrc_max_float)
+            {
+                medium_id = MEDIUM_ID_VOID;
+            }
+            $else
+            {
+                medium_id = launch_params.ray_medium_id[launch_idx];
+            };
+
             $if(medium_id != MEDIUM_ID_VOID)
             {
                 var tr = CSpectrum::one();
