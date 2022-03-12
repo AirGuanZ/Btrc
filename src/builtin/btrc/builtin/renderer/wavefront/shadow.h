@@ -18,10 +18,9 @@ namespace shadow_pipeline_detail
         OptixTraversableHandle handle;
 
         Vec2f      *pixel_coord;
-        Vec4f      *ray_o_t0;
+        Vec4f      *ray_o_medium_id;
         Vec4f      *ray_d_t1;
         Vec2u      *ray_time_mask;
-        uint32_t   *ray_medium_id;
         Spectrum   *beta_li;
         CRNG::Data *rng;
     };
@@ -31,10 +30,9 @@ namespace shadow_pipeline_detail
         LaunchParams,
         handle,
         pixel_coord,
-        ray_o_t0,
+        ray_o_medium_id,
         ray_d_t1,
         ray_time_mask,
-        ray_medium_id,
         beta_li,
         rng);
 
@@ -47,10 +45,9 @@ public:
     struct SOAParams
     {
         Vec2f       *pixel_coord;
-        Vec4f       *ray_o_t0;
+        Vec4f       *ray_o_medium_id;
         Vec4f       *ray_d_t1;
         Vec2u       *ray_time_mask;
-        uint32_t    *ray_medium_id;
         Spectrum    *beta_li;
         CRNG ::Data *rng;
     };

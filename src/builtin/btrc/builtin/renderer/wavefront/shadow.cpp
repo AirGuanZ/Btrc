@@ -30,21 +30,21 @@ namespace
 
             CUJ_ASSERT(bitcast<u64>(launch_params.ray_d_t1) != 0);
 
-            var o_t0 = load_aligned(launch_params.ray_o_t0 + launch_idx);
+            var o_medium_id = load_aligned(launch_params.ray_o_medium_id + launch_idx);
             var d_t1 = load_aligned(launch_params.ray_d_t1 + launch_idx);
             var time_mask = load_aligned(launch_params.ray_time_mask + launch_idx);
 
-            var o = o_t0.xyz();
+            var o = o_medium_id.xyz();
             var d = d_t1.xyz();
-            var t0 = o_t0.w;
+            var medium_id = bitcast<CMediumID>(o_medium_id.w);
             var t1 = d_t1.w;
             var time = bitcast<f32>(time_mask.x);
             var mask = time_mask.y;
 
             optix::trace(
                 launch_params.handle,
-                o, d, t0, t1, time, mask,
-                OPTIX_RAY_FLAG_NONE, 0, 1, 0, launch_idx);
+                o, d, 0, t1, time, mask,
+                OPTIX_RAY_FLAG_NONE, 0, 1, 0, launch_idx, medium_id);
         });
 
         kernel(
@@ -58,22 +58,15 @@ namespace
             var beta = load_aligned(launch_params.beta_li + launch_idx);
             var rng = launch_params.rng[launch_idx];
 
-            CMediumID medium_id;
-            $if(optix::get_ray_tmax() == btrc_max_float)
-            {
-                medium_id = MEDIUM_ID_VOID;
-            }
-            $else
-            {
-                medium_id = launch_params.ray_medium_id[launch_idx];
-            };
-
-            $if(medium_id != MEDIUM_ID_VOID)
+            CMediumID medium_id = optix::get_payload(1);
+            $if(optix::get_ray_tmax() != btrc_max_float & medium_id != MEDIUM_ID_VOID)
             {
                 var tr = CSpectrum::one();
                 var ray_o = optix::get_ray_o();
                 var ray_d = optix::get_ray_d();
                 var ray_t1 = optix::get_ray_tmax();
+
+                var end_pnt = ray_o + ray_d * ray_t1;
 
                 $switch(medium_id)
                 {
@@ -81,7 +74,7 @@ namespace
                     {
                         $case(i)
                         {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, ray_o + ray_d * ray_t1, rng);
+                            tr = scene.get_medium(i)->tr(cc, ray_o, end_pnt, ray_o, end_pnt, rng);
                         };
                     }
                     $default
@@ -132,7 +125,7 @@ ShadowPipeline::ShadowPipeline(
             .closesthit_name    = CLOSESTHIT_SHADOW_NAME
         },
         optix::SimpleOptixPipeline::Config{
-            .payload_count     = 1,
+            .payload_count     = 2,
             .traversable_depth = traversable_depth,
             .motion_blur       = motion_blur,
             .triangle_only     = triangle_only
@@ -169,14 +162,13 @@ void ShadowPipeline::test(
     const SOAParams &soa_params) const
 {
     const LaunchParams launch_params = {
-        .handle        = handle,
-        .pixel_coord   = soa_params.pixel_coord,
-        .ray_o_t0      = soa_params.ray_o_t0,
-        .ray_d_t1      = soa_params.ray_d_t1,
-        .ray_time_mask = soa_params.ray_time_mask,
-        .ray_medium_id = soa_params.ray_medium_id,
-        .beta_li       = soa_params.beta_li,
-        .rng           = soa_params.rng
+        .handle          = handle,
+        .pixel_coord     = soa_params.pixel_coord,
+        .ray_o_medium_id = soa_params.ray_o_medium_id,
+        .ray_d_t1        = soa_params.ray_d_t1,
+        .ray_time_mask   = soa_params.ray_time_mask,
+        .beta_li         = soa_params.beta_li,
+        .rng             = soa_params.rng
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(

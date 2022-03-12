@@ -37,33 +37,30 @@ namespace medium_pipeline_detail
         // last ray
         // resolved medium id will always be stored
 
-        Vec4f    *ray_o_t0;
+        Vec4f    *ray_o_medium_id;
         Vec4f    *ray_d_t1;
         Vec2u    *ray_time_mask;
-        uint32_t *ray_medium_id;
 
         // output only when scattered
         // and mark original inst_id with INST_ID_MEDIUM_MASK
 
         CRNG::Data *output_rng;
-        Spectrum  *output_path_radiance;
-        Vec2f     *output_pixel_coord;
-        int32_t   *output_depth;
-        Spectrum  *output_beta;
+        Spectrum   *output_path_radiance;
+        Vec2f      *output_pixel_coord;
+        int32_t    *output_depth;
+        Spectrum   *output_beta;
         
         Vec2f    *output_shadow_pixel_coord;
-        Vec4f    *output_shadow_ray_o_t0;
+        Vec4f    *output_shadow_ray_o_medium_id;
         Vec4f    *output_shadow_ray_d_t1;
         Vec2u    *output_shadow_ray_time_mask;
         Spectrum *output_shadow_beta_li;
-        uint32_t *output_shadow_medium_id;
 
         // for next ray
 
-        Vec4f    *output_new_ray_o_t0;
+        Vec4f    *output_new_ray_o_medium_id;
         Vec4f    *output_new_ray_d_t1;
         Vec2u    *output_new_ray_time_mask;
-        uint32_t *output_new_ray_medium_id;
 
         Spectrum *output_beta_le;
         float    *output_bsdf_pdf;
@@ -79,25 +76,22 @@ namespace medium_pipeline_detail
         beta_le,
         inct_inst_launch_index,
         inct_t_prim_uv,
-        ray_o_t0,
+        ray_o_medium_id,
         ray_d_t1,
         ray_time_mask,
-        ray_medium_id,
         output_rng,
         output_path_radiance,
         output_pixel_coord,
         output_depth,
         output_beta,
         output_shadow_pixel_coord,
-        output_shadow_ray_o_t0,
+        output_shadow_ray_o_medium_id,
         output_shadow_ray_d_t1,
         output_shadow_ray_time_mask,
         output_shadow_beta_li,
-        output_shadow_medium_id,
-        output_new_ray_o_t0,
+        output_new_ray_o_medium_id,
         output_new_ray_d_t1,
         output_new_ray_time_mask,
-        output_new_ray_medium_id,
         output_beta_le,
         output_bsdf_pdf);
 

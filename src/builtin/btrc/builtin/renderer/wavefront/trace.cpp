@@ -44,20 +44,19 @@ namespace
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_launch_index_x();
 
-            var o_t0 = load_aligned(launch_params.ray_o_t0 + launch_idx);
+            var o_medium_id = load_aligned(launch_params.ray_o_medium_id + launch_idx);
             var d_t1 = load_aligned(launch_params.ray_d_t1 + launch_idx);
             var time_mask = load_aligned(launch_params.ray_time_mask + launch_idx);
 
-            var o = o_t0.xyz();
+            var o = o_medium_id.xyz();
             var d = d_t1.xyz();
-            var t0 = o_t0.w;
             var t1 = d_t1.w;
             var time = bitcast<f32>(time_mask.x);
             var mask = time_mask.y;
 
             optix::trace(
                 launch_params.handle,
-                o, d, t0, t1, time, mask, OPTIX_RAY_FLAG_NONE,
+                o, d, 0, t1, time, mask, OPTIX_RAY_FLAG_NONE,
                 0, 1, 0, launch_idx);
         });
 
@@ -144,7 +143,7 @@ void TracePipeline::trace(
 {
     const LaunchParams launch_params = {
         .handle                 = handle,
-        .ray_o_t0               = soa_params.ray_o_t0,
+        .ray_o_medium_id        = soa_params.ray_o_medium_id,
         .ray_d_t1               = soa_params.ray_d_t1,
         .ray_time_mask          = soa_params.ray_time_mask,
         .inct_inst_launch_index = soa_params.inct_inst_launch_index,

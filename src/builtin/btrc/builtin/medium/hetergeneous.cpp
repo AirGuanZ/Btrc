@@ -9,11 +9,6 @@ void HetergeneousMedium::set_priority(float priority)
     set_recompile();
 }
 
-void HetergeneousMedium::set_world_to_local(const Transform &transform)
-{
-    world_to_local_ = transform;
-}
-
 void HetergeneousMedium::set_sigma_t(RC<Texture3D> sigma_t)
 {
     sigma_t_ = std::move(sigma_t);
@@ -29,13 +24,20 @@ void HetergeneousMedium::set_g(RC<Texture3D> g)
     g_ = std::move(g);
 }
 
-Medium::SampleResult HetergeneousMedium::sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+Medium::SampleResult HetergeneousMedium::sample(
+    CompileContext &cc,
+    ref<CVec3f>     a,
+    ref<CVec3f>     b,
+    ref<CVec3f>     uvw_a,
+    ref<CVec3f>     uvw_b,
+    ref<CRNG>       rng) const
 {
     var t_max = length(b - a), t = 0.0f;
-    var inv_max_density = 1.0f / sigma_t_->get_max_float(cc);
+    var max_density = cstd::max(sigma_t_->get_max_float(cc), 0.001f);
+    var inv_max_density = 1.0f / max_density;
     
-    var local_a = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(a);
-    var local_b = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(b);
+    var local_a = CVec3f(0.5f) + 0.5f * uvw_a;
+    var local_b = CVec3f(0.5f) + 0.5f * uvw_b;
 
     SampleResult result;
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
@@ -70,13 +72,20 @@ Medium::SampleResult HetergeneousMedium::sample(CompileContext &cc, ref<CVec3f> 
     return result;
 }
 
-CSpectrum HetergeneousMedium::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+CSpectrum HetergeneousMedium::tr(
+    CompileContext &cc,
+    ref<CVec3f>     a,
+    ref<CVec3f>     b,
+    ref<CVec3f>     uvw_a,
+    ref<CVec3f>     uvw_b,
+    ref<CRNG>       rng) const
 {
     var result = 1.0f, t = 0.0f, t_max = length(b - a);
-    var inv_max_density = 1.0f / sigma_t_->get_max_float(cc);
+    var max_density = cstd::max(sigma_t_->get_max_float(cc), 0.001f);
+    var inv_max_density = 1.0f / max_density;
 
-    var local_a = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(a);
-    var local_b = CVec3f(0.5f) + 0.5f * world_to_local_.read(cc).apply_to_point(b);
+    var local_a = CVec3f(0.5f) + 0.5f * uvw_a;
+    var local_b = CVec3f(0.5f) + 0.5f * uvw_b;
 
     $loop
     {
@@ -104,13 +113,6 @@ float HetergeneousMedium::get_priority() const
 RC<Medium> HetergeneousMediumCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
     const auto priority = node->parse_child_or("priority", 0.0f);
-    
-    Transform world_to_local;
-    if(auto tnode = node->find_child_node("world_to_local"))
-        world_to_local = tnode->parse<Transform>();
-    else if(tnode = node->find_child_node("local_to_world"); tnode)
-        world_to_local = tnode->parse<Transform>().inverse();
-
     auto sigma_t = context.create<Texture3D>(node->child_node("sigma_t"));
     auto albedo = context.create<Texture3D>(node->child_node("albedo"));
 
@@ -126,7 +128,6 @@ RC<Medium> HetergeneousMediumCreator::create(RC<const factory::Node> node, facto
 
     auto result = newRC<HetergeneousMedium>();
     result->set_priority(priority);
-    result->set_world_to_local(world_to_local);
     result->set_sigma_t(std::move(sigma_t));
     result->set_albedo(std::move(albedo));
     result->set_g(std::move(g));

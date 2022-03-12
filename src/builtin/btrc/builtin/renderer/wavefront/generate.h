@@ -15,10 +15,9 @@ namespace generate_pipeline_detail
     {
         CRNG::Data *rng;
         Vec2f      *output_pixel_coord;
-        Vec4f      *output_ray_o_t0;
+        Vec4f      *output_ray_o_medium_id;
         Vec4f      *output_ray_d_t1;
         Vec2u      *output_ray_time_mask;
-        uint32_t   *output_ray_medium_id;
         Spectrum   *output_beta;
         Spectrum   *output_beta_le;
         float      *output_bsdf_pdf;
@@ -31,10 +30,9 @@ namespace generate_pipeline_detail
         SOAParams,
         rng,
         output_pixel_coord,
-        output_ray_o_t0,
+        output_ray_o_medium_id,
         output_ray_d_t1,
         output_ray_time_mask,
-        output_ray_medium_id,
         output_beta,
         output_beta_le,
         output_bsdf_pdf,

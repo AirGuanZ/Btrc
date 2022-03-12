@@ -14,7 +14,7 @@ namespace trace_pipeline_detail
 
     struct SOAParams
     {
-        Vec4f *ray_o_t0;
+        Vec4f *ray_o_medium_id;
         Vec4f *ray_d_t1;
         Vec2u *ray_time_mask;
 
@@ -28,7 +28,7 @@ namespace trace_pipeline_detail
 
         // ray
 
-        Vec4f *ray_o_t0;
+        Vec4f *ray_o_medium_id;
         Vec4f *ray_d_t1;
         Vec2u *ray_time_mask;
 
@@ -40,7 +40,7 @@ namespace trace_pipeline_detail
 
     CUJ_PROXY_CLASS(
         CLaunchParams, LaunchParams,
-        handle, ray_o_t0, ray_d_t1, ray_time_mask, inct_inst_launch_index, inct_t_prim_uv);
+        handle, ray_o_medium_id, ray_d_t1, ray_time_mask, inct_inst_launch_index, inct_t_prim_uv);
 
 } // namespace trace_pipeline_detail
 

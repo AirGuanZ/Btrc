@@ -62,8 +62,8 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
             sample_we_result.pos.x,
             sample_we_result.pos.y,
             sample_we_result.pos.z,
-            0.0f);
-        save_aligned(o_t0, soa_params.output_ray_o_t0 + state_index);
+            bitcast<f32>(CMediumID(MEDIUM_ID_VOID)));
+        save_aligned(o_t0, soa_params.output_ray_o_medium_id + state_index);
 
         var d_t1 = CVec4f(
             sample_we_result.dir.x,
@@ -81,8 +81,6 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         save_aligned(sample_we_result.throughput, soa_params.output_beta + state_index);
         save_aligned(sample_we_result.throughput, soa_params.output_beta_le + state_index);
         save_aligned(CSpectrum::zero(), soa_params.output_path_radiance + state_index);
-
-        soa_params.output_ray_medium_id[state_index] = MEDIUM_ID_VOID;
     });
 }
 

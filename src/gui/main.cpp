@@ -45,7 +45,7 @@ struct Rect2D
     Vec2f upper;
 };
 
-BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context)
+BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context, bool offline)
 {
     BtrcScene result;
 
@@ -96,7 +96,7 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
 
     if(dag.need_recompile())
     {
-        result.renderer->recompile(false);
+        result.renderer->recompile(offline);
         dag.clear_recompile_flag();
     }
 
@@ -154,16 +154,14 @@ void run(const std::string &config_filename)
     optix::Context optix_context(nullptr);
     ScopedPropertyPool property_pool;
 
-    auto scene = initialize_btrc_scene(config_filename, optix_context);
+    bool offline_mode = false;
+    auto scene = initialize_btrc_scene(config_filename, optix_context, offline_mode);
 
     Window window("BtrcGUI", 1024, 768);
 
     auto reporter = newRC<GUIPreviewer>();
     reporter->set_preview_interval(0);
     reporter->set_fast_preview(true);
-
-    scene.renderer->set_reporter(reporter);
-    scene.renderer->render_async();
 
     GLuint tex_handle = 0;
     glCreateTextures(GL_TEXTURE_2D, 1, &tex_handle);
@@ -186,6 +184,13 @@ void run(const std::string &config_filename)
                 GL_RGBA, GL_FLOAT, image.data());
         }
     };
+
+    scene.renderer->set_reporter(reporter);
+    scene.renderer->render_async();
+
+    using Clock = std::chrono::steady_clock;
+    auto start_render_time = Clock::now();
+    bool print_render_time = false;
 
     while(!window.should_close())
     {
@@ -233,6 +238,35 @@ void run(const std::string &config_filename)
                 }
                 else
                     open_still_rendering_window = true;
+            }
+
+            if(ImGui::MenuItem(offline_mode ? "Online" : "Offline"))
+            {
+                offline_mode = !offline_mode;
+
+                if(scene.renderer->is_waitable())
+                    scene.renderer->stop_async();
+
+                ObjectDAG dag(scene.renderer);
+                scene.scene->clear_device_data();
+
+                scene.scene->precommit();
+                dag.commit();
+                scene.scene->postcommit();
+
+                scene.renderer->recompile(offline_mode);
+                dag.clear_recompile_flag();
+
+                dag.update_properties();
+
+                reporter->progress(0);
+                reporter->set_preview_interval(0);
+                reporter->set_fast_preview(true);
+
+                updated_image_count = 0;
+                scene.renderer->render_async();
+                start_render_time = Clock::now();
+                print_render_time = false;
             }
 
             if(ImGui::BeginMenu("Camera"))
@@ -287,7 +321,7 @@ void run(const std::string &config_filename)
                     scene.renderer->stop_async();
 
                 ObjectDAG dag(scene.renderer);
-                const bool need_recompile = dag.need_recompile();
+                const bool need_recompile = offline_mode || dag.need_recompile();
 
                 if(need_recompile)
                     scene.scene->clear_device_data();
@@ -298,7 +332,7 @@ void run(const std::string &config_filename)
 
                 if(need_recompile)
                 {
-                    scene.renderer->recompile(false);
+                    scene.renderer->recompile(offline_mode);
                     dag.clear_recompile_flag();
                 }
 
@@ -310,6 +344,8 @@ void run(const std::string &config_filename)
 
                 updated_image_count = 0;
                 scene.renderer->render_async();
+                start_render_time = Clock::now();
+                print_render_time = false;
             }
             else if(updated_image_count == MIN_UPDATED_IMAGE_COUNT)
             {
@@ -348,6 +384,15 @@ void run(const std::string &config_filename)
                 display_image(tex_handle, display_rect);
             }
             ImGui::End();
+        }
+
+        if(!print_render_time && reporter->get_percentage() >= 100)
+        {
+            auto end_render_time = Clock::now();
+            auto render_time = end_render_time - start_render_time;
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(render_time);
+            std::cout << "render time: " << ms.count() / 1000.0f << "s" << std::endl;
+            print_render_time = true;
         }
 
         window.end_frame();

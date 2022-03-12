@@ -20,10 +20,9 @@ void PathState::initialize(int state_count)
     init(
         state_count,
         rng,
-        o_t0,
+        o_medium_id,
         d_t1,
         time_mask,
-        medium_id,
         beta_le,
         bsdf_pdf,
         beta,
@@ -38,15 +37,13 @@ void PathState::initialize(int state_count)
         next_pixel_coord,
         next_path_radiance,
         shadow_pixel_coord,
-        shadow_o_t0,
+        shadow_o_medium_id,
         shadow_d_t1,
         shadow_time_mask,
         shadow_beta_li,
-        shadow_medium_id,
-        next_o_t0, 
+        next_o_medium_id, 
         next_d_t1,
         next_time_mask,
-        next_medium_id,
         next_beta_le,
         next_bsdf_pdf,
         shadow_rng);
@@ -72,10 +69,9 @@ void PathState::next_iteration()
 {
     rng.swap(next_rng);
 
-    o_t0.swap(next_o_t0);
+    o_medium_id.swap(next_o_medium_id);
     d_t1.swap(next_d_t1);
     time_mask.swap(next_time_mask);
-    medium_id.swap(next_medium_id);
     pixel_coord.swap(next_pixel_coord);
 
     beta.swap(next_beta);

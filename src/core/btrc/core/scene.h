@@ -1,6 +1,5 @@
 #pragma once
 
-#include <btrc/core/camera.h>
 #include <btrc/core/light.h>
 #include <btrc/core/light_sampler.h>
 #include <btrc/core/geometry.h>

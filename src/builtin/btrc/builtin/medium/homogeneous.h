@@ -17,9 +17,21 @@ public:
 
     void set_g(float g);
 
-    SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const override;
+    SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        ref<CVec3f>     uvw_a,
+        ref<CVec3f>     uvw_b,
+        ref<CRNG>       rng) const override;
 
-    CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const override;
+    CSpectrum tr(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        ref<CVec3f>     uvw_a,
+        ref<CVec3f>     uvw_b,
+        ref<CRNG>       rng) const override;
 
     float get_priority() const override;
 

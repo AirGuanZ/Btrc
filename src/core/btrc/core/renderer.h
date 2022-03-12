@@ -3,6 +3,7 @@
 #include <atomic>
 #include <future>
 
+#include <btrc/core/camera.h>
 #include <btrc/core/context.h>
 #include <btrc/core/reporter.h>
 #include <btrc/core/scene.h>

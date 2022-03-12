@@ -56,17 +56,17 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
         var inct_nor = instance.transform.apply_to_vector(local_normal);
 
         var inct_medium_id = cstd::select(dot(ray_d, inct_nor) < 0, instance.outer_medium_id, instance.inner_medium_id);
-        var ray_medium_id = soa.ray_medium_id[soa_index];
+        var ray_o_medium_id = load_aligned(soa.ray_o_medium_id + soa_index);
+        var ray_medium_id = bitcast<CMediumID>(ray_o_medium_id.w);
         var medium_id = resolve_mediums(inct_medium_id, ray_medium_id);
-        soa.ray_medium_id[soa_index] = medium_id;
+        soa.ray_o_medium_id[soa_index].w = bitcast<f32>(medium_id);
 
         $if(medium_id == MEDIUM_ID_VOID)
         {
             $return();
         };
 
-        var ray_o_t0 = load_aligned(soa.ray_o_t0 + soa_index);
-        var ray_o = ray_o_t0.xyz();
+        var ray_o = ray_o_medium_id.xyz();
 
         var inct_t = bitcast<f32>(inct_t_prim_uv.x);
         var inct_pos = intersection_offset(ray_o + inct_t * ray_d, inct_nor, -ray_d);
@@ -79,7 +79,7 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
         var tr = CSpectrum::one();
         auto handle_medium = [&](const Medium *medium)
         {
-            auto sample_medium = medium->sample(cc, ray_o, inct_pos, rng);
+            auto sample_medium = medium->sample(cc, ray_o, inct_pos, ray_o, inct_pos, rng);
 
             $if(sample_medium.scattered)
             {
@@ -195,27 +195,21 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
 
                     var shadow_soa_index = cstd::atomic_add(shadow_ray_counter, 1);
 
+                    var shadow_medium_id = cstd::select(
+                        shadow_t1 > 1, CMediumID(MEDIUM_ID_VOID), CMediumID(medium_id));
+
                     save_aligned(
                         pixel_coord,
                         soa.output_shadow_pixel_coord + shadow_soa_index);
                     save_aligned(
-                        CVec4f(shadow_o, 0),
-                        soa.output_shadow_ray_o_t0 + shadow_soa_index);
+                        CVec4f(shadow_o, bitcast<f32>(shadow_medium_id)),
+                        soa.output_shadow_ray_o_medium_id + shadow_soa_index);
                     save_aligned(
                         CVec4f(shadow_d, shadow_t1),
                         soa.output_shadow_ray_d_t1 + shadow_soa_index);
                     save_aligned(
                         CVec2u(bitcast<u32>(ray_time), optix::RAY_MASK_ALL),
                         soa.output_shadow_ray_time_mask + shadow_soa_index);
-
-                    $if(shadow_t1 > 1)
-                    {
-                        soa.output_shadow_medium_id[shadow_soa_index] = MEDIUM_ID_VOID;
-                    }
-                    $else
-                    {
-                        soa.output_shadow_medium_id[shadow_soa_index] = medium_id;
-                    };
 
                     var beta_li = shadow_li * beta * shadow_phase_val / (shadow_phase_pdf + shadow_light_pdf);
                     save_aligned(
@@ -234,7 +228,6 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
                     beta = beta_le / phase_sample.pdf;
 
                     var next_ray_o      = sample_medium.position;
-                    var next_ray_t0     = 0.0f;
                     var next_ray_d      = phase_sample.dir;
                     var next_ray_t1     = btrc_max_float;
                     var next_ray_time   = ray_time;
@@ -258,16 +251,14 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
                     soa.output_depth[output_soa_index] = depth + 1;
 
                     save_aligned(
-                        CVec4f(next_ray_o, next_ray_t0),
-                        soa.output_new_ray_o_t0 + output_soa_index);
+                        CVec4f(next_ray_o, bitcast<f32>(next_ray_medium)),
+                        soa.output_new_ray_o_medium_id + output_soa_index);
                     save_aligned(
                         CVec4f(next_ray_d, next_ray_t1),
                         soa.output_new_ray_d_t1 + output_soa_index);
                     save_aligned(
                         CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
                         soa.output_new_ray_time_mask + output_soa_index);
-
-                    soa.output_new_ray_medium_id[output_soa_index] = next_ray_medium;
 
                     save_aligned(
                         beta_le,

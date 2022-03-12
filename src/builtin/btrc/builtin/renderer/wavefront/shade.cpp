@@ -136,7 +136,9 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
             inst_id = inst_id & ~INST_ID_MEDIUM_MASK;
         };
 
-        var ray_o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_t0 + soa_index));
+        var ray_o_medium_id = load_aligned(soa_params.ray_o_medium_id + soa_index);
+        var ray_o = ray_o_medium_id.xyz();
+        var medium_id = bitcast<CMediumID>(ray_o_medium_id.w);
         var ray_d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
         var ray_time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
 
@@ -148,8 +150,6 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
         ref instance = instances[inst_id];
         ref geometry = geometries[instance.geometry_id];
         var inct = get_intersection(inct_t, ray_o, ray_d, instance, geometry, prim_id, uv);
-
-        var medium_id = soa_params.ray_medium_id[soa_index];
 
         // handle intersected light
 
@@ -173,7 +173,7 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
                     {
                         $case(i)
                         {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position, rng);
+                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position, ray_o, inct.position, rng);
                         };
                     }
                     $default
@@ -364,12 +364,28 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
         {
             var shadow_soa_index = cstd::atomic_add(shadow_ray_counter, 1);
 
+            CMediumID shadow_medium_id;
+            var shadow_d_out = dot(inct.frame.z, shadow_d) > 0;
+            var last_ray_out = dot(inct.frame.z, ray_d) < 0;
+            $if(shadow_d_out == last_ray_out)
+            {
+                shadow_medium_id = medium_id;
+            }
+            $elif(shadow_d_out)
+            {
+                shadow_medium_id = instance.outer_medium_id;
+            }
+            $else
+            {
+                shadow_medium_id = instance.inner_medium_id;
+            };
+
             save_aligned(
                 pixel_coord,
                 soa_params.output_shadow_pixel_coord + shadow_soa_index);
             save_aligned(
-                CVec4f(shadow_o, 0),
-                soa_params.output_shadow_ray_o_t0 + shadow_soa_index);
+                CVec4f(shadow_o, bitcast<f32>(shadow_medium_id)),
+                soa_params.output_shadow_ray_o_medium_id + shadow_soa_index);
             save_aligned(
                 CVec4f(shadow_d, shadow_t1),
                 soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
@@ -382,21 +398,6 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
             var beta_li = li * beta * shadow_bsdf_val * cos / (shadow_bsdf_pdf + light_pdf);
 
             save_aligned(beta_li, soa_params.output_shadow_beta_li + shadow_soa_index);
-
-            var shadow_d_out = dot(inct.frame.z, shadow_d) > 0;
-            var last_ray_out = dot(inct.frame.z, ray_d) < 0;
-            $if(shadow_d_out == last_ray_out)
-            {
-                soa_params.output_shadow_ray_medium_id[shadow_soa_index] = medium_id;
-            }
-            $elif(shadow_d_out)
-            {
-                soa_params.output_shadow_ray_medium_id[shadow_soa_index] = instance.outer_medium_id;
-            }
-            $else
-            {
-                soa_params.output_shadow_ray_medium_id[shadow_soa_index] = instance.inner_medium_id;
-            };
         };
 
         $if(depth == 0)
@@ -420,7 +421,6 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
             beta = beta_le / bsdf_sample.pdf;
 
             var next_ray_o    = intersection_offset(inct.position, inct.frame.z, bsdf_sample.dir);
-            var next_ray_t0   = 0.0f;
             var next_ray_d    = bsdf_sample.dir;
             var next_ray_t1   = btrc_max_float;
             var next_ray_time = ray_time;
@@ -435,9 +435,13 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
             save_aligned(path_radiance, soa_params.output_path_radiance + output_index);
             save_aligned(beta, soa_params.output_beta + output_index);
 
+            var next_ray_out = dot(inct.frame.z, next_ray_d) > 0;
+            var next_ray_medium_id = cstd::select(
+                next_ray_out, instance.outer_medium_id, instance.inner_medium_id);
+
             save_aligned(
-                CVec4f(next_ray_o, next_ray_t0),
-                soa_params.output_new_ray_o_t0 + output_index);
+                CVec4f(next_ray_o, bitcast<f32>(next_ray_medium_id)),
+                soa_params.output_new_ray_o_medium_id + output_index);
             save_aligned(
                 CVec4f(next_ray_d, next_ray_t1),
                 soa_params.output_new_ray_d_t1 + output_index);
@@ -450,15 +454,6 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
             var stored_pdf = cstd::select(is_bsdf_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
             soa_params.output_bsdf_pdf[output_index] = stored_pdf;
             
-            var next_ray_out = dot(inct.frame.z, next_ray_d) > 0;
-            $if(next_ray_out)
-            {
-                soa_params.output_new_ray_medium_id[output_index] = instance.outer_medium_id;
-            }
-            $else
-            {
-                soa_params.output_new_ray_medium_id[output_index] = instance.inner_medium_id;
-            };
         }
         $else
         {
@@ -546,7 +541,7 @@ void ShadePipeline::handle_miss(
         }
         $else
         {
-            var o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_t0 + soa_index));
+            var o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_medium_id + soa_index));
             var d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
 
             var select_light_pdf = light_sampler->pdf(

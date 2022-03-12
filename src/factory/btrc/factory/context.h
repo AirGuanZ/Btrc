@@ -135,6 +135,27 @@ public:
     }
 };
 
+class TransformMediumCreator : public Creator<Medium>
+{
+public:
+
+    std::string get_name() const override { return "transform"; }
+
+    RC<Medium> create(RC<const Node> node, Context &context) override
+    {
+        Transform world_to_local;
+        if(auto tnode = node->find_child_node("world_to_local"))
+            world_to_local = tnode->parse<Transform>();
+        else
+            world_to_local = node->parse_child<Transform>("local_to_world").inverse();
+        auto transformed = context.create<Medium>(node->child_node("medium"));
+        auto result = newRC<TransformMedium>();
+        result->set_transform(world_to_local);
+        result->set_tranformed(std::move(transformed));
+        return result;
+    }
+};
+
 template<typename T>
 void Factory<T>::add_creator(Box<Creator<T>> creator)
 {
@@ -163,6 +184,7 @@ inline Context::Context(optix::Context &optix_ctx)
 {
     std::get<Factory<Texture2D>>(factorys_).add_creator(newBox<Constant2DCreator>());
     std::get<Factory<Texture3D>>(factorys_).add_creator(newBox<Constant3DCreator>());
+    std::get<Factory<Medium>>(factorys_).add_creator(newBox<TransformMediumCreator>());
 }
 
 template<typename T>

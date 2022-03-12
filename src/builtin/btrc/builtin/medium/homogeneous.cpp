@@ -24,7 +24,13 @@ void HomogeneousMedium::set_g(float g)
     g_ = g;
 }
 
-Medium::SampleResult HomogeneousMedium::sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+Medium::SampleResult HomogeneousMedium::sample(
+    CompileContext &cc,
+    ref<CVec3f>     a,
+    ref<CVec3f>     b,
+    ref<CVec3f>     uvw_a,
+    ref<CVec3f>     uvw_b,
+    ref<CRNG>       rng) const
 {
     SampleResult result;
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
@@ -52,7 +58,13 @@ Medium::SampleResult HomogeneousMedium::sample(CompileContext &cc, ref<CVec3f> a
     return result;
 }
 
-CSpectrum HomogeneousMedium::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+CSpectrum HomogeneousMedium::tr(
+    CompileContext &cc,
+    ref<CVec3f>     a,
+    ref<CVec3f>     b,
+    ref<CVec3f>     uvw_a,
+    ref<CVec3f>     uvw_b,
+    ref<CRNG>       rng) const
 {
     var sigma_t = sigma_t_.read(cc);
     var albedo = albedo_.read(cc);

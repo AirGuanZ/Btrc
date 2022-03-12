@@ -53,11 +53,55 @@ public:
         RC<PhaseShader> shader;
     };
 
-    virtual SampleResult sample(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const = 0;
+    virtual SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        ref<CVec3f>     uvw_a,
+        ref<CVec3f>     uvw_b,
+        ref<CRNG>       rng) const = 0;
 
-    virtual CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const = 0;
+    virtual CSpectrum tr(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        ref<CVec3f>     uvw_a,
+        ref<CVec3f>     uvw_b,
+        ref<CRNG>       rng) const = 0;
 
     virtual float get_priority() const = 0;
+};
+
+class TransformMedium : public Medium
+{
+public:
+
+    void set_tranformed(RC<Medium> transformed);
+
+    void set_transform(const Transform &world_to_local);
+
+    SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        ref<CVec3f>     uvw_a,
+        ref<CVec3f>     uvw_b,
+        ref<CRNG>       rng) const override;
+
+    CSpectrum tr(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        ref<CVec3f>     uvw_a,
+        ref<CVec3f>     uvw_b,
+        ref<CRNG>       rng) const override;
+
+    float get_priority() const override;
+
+private:
+    
+    BTRC_PROPERTY(Transform, world_to_local_);
+    BTRC_OBJECT(Medium, transformed_);
 };
 
 BTRC_END
