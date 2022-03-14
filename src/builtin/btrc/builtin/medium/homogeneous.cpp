@@ -45,9 +45,10 @@ Medium::SampleResult HomogeneousMedium::sample(
     {
         var t = st / t_max;
         result.scattered = true;
-        result.throughput = albedo_.read(cc);
+        result.throughput = CSpectrum::one();
         result.position = a * (1.0f - t) + b * t;
         shader->set_g(g_.read(cc));
+        shader->set_color(albedo_.read(cc));
     }
     $else
     {

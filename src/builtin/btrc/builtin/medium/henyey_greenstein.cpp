@@ -30,9 +30,15 @@ void HenyeyGreensteinPhaseShader::set_g(f32 g)
     g_ = g;
 }
 
+void HenyeyGreensteinPhaseShader::set_color(ref<CSpectrum> color)
+{
+    color_ = color;
+}
+
 PhaseShader::SampleResult HenyeyGreensteinPhaseShader::sample(CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam) const
 {
-    static auto sample_func = cuj::function_contextless([](f32 g, ref<CVec3f> wo, ref<CVec3f> sam)
+    static auto sample_func = cuj::function_contextless([](
+        f32 g, ref<CSpectrum> color, ref<CVec3f> wo, ref<CVec3f> sam)
     {
         var s = sam.x + sam.x - 1;
         f32 u;
@@ -54,13 +60,13 @@ PhaseShader::SampleResult HenyeyGreensteinPhaseShader::sample(CompileContext &cc
         var phase_val = henyey_greenstein(g, u);
 
         SampleResult result;
-        result.phase = CSpectrum::from_rgb(phase_val, phase_val, phase_val);
+        result.phase = color * CSpectrum::from_rgb(phase_val, phase_val, phase_val);
         result.dir = CFrame::from_z(wo).local_to_global(local_wi);
         result.pdf = phase_val;
 
         return result;
     });
-    return sample_func(g_, wo, sam);
+    return sample_func(g_, color_, wo, sam);
 }
 
 CSpectrum HenyeyGreensteinPhaseShader::eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const
@@ -72,7 +78,7 @@ CSpectrum HenyeyGreensteinPhaseShader::eval(CompileContext &cc, ref<CVec3f> wi, 
         var f = henyey_greenstein(g, u);
         return CSpectrum::from_rgb(f, f, f);
     });
-    return eval_func(g_, wi, wo);
+    return color_ * eval_func(g_, wi, wo);
 }
 
 f32 HenyeyGreensteinPhaseShader::pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const

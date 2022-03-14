@@ -16,6 +16,8 @@ struct Transform
     std::array<float, 12> to_transform_matrix() const;
 
     Transform inverse() const;
+
+    Vec3f apply_to_point(const Vec3f &p) const;
 };
 
 BTRC_END

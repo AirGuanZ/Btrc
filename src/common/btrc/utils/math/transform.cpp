@@ -46,4 +46,9 @@ Transform Transform::inverse() const
     };
 }
 
+Vec3f Transform::apply_to_point(const Vec3f &p) const
+{
+    return rotate.apply_to_vector(scale * p) + translate;
+}
+
 BTRC_END

@@ -63,8 +63,9 @@ Medium::SampleResult HetergeneousMedium::sample(
             var g = g_->sample_float(cc, uvw);
             result.scattered = true;
             result.position = a * (1.0f - tf) + b * tf;
-            result.throughput = albedo;
+            result.throughput = CSpectrum::one();
             shader->set_g(g);
+            shader->set_color(albedo);
             $break;
         };
     };

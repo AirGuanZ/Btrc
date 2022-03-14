@@ -45,6 +45,27 @@ struct Rect2D
     Vec2f upper;
 };
 
+void prepare_scene(const RC<Renderer> &renderer, const RC<Scene> &scene, bool offline, bool force_recompile = false)
+{
+    ObjectDAG dag(renderer);
+
+    const bool need_recompile = dag.need_recompile() || force_recompile;
+    if(need_recompile)
+        scene->clear_device_data();
+
+    scene->precommit();
+    dag.commit();
+    scene->postcommit();
+
+    if(need_recompile)
+    {
+        renderer->recompile(offline);
+        dag.clear_recompile_flag();
+    }
+
+    dag.update_properties();
+}
+
 BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context, bool offline)
 {
     BtrcScene result;
@@ -84,25 +105,9 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
     result.renderer->set_film(result.width, result.height);
     result.renderer->set_scene(result.scene);
 
-    std::cout << "commit objects" << std::endl;
-
-    ObjectDAG dag(result.renderer);
-
-    result.scene->precommit();
-    dag.commit();
-    result.scene->postcommit();
-
     std::cout << "compile kernel" << std::endl;
 
-    if(dag.need_recompile())
-    {
-        result.renderer->recompile(offline);
-        dag.clear_recompile_flag();
-    }
-
-    std::cout << "update properties" << std::endl;
-
-    dag.update_properties();
+    prepare_scene(result.renderer, result.scene, offline);
 
     return result;
 }
@@ -146,6 +151,26 @@ void display_image(GLuint tex_handle, const Rect2D &rect)
     const auto im_tex = reinterpret_cast<ImTextureID>(static_cast<size_t>(tex_handle));
     ImGui::SetCursorPos({ rect.lower.x, rect.lower.y });
     ImGui::Image(im_tex, ImVec2({ rect.upper.x - rect.lower.x, rect.upper.y - rect.lower.y }));
+}
+
+void save_images(const Renderer::RenderResult &result, const RC<factory::Node> &root)
+{
+    const auto value_filename = root->parse_child_or<std::string>("value_filename", "output.exr");
+    std::cout << "write value to " << value_filename << std::endl;
+    result.value.save(value_filename);
+
+    if(result.albedo)
+    {
+        const auto albedo_filename = root->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
+        std::cout << "write albedo to " << albedo_filename << std::endl;
+        result.albedo.save(albedo_filename);
+    }
+    if(result.normal)
+    {
+        const auto normal_filename = root->parse_child_or<std::string>("normal_filename", "output_normal.png");
+        std::cout << "write normal to " << normal_filename << std::endl;
+        result.normal.save(normal_filename);
+    }
 }
 
 void run(const std::string &config_filename)
@@ -192,6 +217,18 @@ void run(const std::string &config_filename)
     auto start_render_time = Clock::now();
     bool print_render_time = false;
 
+    auto restart_render = [&]
+    {
+        reporter->progress(0);
+        reporter->set_preview_interval(0);
+        reporter->set_fast_preview(true);
+
+        updated_image_count = 0;
+        scene.renderer->render_async();
+        start_render_time = Clock::now();
+        print_render_time = false;
+    };
+
     while(!window.should_close())
     {
         window.begin_frame();
@@ -217,23 +254,7 @@ void run(const std::string &config_filename)
                     if(scene.renderer->is_waitable())
                     {
                         auto result = scene.renderer->wait_async();
-
-                        const auto value_filename = scene.root->parse_child_or<std::string>("value_filename", "output.exr");
-                        std::cout << "write value to " << value_filename << std::endl;
-                        result.value.save(value_filename);
-
-                        if(result.albedo)
-                        {
-                            const auto albedo_filename = scene.root->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
-                            std::cout << "write albedo to " << albedo_filename << std::endl;
-                            result.albedo.save(albedo_filename);
-                        }
-                        if(result.normal)
-                        {
-                            const auto normal_filename = scene.root->parse_child_or<std::string>("normal_filename", "output_normal.png");
-                            std::cout << "write normal to " << normal_filename << std::endl;
-                            result.normal.save(normal_filename);
-                        }
+                        save_images(result, scene.root);
                     }
                 }
                 else
@@ -247,26 +268,9 @@ void run(const std::string &config_filename)
                 if(scene.renderer->is_waitable())
                     scene.renderer->stop_async();
 
-                ObjectDAG dag(scene.renderer);
-                scene.scene->clear_device_data();
+                prepare_scene(scene.renderer, scene.scene, offline_mode, true);
 
-                scene.scene->precommit();
-                dag.commit();
-                scene.scene->postcommit();
-
-                scene.renderer->recompile(offline_mode);
-                dag.clear_recompile_flag();
-
-                dag.update_properties();
-
-                reporter->progress(0);
-                reporter->set_preview_interval(0);
-                reporter->set_fast_preview(true);
-
-                updated_image_count = 0;
-                scene.renderer->render_async();
-                start_render_time = Clock::now();
-                print_render_time = false;
+                restart_render();
             }
 
             if(ImGui::BeginMenu("Camera"))
@@ -320,32 +324,9 @@ void run(const std::string &config_filename)
                 if(scene.renderer->is_waitable())
                     scene.renderer->stop_async();
 
-                ObjectDAG dag(scene.renderer);
-                const bool need_recompile = offline_mode || dag.need_recompile();
+                prepare_scene(scene.renderer, scene.scene, offline_mode);
 
-                if(need_recompile)
-                    scene.scene->clear_device_data();
-
-                scene.scene->precommit();
-                dag.commit();
-                scene.scene->postcommit();
-
-                if(need_recompile)
-                {
-                    scene.renderer->recompile(offline_mode);
-                    dag.clear_recompile_flag();
-                }
-
-                dag.update_properties();
-
-                reporter->progress(0);
-                reporter->set_preview_interval(0);
-                reporter->set_fast_preview(true);
-
-                updated_image_count = 0;
-                scene.renderer->render_async();
-                start_render_time = Clock::now();
-                print_render_time = false;
+                restart_render();
             }
             else if(updated_image_count == MIN_UPDATED_IMAGE_COUNT)
             {
