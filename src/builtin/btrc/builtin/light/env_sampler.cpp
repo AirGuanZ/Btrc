@@ -1,4 +1,5 @@
 #include <numeric>
+#include <span>
 
 #include <btrc/builtin/light/env_sampler.h>
 #include <btrc/utils/cuda/module.h>
@@ -18,7 +19,7 @@ namespace
         CompileContext cc;
         cuj::ScopedModule cuj_module;
 
-        cuj::kernel(KERNEL, [&cc, &tex, lut_res, n_samples](ptr<f32> table)
+        cuj::kernel(KERNEL, [&cc, &tex, lut_res, n_samples](ptr<f32> lum_table, ptr<f32> area_table)
         {
             $declare_scope;
 
@@ -37,7 +38,7 @@ namespace
             std::vector<Vec2f> local_samples_data(n_samples);
             for(int i = 0; i < n_samples; ++i)
                 local_samples_data[i] = hammersley2d(i, n_samples);
-            var local_samples = cuj::const_data(std::span{ local_samples_data });
+            var local_samples = cuj::const_data(std::span<const Vec2f>{ local_samples_data });
 
             var i = 0;
             var lum_sum = 0.0f;
@@ -52,9 +53,11 @@ namespace
             };
 
             var lum = lum_sum / n_samples;
+            lum_table[yi * lut_res.x + xi] = lum;
+
             var delta_area = cstd::abs(
                 2 * btrc_pi * (x1 - x0) * (cstd::cos(btrc_pi * y1) - cstd::cos(btrc_pi * y0)));
-            table[yi * lut_res.x + xi] = lum * delta_area;
+            area_table[yi * lut_res.x + xi] = delta_area;
         });
         
         cuj::PTXGenerator gen;
@@ -78,7 +81,9 @@ void EnvirLightSampler::preprocess(const RC<const Texture2D> &tex, const Vec2i &
     cuda_module.load_ptx_from_memory(ptx.data(), ptx.size());
     cuda_module.link();
 
-    cuda::Buffer<float> device_table(lut_res.x * lut_res.y);
+    cuda::Buffer<float> device_lum(lut_res.x * lut_res.y);
+    cuda::Buffer<float> device_area(lut_res.x * lut_res.y);
+
     constexpr int BLOCK_SIZE = 8;
     const int block_cnt_x = up_align(lut_res.x, BLOCK_SIZE) / BLOCK_SIZE;
     const int block_cnt_y = up_align(lut_res.y, BLOCK_SIZE) / BLOCK_SIZE;
@@ -86,23 +91,38 @@ void EnvirLightSampler::preprocess(const RC<const Texture2D> &tex, const Vec2i &
         KERNEL,
         { block_cnt_x, block_cnt_y, 1 },
         { BLOCK_SIZE, BLOCK_SIZE, 1 },
-        device_table.get());
+        device_lum.get(),
+        device_area.get());
     throw_on_error(cudaStreamSynchronize(nullptr));
 
-    std::vector<float> table(device_table.get_size());
-    device_table.to_cpu(table.data());
+    std::vector<float> lum(device_lum.get_size());
+    device_lum.to_cpu(lum.data());
 
-    const float table_sum = std::accumulate(table.begin(), table.end(), 0.0f);
+    std::vector<float> area(device_area.get_size());
+    device_area.to_cpu(area.data());
+
+    float lum_area_sum = 0.0f, area_sum = 0.0f;
+    for(size_t i = 0; i < lum.size(); ++i)
+    {
+        lum_area_sum += lum[i] * area[i];
+        area_sum += area[i];
+    }
+    const float avg_lum = lum_area_sum / area_sum;
+
+    for(size_t i = 0; i < lum.size(); ++i)
+        lum[i] = (std::max)(0.0f, area[i] * (lum[i] - avg_lum));
+
+    const float table_sum = std::accumulate(lum.begin(), lum.end(), 0.0f);
     if(table_sum > 1e-3f)
     {
         const float ratio = 1 / table_sum;
-        for(auto &v : table)
+        for(auto &v : lum)
             v *= ratio;
     }
 
     lut_res_ = lut_res;
-    tile_probs_ = cuda::Buffer<float>(table);
-    tile_alias_ = CAliasTable(AliasTable(table));
+    tile_probs_ = cuda::Buffer<float>(lum);
+    tile_alias_ = CAliasTable(AliasTable(lum));
 }
 
 EnvirLightSampler::SampleResult EnvirLightSampler::sample(ref<CVec3f> sam) const
