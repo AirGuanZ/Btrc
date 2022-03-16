@@ -19,12 +19,12 @@ void Constant2D::set_value(const Spectrum &value)
 
 CSpectrum Constant2D::sample_spectrum_inline(CompileContext &cc, ref<CVec2f> uv) const
 {
-    return value_.read(cc);
+    return value_;
 }
 
 f32 Constant2D::sample_float_inline(CompileContext &cc, ref<CVec2f> uv) const
 {
-    return value_.read(cc).r;
+    return value_.r;
 }
 
 BTRC_END

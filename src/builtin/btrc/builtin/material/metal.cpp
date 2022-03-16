@@ -6,19 +6,16 @@ BTRC_BUILTIN_BEGIN
 void Metal::set_r0(RC<Texture2D> R0)
 {
     R0_ = std::move(R0);
-    set_recompile();
 }
 
 void Metal::set_roughness(RC<Texture2D> roughness)
 {
     roughness_ = std::move(roughness);
-    set_recompile();
 }
 
 void Metal::set_anisotropic(RC<Texture2D> anisoropic)
 {
     anisotropic_ = std::move(anisoropic);
-    set_recompile();
 }
 
 RC<Shader> Metal::create_shader(CompileContext &cc, const SurfacePoint &inct) const

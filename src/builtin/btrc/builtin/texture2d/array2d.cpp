@@ -6,7 +6,6 @@ BTRC_BUILTIN_BEGIN
 void Array2D::initialize(RC<const cuda::Texture> cuda_texture)
 {
     tex_ = std::move(cuda_texture);
-    set_recompile();
 }
 
 void Array2D::initialize(const std::string &filename, const cuda::Texture::Description &desc)
@@ -14,7 +13,6 @@ void Array2D::initialize(const std::string &filename, const cuda::Texture::Descr
     auto tex = newRC<cuda::Texture>();
     tex->initialize(filename, desc);
     tex_ = std::move(tex);
-    set_recompile();
 }
 
 CSpectrum Array2D::sample_spectrum_inline(CompileContext &cc, ref<CVec2f> uv) const

@@ -42,31 +42,8 @@ void ObjectDAG::commit()
             obj->commit();
         need_commit.insert({ obj, need });
     }
-}
-
-bool ObjectDAG::need_recompile() const
-{
     for(auto &obj : sorted_)
-    {
-        if(obj->need_recompile())
-            return true;
-    }
-    return false;
-}
-
-void ObjectDAG::clear_recompile_flag()
-{
-    for(auto &obj : sorted_)
-        obj->set_recompile(false);
-}
-
-void ObjectDAG::update_properties() const
-{
-    for(auto &obj : sorted_)
-    {
-        for(auto p : obj->get_properties())
-            p->update();
-    }
+        obj->set_need_commit(false);
 }
 
 void ObjectDAG::add(const RC<Object> &object, std::set<RC<Object>> &processed)

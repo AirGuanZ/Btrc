@@ -1,5 +1,6 @@
 #pragma once
 
+#include <btrc/utils/math/aabb.h>
 #include <btrc/utils/math/alias.h>
 #include <btrc/utils/math/frame.h>
 #include <btrc/utils/math/hammersley.h>

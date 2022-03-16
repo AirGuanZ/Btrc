@@ -140,21 +140,13 @@ void Scene::postcommit()
 
     tlas_ = optix_ctx_->create_instance_as(blas_instances);
 
-    if(!instance_info_)
-        instance_info_.initialize(instance_info.size());
+    instance_info_.initialize(instance_info.size());
     assert(instance_info_.get_size() == instance_info.size());
     instance_info_.from_cpu(instance_info.data());
 
-    if(!geometry_info_)
-        geometry_info_.initialize(geometry_info.size());
+    geometry_info_.initialize(geometry_info.size());
     assert(geometry_info_.get_size() == geometry_info.size());
     geometry_info_.from_cpu(geometry_info.data());
-}
-
-void Scene::clear_device_data()
-{
-    instance_info_ = {};
-    geometry_info_ = {};
 }
 
 OptixTraversableHandle Scene::get_tlas() const

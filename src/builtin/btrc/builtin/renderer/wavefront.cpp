@@ -53,26 +53,22 @@ WavefrontPathTracer::~WavefrontPathTracer()
 void WavefrontPathTracer::set_params(const Params &params)
 {
     impl_->params = params;
-    set_recompile();
 }
 
 void WavefrontPathTracer::set_scene(RC<Scene> scene)
 {
     impl_->scene = scene;
-    set_recompile();
 }
 
 void WavefrontPathTracer::set_camera(RC<Camera> camera)
 {
     impl_->camera = std::move(camera);
-    set_recompile();
 }
 
 void WavefrontPathTracer::set_film(int width, int height)
 {
     impl_->width = width;
     impl_->height = height;
-    set_recompile();
 }
 
 void WavefrontPathTracer::set_reporter(RC<Reporter> reporter)
@@ -89,9 +85,9 @@ std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
     return result;
 }
 
-void WavefrontPathTracer::recompile(bool offline)
+void WavefrontPathTracer::recompile()
 {
-    CompileContext cc(offline);
+    CompileContext cc;
 
     auto &params = impl_->params;
 
@@ -157,7 +153,7 @@ void WavefrontPathTracer::recompile(bool offline)
     impl_->sort = wfpt::SortPipeline();
 
     impl_->shadow = wfpt::ShadowPipeline(
-        offline, *impl_->scene, impl_->film, *impl_->optix_ctx,
+        *impl_->scene, impl_->film, *impl_->optix_ctx,
         impl_->scene->has_motion_blur(),
         impl_->scene->is_triangle_only(),
         2);

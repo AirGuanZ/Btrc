@@ -6,7 +6,6 @@ BTRC_BUILTIN_BEGIN
 void HomogeneousMedium::set_priority(float priority)
 {
     priority_ = priority;
-    set_recompile();
 }
 
 void HomogeneousMedium::set_sigma_t(float sigma_t)
@@ -36,7 +35,7 @@ Medium::SampleResult HomogeneousMedium::sample(
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
     result.shader = shader;
 
-    var sigma_t = sigma_t_.read(cc);
+    var sigma_t = sigma_t_;
 
     var t_max = length(b - a);
     var st = -cstd::log(1.0f - rng.uniform_float()) / sigma_t;
@@ -47,8 +46,8 @@ Medium::SampleResult HomogeneousMedium::sample(
         result.scattered = true;
         result.throughput = CSpectrum::one();
         result.position = a * (1.0f - t) + b * t;
-        shader->set_g(g_.read(cc));
-        shader->set_color(albedo_.read(cc));
+        shader->set_g(g_);
+        shader->set_color(CSpectrum(albedo_));
     }
     $else
     {
@@ -67,8 +66,8 @@ CSpectrum HomogeneousMedium::tr(
     ref<CVec3f>     uvw_b,
     ref<CRNG>       rng) const
 {
-    var sigma_t = sigma_t_.read(cc);
-    var albedo = albedo_.read(cc);
+    var sigma_t = sigma_t_;
+    var albedo = CSpectrum(albedo_);
     var sigma_a = sigma_t * (CSpectrum::one() - albedo);
     var exp = -length(a - b) * sigma_a;
     return CSpectrum::from_rgb(cstd::exp(exp.r), cstd::exp(exp.g), cstd::exp(exp.b));

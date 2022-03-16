@@ -34,7 +34,7 @@ public:
 
     void commit() final { }
 
-    virtual void recompile(bool offline) = 0;
+    virtual void recompile() = 0;
 
     virtual RenderResult render() const = 0;
 

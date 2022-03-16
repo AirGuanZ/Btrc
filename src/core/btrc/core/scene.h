@@ -5,6 +5,7 @@
 #include <btrc/core/geometry.h>
 #include <btrc/core/material.h>
 #include <btrc/core/medium.h>
+#include <btrc/core/volume.h>
 #include <btrc/utils/optix/as.h>
 
 BTRC_BEGIN
@@ -62,8 +63,6 @@ public:
     void precommit();
 
     void postcommit();
-
-    void clear_device_data();
     
     OptixTraversableHandle get_tlas() const;
 

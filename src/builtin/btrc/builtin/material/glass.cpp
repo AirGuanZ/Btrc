@@ -111,13 +111,11 @@ CUJ_CLASS_END
 void Glass::set_color(RC<Texture2D> color)
 {
     color_ = std::move(color);
-    set_recompile();
 }
 
 void Glass::set_ior(RC<Texture2D> ior)
 {
     ior_ = std::move(ior);
-    set_recompile();
 }
 
 RC<Shader> Glass::create_shader(CompileContext &cc, const SurfacePoint &inct) const

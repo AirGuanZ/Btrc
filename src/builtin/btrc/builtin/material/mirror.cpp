@@ -71,7 +71,6 @@ CUJ_CLASS_END
 void Mirror::set_color(RC<Texture2D> color)
 {
     color_ = std::move(color);
-    set_recompile();
 }
 
 RC<Shader> Mirror::create_shader(CompileContext &cc, const SurfacePoint &inct) const

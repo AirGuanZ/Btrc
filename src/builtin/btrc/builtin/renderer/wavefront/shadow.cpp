@@ -105,7 +105,6 @@ namespace
 } // namespace anonymous
 
 ShadowPipeline::ShadowPipeline(
-    bool               offline_mode,
     const Scene       &scene,
     Film              &film,
     OptixDeviceContext context,
@@ -113,7 +112,7 @@ ShadowPipeline::ShadowPipeline(
     bool               triangle_only,
     int                traversable_depth)
 {
-    CompileContext cc(offline_mode);
+    CompileContext cc;
 
     pipeline_ = optix::SimpleOptixPipeline(
         context,

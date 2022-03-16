@@ -19,22 +19,22 @@ void Constant3D::set_value(const Spectrum &value)
 
 f32 Constant3D::sample_float_inline(CompileContext &cc, ref<CVec3f> uvw) const
 {
-    return value_.read(cc).r;
+    return value_.r;
 }
 
 CSpectrum Constant3D::sample_spectrum_inline(CompileContext &cc, ref<CVec3f> uvw) const
 {
-    return value_.read(cc);
+    return value_;
 }
 
 CSpectrum Constant3D::get_max_spectrum(CompileContext &cc) const
 {
-    return value_.read(cc);
+    return value_;
 }
 
 CSpectrum Constant3D::get_min_spectrum(CompileContext &cc) const
 {
-    return value_.read(cc);
+    return value_;
 }
 
 BTRC_END

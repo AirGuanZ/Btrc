@@ -58,7 +58,6 @@ public:
     ShadowPipeline() = default;
 
     ShadowPipeline(
-        bool               offline_mode,
         const Scene       &scene,
         Film              &film,
         OptixDeviceContext context,

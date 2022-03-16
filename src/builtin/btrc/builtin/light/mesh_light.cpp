@@ -5,14 +5,12 @@ BTRC_BUILTIN_BEGIN
 void MeshLight::set_intensity(const Spectrum &intensity)
 {
     intensity_ = intensity;
-    set_recompile(true);
 }
 
 void MeshLight::set_geometry(RC<Geometry> geometry, const Transform &local_to_world)
 {
     geometry_ = std::move(geometry);
     local_to_world_ = local_to_world;
-    set_recompile(true);
 }
 
 CSpectrum MeshLight::eval_le_inline(

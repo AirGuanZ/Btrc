@@ -6,7 +6,6 @@ BTRC_BUILTIN_BEGIN
 void Array3D::initialize(RC<const cuda::Texture> cuda_texture)
 {
     tex_ = std::move(cuda_texture);
-    set_recompile();
 }
 
 void Array3D::initialize_from_text(const std::string &text_filename, const cuda::Texture::Description &desc)

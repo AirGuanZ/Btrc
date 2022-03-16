@@ -7,9 +7,9 @@ BTRC_BUILTIN_BEGIN
 
 class GradientSky : public EnvirLight
 {
-    BTRC_PROPERTY(Spectrum, lower_, Spectrum::from_rgb(0, 0, 0));
-    BTRC_PROPERTY(Spectrum, upper_, Spectrum::from_rgb(1, 1, 1));
-    BTRC_PROPERTY(Vec3f, up_, 0, 0, 1);
+    Spectrum lower_ = Spectrum::from_rgb(0, 0, 0);
+    Spectrum upper_ = Spectrum::from_rgb(1, 1, 1);
+    Vec3f up_ = Vec3f(0, 0, 1);
 
 public:
 

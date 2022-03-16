@@ -35,9 +35,9 @@ public:
 
 private:
 
-    ObjectSlot<Geometry> geometry_ = new_object<Geometry>();
-    Transform            local_to_world_;
-    Spectrum             intensity_;
+    BTRC_OBJECT(Geometry, geometry_);
+    Transform local_to_world_;
+    Spectrum  intensity_;
 };
 
 class MeshLightCreator : public factory::Creator<Light>

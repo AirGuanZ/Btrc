@@ -16,118 +16,7 @@
 BTRC_BEGIN
 
 class CompileContext;
-class Object;
-
-class PropertyCommon
-{
-public:
-
-    virtual ~PropertyCommon() = default;
-
-    virtual void update() = 0;
-
-    virtual bool is_dirty() const = 0;
-};
-
-template<typename T>
-class Property : public PropertyCommon, public Uncopyable
-{
-public:
-
-    Property();
-
-    template<typename...Args>
-    explicit Property(T *device_pointer, Args&&...args);
-
-    Property(Property &&other) noexcept;
-
-    Property &operator=(Property &&other) noexcept;
-
-    ~Property() override;
-
-    void swap(Property &other) noexcept;
-
-    operator bool() const;
-
-    void set(const T &value);
-
-    const T &get() const;
-
-    cuj::cxx<T> read(CompileContext &cc) const;
-
-    void update() override;
-
-    bool is_dirty() const override;
-
-private:
-
-    bool is_dirty_;
-    T value_;
-    T *device_pointer_;
-};
-
-template<typename T>
-class PropertySlot
-{
-public:
-
-    RC<Property<T>> prop;
-
-    void set(const T &value) { prop->set(value); }
-
-    auto &operator=(const T &value) { this->set(value); return *this; }
-
-    const T &get() const { return prop->get(); }
-
-    cuj::cxx<T> read(CompileContext &cc) const { return prop->read(cc); }
-
-    void update() { prop->update(); }
-
-    bool is_dirty() const { return prop->is_dirty(); }
-};
-
-class PropertyPool : public Uncopyable
-{
-    PropertyPool() = default;
-
-public:
-
-    ~PropertyPool();
-
-    static void initialize_instance();
-
-    static void destroy_instance();
-
-    static PropertyPool &get_instance();
-
-    template<typename T, typename...Args>
-    Property<T> allocate(Args&&...args);
-
-    template<typename T>
-    void release(T *device_pointer);
-
-private:
-
-    static void new_chunk(std::vector<void *> &output, size_t size, size_t align);
-
-    void *allocate_impl(std::type_index type_index, size_t size, size_t align);
-
-    void release_impl(std::type_index type_index, void *device_pointer);
-
-    std::vector<void *> chunks_;
-    std::map<std::type_index, std::vector<void *>> free_properties_;
-};
-
-class ScopedPropertyPool : public Uncopyable
-{
-public:
-
-    ScopedPropertyPool();
-
-    ~ScopedPropertyPool();
-};
-
-class ObjectReferenceCommon
+class Object; class ObjectReferenceCommon
 {
 public:
 
@@ -152,7 +41,7 @@ class ObjectSlot
 public:
 
     RC<ObjectReference<T>> reference;
-    
+
     void set(RC<T> object);
 
     const RC<T> &get() const;
@@ -172,17 +61,13 @@ public:
 
     RC<const Object> as_shared() const;
 
-    bool need_recompile() const;
-
     bool need_commit() const;
 
-    void set_recompile(bool recompile = true);
-
-    std::vector<PropertyCommon *> get_properties();
-
-    virtual std::vector<RC<Object>> get_dependent_objects();
+    void set_need_commit(bool need = true);
 
     virtual void commit() { }
+
+    virtual std::vector<RC<Object>> get_dependent_objects();
 
 protected:
 
@@ -190,30 +75,21 @@ protected:
         requires std::is_member_function_pointer_v<MemberFuncPtr>
     auto record(CompileContext &cc, MemberFuncPtr ptr, std::string_view action_name, Args...args) const;
 
-    template<typename T, typename...Args>
-    PropertySlot<T> new_property(Args&&...args);
-
     template<typename T>
     ObjectSlot<T> new_object();
 
 private:
 
-    bool need_recompile_ = true;
+    bool need_commit_ = true;
 
-    std::vector<PropertyCommon *> properties_;
     std::vector<ObjectReferenceCommon *> dependent_objects_;
 };
 
 #define BTRC_OBJECT(TYPE, NAME) ObjectSlot<TYPE> NAME = new_object<TYPE>()
-#define BTRC_PROPERTY(TYPE, NAME, ...) PropertySlot<TYPE> NAME = new_property<TYPE>(__VA_ARGS__)
 
 class CompileContext
 {
 public:
-
-    explicit CompileContext(bool offline = true);
-
-    bool is_offline_mode() const;
 
     template<typename ObjectAction, typename...Args>
     auto record_object_action(
@@ -241,116 +117,10 @@ private:
         std::map<std::string, ActionRecord, std::less<>> actions;
     };
 
-    bool offline_mode_;
     std::map<RC<const Object>, ObjectRecord> object_records_;
 };
 
 // ========================== impl ==========================
-
-template<typename T>
-Property<T>::Property()
-    : Property(nullptr)
-{
-
-}
-
-template<typename T>
-template<typename...Args>
-Property<T>::Property(T *device_pointer, Args&&...args)
-    : is_dirty_(true), value_(std::forward<Args>(args)...), device_pointer_(device_pointer)
-{
-
-}
-
-template<typename T>
-Property<T>::Property(Property &&other) noexcept
-    : Property()
-{
-    this->swap(other);
-}
-
-template<typename T>
-Property<T> &Property<T>::operator=(Property &&other) noexcept
-{
-    this->swap(other);
-    return *this;
-}
-
-template<typename T>
-Property<T>::~Property()
-{
-    if(device_pointer_)
-        PropertyPool::get_instance().release(device_pointer_);
-}
-
-template<typename T>
-void Property<T>::swap(Property &other) noexcept
-{
-    std::swap(value_, other.value_);
-    std::swap(device_pointer_, other.device_pointer_);
-}
-
-template<typename T>
-Property<T>::operator bool() const
-{
-    return device_pointer_ != nullptr;
-}
-
-template<typename T>
-void Property<T>::set(const T &value)
-{
-    assert(*this);
-    value_ = value;
-    is_dirty_ = true;
-}
-
-template<typename T>
-const T &Property<T>::get() const
-{
-    assert(*this);
-    return value_;
-}
-
-template<typename T>
-cuj::cxx<T> Property<T>::read(CompileContext &cc) const
-{
-    assert(*this);
-    if(cc.is_offline_mode())
-        return cuj::cxx<T>(value_);
-    return *cuj::import_pointer(device_pointer_);
-}
-
-template<typename T>
-void Property<T>::update()
-{
-    assert(*this);
-    if(is_dirty_)
-    {
-        throw_on_error(cudaMemcpy(
-            device_pointer_, &value_, sizeof(T), cudaMemcpyHostToDevice));
-        is_dirty_ = false;
-    }
-}
-
-template<typename T>
-bool Property<T>::is_dirty() const
-{
-    assert(*this);
-    return is_dirty_;
-}
-
-template<typename T, typename...Args>
-Property<T> PropertyPool::allocate(Args&&...args)
-{
-    auto device_pointer = allocate_impl(std::type_index(typeid(T)), sizeof(T), alignof(T));
-    return Property<T>(static_cast<T*>(device_pointer), std::forward<Args>(args)...);
-}
-
-template<typename T>
-void PropertyPool::release(T *device_pointer)
-{
-    this->release_impl(std::type_index(typeid(T)), device_pointer);
-}
 
 template<typename T>
 void ObjectSlot<T>::set(RC<T> object)
@@ -488,31 +258,14 @@ inline RC<const Object> Object::as_shared() const
     return this->shared_from_this();
 }
 
-inline bool Object::need_recompile() const
-{
-    return need_recompile_;
-}
-
 inline bool Object::need_commit() const
 {
-    if(need_recompile_)
-        return true;
-    for(auto p : properties_)
-    {
-        if(p->is_dirty())
-            return true;
-    }
-    return false;
+    return need_commit_;
 }
 
-inline void Object::set_recompile(bool recompile)
+inline void Object::set_need_commit(bool need)
 {
-    need_recompile_ = recompile;
-}
-
-inline std::vector<PropertyCommon*> Object::get_properties()
-{
-    return properties_;
+    need_commit_ = need;
 }
 
 inline std::vector<RC<Object>> Object::get_dependent_objects()
@@ -560,16 +313,6 @@ auto Object::record(CompileContext &cc, MemberFuncPtr ptr, std::string_view acti
     }
 }
 
-template<typename T, typename...Args>
-PropertySlot<T> Object::new_property(Args&&...args)
-{
-    auto prop = newRC<Property<T>>(PropertyPool::get_instance().allocate<T>(std::forward<Args>(args)...));
-    properties_.push_back(prop.get());
-    PropertySlot<T> result;
-    result.prop = std::move(prop);
-    return result;
-}
-
 template<typename T>
 ObjectSlot<T> Object::new_object()
 {
@@ -577,17 +320,6 @@ ObjectSlot<T> Object::new_object()
     result.reference = newRC<ObjectReference<T>>();
     dependent_objects_.push_back(result.reference.get());
     return result;
-}
-
-inline CompileContext::CompileContext(bool offline)
-    : offline_mode_(offline)
-{
-    
-}
-
-inline bool CompileContext::is_offline_mode() const
-{
-    return offline_mode_;
 }
 
 template<typename ObjectAction, typename...Args>

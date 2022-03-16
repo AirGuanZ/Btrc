@@ -40,7 +40,7 @@ public:
 
     std::vector<RC<Object>> get_dependent_objects() override;
 
-    void recompile(bool offline) override;
+    void recompile() override;
 
     RenderResult render() const override;
 

@@ -45,28 +45,18 @@ struct Rect2D
     Vec2f upper;
 };
 
-void prepare_scene(const RC<Renderer> &renderer, const RC<Scene> &scene, bool offline, bool force_recompile = false)
+void prepare_scene(const RC<Renderer> &renderer, const RC<Scene> &scene)
 {
     ObjectDAG dag(renderer);
-
-    const bool need_recompile = dag.need_recompile() || force_recompile;
-    if(need_recompile)
-        scene->clear_device_data();
 
     scene->precommit();
     dag.commit();
     scene->postcommit();
 
-    if(need_recompile)
-    {
-        renderer->recompile(offline);
-        dag.clear_recompile_flag();
-    }
-
-    dag.update_properties();
+    renderer->recompile();
 }
 
-BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context, bool offline)
+BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context)
 {
     BtrcScene result;
 
@@ -107,7 +97,7 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
 
     std::cout << "compile kernel" << std::endl;
 
-    prepare_scene(result.renderer, result.scene, offline);
+    prepare_scene(result.renderer, result.scene);
 
     return result;
 }
@@ -177,10 +167,8 @@ void run(const std::string &config_filename)
 {
     cuda::Context cuda_context(0);
     optix::Context optix_context(nullptr);
-    ScopedPropertyPool property_pool;
 
-    bool offline_mode = false;
-    auto scene = initialize_btrc_scene(config_filename, optix_context, offline_mode);
+    auto scene = initialize_btrc_scene(config_filename, optix_context);
 
     Window window("BtrcGUI", 1024, 768);
 
@@ -261,18 +249,6 @@ void run(const std::string &config_filename)
                     open_still_rendering_window = true;
             }
 
-            if(ImGui::MenuItem(offline_mode ? "Online" : "Offline"))
-            {
-                offline_mode = !offline_mode;
-
-                if(scene.renderer->is_waitable())
-                    scene.renderer->stop_async();
-
-                prepare_scene(scene.renderer, scene.scene, offline_mode, true);
-
-                restart_render();
-            }
-
             if(ImGui::BeginMenu("Camera"))
             {
                 ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
@@ -324,7 +300,7 @@ void run(const std::string &config_filename)
                 if(scene.renderer->is_waitable())
                     scene.renderer->stop_async();
 
-                prepare_scene(scene.renderer, scene.scene, offline_mode);
+                scene.camera->commit();
 
                 restart_render();
             }

@@ -24,7 +24,6 @@ void run(const std::string &scene_filename)
 
     std::cout << "create btrc context" << std::endl;
 
-    ScopedPropertyPool property_pool;
     factory::Context btrc_context(optix_context);
     builtin::register_builtin_creators(btrc_context);
 
@@ -71,7 +70,7 @@ void run(const std::string &scene_filename)
 
     std::cout << "compile kernel" << std::endl;
 
-    renderer->recompile(true);
+    renderer->recompile();
 
     std::cout << "render image" << std::endl;
 

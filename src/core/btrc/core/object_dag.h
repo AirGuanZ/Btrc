@@ -18,13 +18,7 @@ public:
     const std::vector<RC<Object>> &get_sorted_objects() const;
 
     void commit();
-
-    bool need_recompile() const;
-
-    void clear_recompile_flag();
-
-    void update_properties() const;
-
+    
 private:
 
     void add(const RC<Object> &object, std::set<RC<Object>> &processed);

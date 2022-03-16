@@ -38,9 +38,9 @@ public:
 private:
 
     float priority_ = 0.0f;
-    BTRC_PROPERTY(float, sigma_t_);
-    BTRC_PROPERTY(Spectrum, albedo_);
-    BTRC_PROPERTY(float, g_);
+    float sigma_t_ = 1;
+    Spectrum albedo_ = Spectrum::from_rgb(0.6f, 0.6f, 0.6f);
+    float g_ = 0;
 };
 
 class HomogeneousMediumCreator : public factory::Creator<Medium>

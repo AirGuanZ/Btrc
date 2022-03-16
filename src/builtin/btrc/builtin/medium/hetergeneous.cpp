@@ -6,7 +6,6 @@ BTRC_BUILTIN_BEGIN
 void HetergeneousMedium::set_priority(float priority)
 {
     priority_ = priority;
-    set_recompile();
 }
 
 void HetergeneousMedium::set_sigma_t(RC<Texture3D> sigma_t)

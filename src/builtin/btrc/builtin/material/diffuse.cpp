@@ -6,7 +6,6 @@ BTRC_BUILTIN_BEGIN
 void Diffuse::set_albedo(RC<Texture2D> albedo)
 {
     albedo_ = std::move(albedo);
-    set_recompile();
 }
 
 std::vector<RC<Object>> Diffuse::get_dependent_objects()

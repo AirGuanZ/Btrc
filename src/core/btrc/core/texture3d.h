@@ -66,7 +66,7 @@ public:
 
 class Constant3D : public Texture3D
 {
-    BTRC_PROPERTY(Spectrum, value_);
+    Spectrum value_;
 
 public:
 

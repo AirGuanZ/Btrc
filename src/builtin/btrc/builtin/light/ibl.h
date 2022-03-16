@@ -29,7 +29,7 @@ private:
 
     CSpectrum eval_local(CompileContext &cc, ref<CVec3f> normalized_to_light) const;
 
-    ObjectSlot<Texture2D>  tex_ = new_object<Texture2D>();
+    BTRC_OBJECT(Texture2D, tex_);
     Frame                  frame_;
     Vec2i                  lut_res_;
     Box<EnvirLightSampler> sampler_;

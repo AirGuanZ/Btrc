@@ -5,6 +5,25 @@
 
 BTRC_BUILTIN_BEGIN
 
+namespace pinhole_detail
+{
+
+    struct DeviceProperties
+    {
+        Vec3f eye;
+        float beg_time;
+        float end_time;
+        Vec3f left_bottom_corner;
+        Vec3f film_x;
+        Vec3f film_y;
+    };
+
+    CUJ_PROXY_CLASS(
+        CDeviceProperties, DeviceProperties,
+        eye, beg_time, end_time, left_bottom_corner, film_x, film_y);
+
+} // namespace pinhole_detail
+
 class PinholeCamera : public Camera
 {
 public:
@@ -40,19 +59,20 @@ public:
 
 private:
 
-    BTRC_PROPERTY(Vec3f, eye_);
-    BTRC_PROPERTY(Vec3f, dst_);
-    BTRC_PROPERTY(Vec3f, up_);
+    using DeviceProperties = pinhole_detail::DeviceProperties;
+    using CDeviceProperties = pinhole_detail::CDeviceProperties;
 
-    BTRC_PROPERTY(float, beg_time_, 0.0f);
-    BTRC_PROPERTY(float, end_time_, 0.0f);
+    Vec3f eye_;
+    Vec3f dst_;
+    Vec3f up_;
 
-    BTRC_PROPERTY(float, fov_y_deg_, 60.0f);
-    BTRC_PROPERTY(float, w_over_h_, 1.0f);
+    float beg_time_ = 0.0f;
+    float end_time_ = 0.0f;
 
-    BTRC_PROPERTY(Vec3f, left_bottom_corner_);
-    BTRC_PROPERTY(Vec3f, film_x_);
-    BTRC_PROPERTY(Vec3f, film_y_);
+    float fov_y_deg_ = 60.0f;
+    float w_over_h_ = 1.0f;
+
+    cuda::Buffer<DeviceProperties> device_properties_;
 };
 
 class PinholeCameraCreator : public factory::Creator<Camera>

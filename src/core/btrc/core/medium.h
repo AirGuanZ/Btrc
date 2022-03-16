@@ -100,7 +100,7 @@ public:
 
 private:
     
-    BTRC_PROPERTY(Transform, world_to_local_);
+    Transform world_to_local_;
     BTRC_OBJECT(Medium, transformed_);
 };
 

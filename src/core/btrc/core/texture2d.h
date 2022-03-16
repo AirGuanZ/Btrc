@@ -52,7 +52,7 @@ public:
 
 class Constant2D : public Texture2D
 {
-    BTRC_PROPERTY(Spectrum, value_);
+    Spectrum value_;
 
 public:
 
