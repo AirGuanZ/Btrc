@@ -78,6 +78,7 @@ void Texture::initialize(RC<const Array> arr, const Description &desc)
     cu_desc.borderColor[1] = desc.border_value[1];
     cu_desc.borderColor[2] = desc.border_value[2];
     cu_desc.borderColor[3] = desc.border_value[3];
+    cu_desc.sRGB = desc.srgb_to_linear ? 1 : 0;
 
     const auto format = arr_->get_format();
     if(format == Array::Format::UNorm8x1 ||
