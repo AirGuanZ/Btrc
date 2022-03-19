@@ -28,13 +28,13 @@ public:
 
     f32 sample_float_inline(CompileContext &cc, ref<SurfacePoint> spt) const override;
 
-    CSpectrum get_max_spectrum(CompileContext &cc) const override;
+    Spectrum get_max_spectrum() const override;
 
-    CSpectrum get_min_spectrum(CompileContext &cc) const override;
+    Spectrum get_min_spectrum() const override;
 
-    f32 get_max_float(CompileContext &cc) const override;
+    float get_max_float() const override;
 
-    f32 get_min_float(CompileContext &cc) const override;
+    float get_min_float() const override;
 
 private:
 

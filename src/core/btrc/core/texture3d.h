@@ -49,18 +49,18 @@ public:
         return record(cc, T(&Texture3D::sample_float_inline), "sample_float_spt", spt);
     }
 
-    virtual CSpectrum get_max_spectrum(CompileContext &cc) const = 0;
+    virtual Spectrum get_max_spectrum() const = 0;
 
-    virtual f32 get_max_float(CompileContext &cc) const
+    virtual float get_max_float() const
     {
-        return get_max_spectrum(cc).r;
+        return get_max_spectrum().r;
     }
 
-    virtual CSpectrum get_min_spectrum(CompileContext &cc) const = 0;
+    virtual Spectrum get_min_spectrum() const = 0;
 
-    virtual f32 get_min_float(CompileContext &cc) const
+    virtual float get_min_float() const
     {
-        return get_min_spectrum(cc).r;
+        return get_min_spectrum().r;
     }
 };
 
@@ -80,9 +80,9 @@ public:
 
     CSpectrum sample_spectrum_inline(CompileContext &cc, ref<CVec3f> uvw) const override;
 
-    CSpectrum get_max_spectrum(CompileContext &cc) const override;
+    Spectrum get_max_spectrum() const override;
 
-    CSpectrum get_min_spectrum(CompileContext &cc) const override;
+    Spectrum get_min_spectrum() const override;
 };
 
 BTRC_END

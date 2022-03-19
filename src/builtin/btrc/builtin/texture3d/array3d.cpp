@@ -40,16 +40,16 @@ f32 Array3D::sample_float_inline(CompileContext &cc, ref<CVec3f> uvw) const
     return r;
 }
 
-CSpectrum Array3D::get_max_spectrum(CompileContext &cc) const
+Spectrum Array3D::get_max_spectrum() const
 {
     auto v = tex_->get_max_value();
-    return CSpectrum::from_rgb(v.x, v.y, v.z);
+    return Spectrum::from_rgb(v.x, v.y, v.z);
 }
 
-CSpectrum Array3D::get_min_spectrum(CompileContext &cc) const
+Spectrum Array3D::get_min_spectrum() const
 {
     auto v = tex_->get_min_value();
-    return CSpectrum::from_rgb(v.x, v.y, v.z);
+    return Spectrum::from_rgb(v.x, v.y, v.z);
 }
 
 RC<Texture3D> Array3DCreator::create(RC<const factory::Node> node, factory::Context &context)

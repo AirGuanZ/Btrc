@@ -1,4 +1,5 @@
 #include <btrc/builtin/medium/henyey_greenstein.h>
+#include <btrc/utils/henyey_greenstein.h>
 #include <btrc/utils/local_angle.h>
 
 BTRC_BUILTIN_BEGIN
@@ -14,13 +15,6 @@ namespace
     f32 mul2(f32 x)
     {
         return x + x;
-    }
-
-    f32 henyey_greenstein(f32 g, f32 u)
-    {
-        var g2 = g * g;
-        var dem = 1.0f + g2 - mul2(g * u);
-        return (1.0f - g2) / (4.0f * btrc_pi * dem * cstd::sqrt(dem));
     }
 
 } // namespace anonymous
@@ -71,24 +65,14 @@ PhaseShader::SampleResult HenyeyGreensteinPhaseShader::sample(CompileContext &cc
 
 CSpectrum HenyeyGreensteinPhaseShader::eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const
 {
-    static auto eval_func = cuj::function_contextless(
-        [](f32 g, ref<CVec3f> wi, ref<CVec3f> wo)
-    {
-        var u = -cos(wi, wo);
-        var f = henyey_greenstein(g, u);
-        return CSpectrum::from_rgb(f, f, f);
-    });
-    return color_ * eval_func(g_, wi, wo);
+    var u = -cos(wi, wo);
+    var f = henyey_greenstein(g_, u);
+    return color_ * CSpectrum::from_rgb(f, f, f);
 }
 
 f32 HenyeyGreensteinPhaseShader::pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const
 {
-    static auto pdf_func = cuj::function_contextless(
-        [](f32 g, ref<CVec3f> wi, ref<CVec3f> wo)
-    {
-        return henyey_greenstein(g, -cos(wi, wo));
-    });
-    return pdf_func(g_, wi, wo);
+    return henyey_greenstein(g_, -cos(wi, wo));
 }
 
 BTRC_BUILTIN_END

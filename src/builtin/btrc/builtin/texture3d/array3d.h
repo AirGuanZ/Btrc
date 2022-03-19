@@ -20,9 +20,9 @@ public:
 
     f32 sample_float_inline(CompileContext &cc, ref<CVec3f> uvw) const override;
 
-    CSpectrum get_max_spectrum(CompileContext &cc) const override;
+    Spectrum get_max_spectrum() const override;
 
-    CSpectrum get_min_spectrum(CompileContext &cc) const override;
+    Spectrum get_min_spectrum() const override;
 
 private:
 

@@ -67,12 +67,12 @@ f32 Texture3DBinaryOperator<OP>::sample_float_inline(CompileContext &cc, ref<Sur
 }
 
 template<BinaryOp3D OP>
-CSpectrum Texture3DBinaryOperator<OP>::get_max_spectrum(CompileContext &cc) const
+Spectrum Texture3DBinaryOperator<OP>::get_max_spectrum() const
 {
-    var lmax = lhs_->get_max_spectrum(cc);
-    var lmin = lhs_->get_min_spectrum(cc);
-    var rmax = rhs_->get_max_spectrum(cc);
-    var rmin = rhs_->get_min_spectrum(cc);
+    const Spectrum lmax = lhs_->get_max_spectrum();
+    const Spectrum lmin = lhs_->get_min_spectrum();
+    const Spectrum rmax = rhs_->get_max_spectrum();
+    const Spectrum rmin = rhs_->get_min_spectrum();
     switch(OP)
     {
     case BinaryOp3D::Add: return lmax + rmax;
@@ -82,27 +82,27 @@ CSpectrum Texture3DBinaryOperator<OP>::get_max_spectrum(CompileContext &cc) cons
 }
 
 template<BinaryOp3D OP>
-f32 Texture3DBinaryOperator<OP>::get_max_float(CompileContext &cc) const
+float Texture3DBinaryOperator<OP>::get_max_float() const
 {
-    var lmax = lhs_->get_max_float(cc);
-    var lmin = lhs_->get_min_float(cc);
-    var rmax = rhs_->get_max_float(cc);
-    var rmin = rhs_->get_min_float(cc);
+    const float lmax = lhs_->get_max_float();
+    const float lmin = lhs_->get_min_float();
+    const float rmax = rhs_->get_max_float();
+    const float rmin = rhs_->get_min_float();
     switch(OP)
     {
     case BinaryOp3D::Add: return lmax + rmax;
-    case BinaryOp3D::Mul: return cstd::max(cstd::max(lmax * rmax, lmax * rmin), cstd::max(lmin * rmax, lmin * rmin));
+    case BinaryOp3D::Mul: return std::max(std::max(lmax * rmax, lmax * rmin), std::max(lmin * rmax, lmin * rmin));
     }
     unreachable();
 }
 
 template<BinaryOp3D OP>
-CSpectrum Texture3DBinaryOperator<OP>::get_min_spectrum(CompileContext &cc) const
+Spectrum Texture3DBinaryOperator<OP>::get_min_spectrum() const
 {
-    var lmax = lhs_->get_max_spectrum(cc);
-    var lmin = lhs_->get_min_spectrum(cc);
-    var rmax = rhs_->get_max_spectrum(cc);
-    var rmin = rhs_->get_min_spectrum(cc);
+    const Spectrum lmax = lhs_->get_max_spectrum();
+    const Spectrum lmin = lhs_->get_min_spectrum();
+    const Spectrum rmax = rhs_->get_max_spectrum();
+    const Spectrum rmin = rhs_->get_min_spectrum();
     switch(OP)
     {
     case BinaryOp3D::Add: return lmin + rmin;
@@ -112,16 +112,16 @@ CSpectrum Texture3DBinaryOperator<OP>::get_min_spectrum(CompileContext &cc) cons
 }
 
 template<BinaryOp3D OP>
-f32 Texture3DBinaryOperator<OP>::get_min_float(CompileContext &cc) const
+float Texture3DBinaryOperator<OP>::get_min_float() const
 {
-    var lmax = lhs_->get_max_float(cc);
-    var lmin = lhs_->get_min_float(cc);
-    var rmax = rhs_->get_max_float(cc);
-    var rmin = rhs_->get_min_float(cc);
+    const float lmax = lhs_->get_max_float();
+    const float lmin = lhs_->get_min_float();
+    const float rmax = rhs_->get_max_float();
+    const float rmin = rhs_->get_min_float();
     switch(OP)
     {
     case BinaryOp3D::Add: return lmin + rmin;
-    case BinaryOp3D::Mul: return cstd::min(cstd::min(lmax * rmax, lmax * rmin), cstd::min(lmin * rmax, lmin * rmin));
+    case BinaryOp3D::Mul: return std::min(std::min(lmax * rmax, lmax * rmin), std::min(lmin * rmax, lmin * rmin));
     }
     unreachable();
 }

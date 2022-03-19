@@ -27,12 +27,12 @@ CSpectrum Constant3D::sample_spectrum_inline(CompileContext &cc, ref<CVec3f> uvw
     return value_;
 }
 
-CSpectrum Constant3D::get_max_spectrum(CompileContext &cc) const
+Spectrum Constant3D::get_max_spectrum() const
 {
     return value_;
 }
 
-CSpectrum Constant3D::get_min_spectrum(CompileContext &cc) const
+Spectrum Constant3D::get_min_spectrum() const
 {
     return value_;
 }

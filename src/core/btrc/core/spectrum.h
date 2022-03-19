@@ -61,6 +61,9 @@ Spectrum operator/(const Spectrum &a, float b);
 Spectrum operator+(float a, const Spectrum &b);
 Spectrum operator*(float a, const Spectrum &b);
 
+Spectrum (max)(const Spectrum &a, const Spectrum &b);
+Spectrum (min)(const Spectrum &a, const Spectrum &b);
+
 CSpectrum operator+(const CSpectrum &a, const CSpectrum &b);
 CSpectrum operator-(const CSpectrum &a, const CSpectrum &b);
 CSpectrum operator*(const CSpectrum &a, const CSpectrum &b);

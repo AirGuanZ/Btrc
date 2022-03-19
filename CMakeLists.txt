@@ -67,6 +67,10 @@ FIND_PACKAGE(CUDAToolkit REQUIRED)
 ADD_SUBDIRECTORY(lib/fmt)
 SET_TARGET_PROPERTIES(fmt PROPERTIES FOLDER "ThirdParty")
 
+############## bvh
+
+ADD_SUBDIRECTORY(lib/bvh)
+
 ############## opengl
 
 IF(BTRC_BUILD_GUI)

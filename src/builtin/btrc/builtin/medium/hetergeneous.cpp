@@ -31,12 +31,14 @@ Medium::SampleResult HetergeneousMedium::sample(
     ref<CVec3f>     uvw_b,
     ref<CRNG>       rng) const
 {
+    const float max_density = std::max(sigma_t_->get_max_float(), 0.001f);
+    const float inv_max_density = 1.0f / max_density;
     var t_max = length(b - a), t = 0.0f;
-    var max_density = cstd::max(sigma_t_->get_max_float(cc), 0.001f);
-    var inv_max_density = 1.0f / max_density;
     
     var local_a = CVec3f(0.5f) + 0.5f * uvw_a;
     var local_b = CVec3f(0.5f) + 0.5f * uvw_b;
+    var local_ba_div_t_max = (local_b - local_a) / t_max;
+    var ba_div_t_max = (b - a) / t_max;
 
     SampleResult result;
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
@@ -52,16 +54,15 @@ Medium::SampleResult HetergeneousMedium::sample(
             result.throughput = CSpectrum::one();
             $break;
         };
-
-        var tf = t / t_max;
-        var uvw = local_a * (1.0f - tf) + local_b * tf;
+        
+        var uvw = local_a + t * local_ba_div_t_max;
         var density = sigma_t_->sample_float(cc, uvw);
         $if(rng.uniform_float() < density * inv_max_density)
         {
             var albedo = albedo_->sample_spectrum(cc, uvw);
             var g = g_->sample_float(cc, uvw);
             result.scattered = true;
-            result.position = a * (1.0f - tf) + b * tf;
+            result.position = a + t * ba_div_t_max;
             result.throughput = CSpectrum::one();
             shader->set_g(g);
             shader->set_color(albedo);
@@ -81,11 +82,12 @@ CSpectrum HetergeneousMedium::tr(
     ref<CRNG>       rng) const
 {
     var result = 1.0f, t = 0.0f, t_max = length(b - a);
-    var max_density = cstd::max(sigma_t_->get_max_float(cc), 0.001f);
-    var inv_max_density = 1.0f / max_density;
+    const float max_density = std::max(sigma_t_->get_max_float(), 0.001f);
+    const float inv_max_density = 1.0f / max_density;
 
     var local_a = CVec3f(0.5f) + 0.5f * uvw_a;
     var local_b = CVec3f(0.5f) + 0.5f * uvw_b;
+    var local_ba_div_t_max = (local_b - local_a) / t_max;
 
     $loop
     {
@@ -96,8 +98,7 @@ CSpectrum HetergeneousMedium::tr(
             $break;
         };
 
-        var tf = t / t_max;
-        var uvw = local_a * (1.0f - tf) + local_b * tf;
+        var uvw = local_a + t * local_ba_div_t_max;
         var density = sigma_t_->sample_float(cc, uvw);
         result = result * density * inv_max_density;
     };

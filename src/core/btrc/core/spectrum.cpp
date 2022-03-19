@@ -140,6 +140,16 @@ Spectrum operator*(float a, const Spectrum &b)
     return b * a;
 }
 
+Spectrum (max)(const Spectrum &a, const Spectrum &b)
+{
+    return Spectrum::from_rgb(std::max(a.r, b.r), std::max(a.g, b.g), std::max(a.b, b.b));
+}
+
+Spectrum (min)(const Spectrum &a, const Spectrum &b)
+{
+    return Spectrum::from_rgb(std::min(a.r, b.r), std::min(a.g, b.g), std::min(a.b, b.b));
+}
+
 CSpectrum operator+(const CSpectrum &a, const CSpectrum &b)
 {
     return CSpectrum::from_rgb(a.r + b.r, a.g + b.g, a.b + b.b);
