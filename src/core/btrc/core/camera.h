@@ -20,6 +20,8 @@ public:
 
     virtual void set_w_over_h(float ratio) = 0;
 
+    virtual AABB3f get_bounding_box() const = 0;
+
     virtual SampleWeResult generate_ray_inline(
         CompileContext &cc, ref<CVec2f> film_coord, f32 time_sample) const = 0;
 

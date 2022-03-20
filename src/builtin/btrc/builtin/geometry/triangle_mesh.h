@@ -22,6 +22,8 @@ public:
 
     const GeometryInfo &get_geometry_info() const override;
 
+    AABB3f get_bounding_box() const override;
+
     SampleResult sample_inline(ref<CVec3f> sam) const override;
 
     f32 pdf_inline(ref<CVec3f> pos) const override;
@@ -45,6 +47,7 @@ private:
 
     CAliasTable alias_table_;
     float       total_area_ = 0;
+    AABB3f      bbox_;
 };
 
 class TriangleMeshCreator : public factory::Creator<Geometry>

@@ -41,6 +41,8 @@ public:
 
     virtual const GeometryInfo &get_geometry_info() const = 0;
 
+    virtual AABB3f get_bounding_box() const = 0;
+
     virtual SampleResult sample_inline(ref<CVec3f> sam) const = 0;
 
     virtual f32 pdf_inline(ref<CVec3f> pos) const = 0;

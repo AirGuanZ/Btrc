@@ -79,7 +79,13 @@ namespace
 
 } // namespace anonymous
 
-void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Scene &scene, const ShadeParams &shade_params)
+void ShadePipeline::record_device_code(
+    CompileContext      &cc,
+    Film                &film,
+    const Scene         &scene,
+    const VolumeManager &vols,
+    const ShadeParams   &shade_params,
+    float                world_diagonal)
 {
     using namespace cuj;
 
@@ -115,25 +121,30 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
         var rng = soa_params.rng[soa_index];
 
         var inst_id = inct_inst_launch_index.x;
-        $if(inst_id == INST_ID_MISS)
-        {
-            handle_miss(cc, light_sampler, soa_params, soa_index, path_radiance);
-            $if(depth == 0)
-            {
-                film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-            };
-            film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-
-            var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-            soa_params.output_rng[output_index] = rng;
-            $return();
-        };
-
-        boolean scattered = false;
-        $if((inst_id & INST_ID_MEDIUM_MASK) != 0)
+        var scattered = false;
+        $if(has_scattered(inst_id))
         {
             scattered = true;
-            inst_id = inst_id & ~INST_ID_MEDIUM_MASK;
+            inst_id = get_raw_inst_id(inst_id);
+        };
+
+        $if(is_inct_miss(inst_id))
+        {
+            handle_miss(
+                cc, scene, world_diagonal, vols,
+                light_sampler, soa_params, soa_index,
+                path_radiance, rng, scattered);
+            $if(!scattered)
+            {
+                $if(depth == 0)
+                {
+                    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
+                };
+                film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
+                var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
+                soa_params.output_rng[output_index] = rng;
+            };
+            $return();
         };
 
         var ray_o_medium_id = load_aligned(soa_params.ray_o_medium_id + soa_index);
@@ -164,7 +175,7 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
             var beta_le = load_aligned(soa_params.beta_le + soa_index);
             var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
 
-            $if(scattered & medium_id != MEDIUM_ID_VOID)
+            $if(scattered)
             {
                 var tr = CSpectrum::one();
                 $switch(medium_id)
@@ -176,6 +187,10 @@ void ShadePipeline::record_device_code(CompileContext &cc, Film &film, const Sce
                             tr = scene.get_medium(i)->tr(cc, ray_o, inct.position, ray_o, inct.position, rng);
                         };
                     }
+                    $case(MEDIUM_ID_VOID)
+                    {
+                        tr = vols.tr(cc, ray_o, inct.position, rng);
+                    };
                     $default
                     {
                         cstd::unreachable();
@@ -519,19 +534,31 @@ void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
 }
 
 void ShadePipeline::handle_miss(
-    CompileContext     &cc,
+    CompileContext      &cc,
+    const Scene         &scene,
+    float                world_diagonal,
+    const VolumeManager &vols,
     const LightSampler *light_sampler,
     ref<CSOAParams>     soa_params,
     u32                 soa_index,
-    ref<CSpectrum>      path_rad)
+    ref<CSpectrum>      path_rad,
+    ref<CRNG>           rng,
+    boolean             scattered)
 {
     var time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
     auto envir_light = light_sampler->get_envir_light();
     if(envir_light)
     {
+        var ray_ori = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_medium_id + soa_index));
         var ray_dir = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
         var le = envir_light->eval_le(cc, ray_dir);
         var beta_le = load_aligned(soa_params.beta_le + soa_index);
+
+        $if(scattered)
+        {
+            var tr = vols.tr(cc, ray_ori, ray_ori + normalize(ray_dir) * world_diagonal, rng);
+            beta_le = beta_le * tr;
+        };
 
         var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
         $if(bsdf_pdf < 0) // delta

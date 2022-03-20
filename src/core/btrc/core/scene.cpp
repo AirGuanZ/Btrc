@@ -16,6 +16,11 @@ void Scene::add_instance(const Instance &inst)
     instances_.push_back(inst);
 }
 
+void Scene::add_volume(RC<VolumePrimitive> vol)
+{
+    volumes_.push_back(vol);
+}
+
 void Scene::set_envir_light(RC<EnvirLight> env)
 {
     env_light_ = std::move(env);
@@ -140,13 +145,33 @@ void Scene::postcommit()
 
     tlas_ = optix_ctx_->create_instance_as(blas_instances);
 
-    instance_info_.initialize(instance_info.size());
-    assert(instance_info_.get_size() == instance_info.size());
-    instance_info_.from_cpu(instance_info.data());
+    if(!instance_info.empty())
+    {
+        instance_info_.initialize(instance_info.size());
+        assert(instance_info_.get_size() == instance_info.size());
+        instance_info_.from_cpu(instance_info.data());
+    }
 
-    geometry_info_.initialize(geometry_info.size());
-    assert(geometry_info_.get_size() == geometry_info.size());
-    geometry_info_.from_cpu(geometry_info.data());
+    if(!geometry_info.empty())
+    {
+        geometry_info_.initialize(geometry_info.size());
+        assert(geometry_info_.get_size() == geometry_info.size());
+        geometry_info_.from_cpu(geometry_info.data());
+    }
+
+    bbox_ = {};
+    for(auto &inst : instances_)
+    {
+        auto inst_bbox = inst.geometry->get_bounding_box();
+        inst_bbox = inst.transform.apply_to_aabb(inst_bbox);
+        bbox_ = union_aabb(bbox_, inst_bbox);
+    }
+
+    for(auto &vol : volumes_)
+    {
+        auto vol_bbox = vol->get_bounding_box();
+        bbox_ = union_aabb(bbox_, vol_bbox);
+    }
 }
 
 OptixTraversableHandle Scene::get_tlas() const
@@ -206,6 +231,11 @@ const Medium *Scene::get_medium(int id) const
     return mediums_[id].get();
 }
 
+const std::vector<RC<VolumePrimitive>> &Scene::get_volumes() const
+{
+    return volumes_;
+}
+
 bool Scene::has_motion_blur() const
 {
     return false;
@@ -214,6 +244,11 @@ bool Scene::has_motion_blur() const
 bool Scene::is_triangle_only() const
 {
     return true;
+}
+
+const AABB3f &Scene::get_bbox() const
+{
+    return bbox_;
 }
 
 BTRC_END

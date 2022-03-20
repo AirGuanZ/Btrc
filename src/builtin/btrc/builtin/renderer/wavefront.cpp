@@ -8,6 +8,7 @@
 #include "./wavefront/shadow.h"
 #include "./wavefront/sort.h"
 #include "./wavefront/trace.h"
+#include "./wavefront/volume.h"
 
 BTRC_BUILTIN_BEGIN
 
@@ -32,6 +33,7 @@ struct WavefrontPathTracer::Impl
     wfpt::ShadePipeline         shade;
     wfpt::ShadowPipeline        shadow;
     wfpt::PreviewImageGenerator preview;
+    wfpt::VolumeManager         volumes;
 
     RC<cuda::Buffer<wfpt::StateCounters>> state_counters;
 
@@ -121,28 +123,36 @@ void WavefrontPathTracer::recompile()
     impl_->shade = {};
     impl_->shadow = {};
 
-    cuj::ScopedModule cuj_module;
+    impl_->volumes = wfpt::VolumeManager(impl_->scene->get_volumes());
 
-    impl_->generate.record_device_code(cc, *impl_->camera, { impl_->width, impl_->height });
-    impl_->medium.record_device_code(cc, impl_->film, *impl_->scene, shade_params);
-    impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, shade_params);
+    const AABB3f world_bbox = union_aabb(impl_->camera->get_bounding_box(), impl_->scene->get_bbox());
+    const float world_diagonal = 1.2f * length(world_bbox.upper - world_bbox.lower);
 
-    cuj::PTXGenerator ptx_gen;
-    ptx_gen.set_options(cuj::Options{
-        .opt_level = cuj::OptimizationLevel::O3,
-        .fast_math = true,
-        .approx_math_func = true
-    });
-    ptx_gen.generate(cuj_module);
+    {
+        cuj::ScopedModule cuj_module;
 
-    auto &ptx = ptx_gen.get_ptx();
-    auto cuda_module = newRC<cuda::Module>();
-    cuda_module->load_ptx_from_memory(ptx.data(), ptx.size());
-    cuda_module->link();
+        impl_->generate.record_device_code(cc, *impl_->camera, { impl_->width, impl_->height });
+        impl_->medium.record_device_code(cc, impl_->film, impl_->volumes, *impl_->scene, shade_params, world_diagonal);
+        impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, impl_->volumes, shade_params, world_diagonal);
 
-    impl_->generate.initialize(cuda_module, params.spp, params.state_count, { impl_->width, impl_->height });
-    impl_->medium.initialize(cuda_module, impl_->state_counters, *impl_->scene);
-    impl_->shade.initialize(cuda_module, impl_->state_counters, *impl_->scene);
+        cuj::PTXGenerator ptx_gen;
+        ptx_gen.set_options(cuj::Options{
+            .opt_level = cuj::OptimizationLevel::O3,
+            .fast_math = true,
+            .approx_math_func = true,
+            .enable_assert = true
+            });
+        ptx_gen.generate(cuj_module);
+
+        auto &ptx = ptx_gen.get_ptx();
+        auto cuda_module = newRC<cuda::Module>();
+        cuda_module->load_ptx_from_memory(ptx.data(), ptx.size());
+        cuda_module->link();
+
+        impl_->generate.initialize(cuda_module, params.spp, params.state_count, { impl_->width, impl_->height });
+        impl_->medium.initialize(cuda_module, impl_->state_counters, *impl_->scene);
+        impl_->shade.initialize(cuda_module, impl_->state_counters, *impl_->scene);
+    }
 
     impl_->trace = wfpt::TracePipeline(
         *impl_->optix_ctx,
@@ -153,10 +163,11 @@ void WavefrontPathTracer::recompile()
     impl_->sort = wfpt::SortPipeline();
 
     impl_->shadow = wfpt::ShadowPipeline(
-        *impl_->scene, impl_->film, *impl_->optix_ctx,
+        *impl_->scene, impl_->film,
+        impl_->volumes, *impl_->optix_ctx,
         impl_->scene->has_motion_blur(),
         impl_->scene->is_triangle_only(),
-        2);
+        2, world_diagonal);
 
     // path state
 

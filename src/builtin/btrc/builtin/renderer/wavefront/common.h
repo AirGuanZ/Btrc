@@ -9,8 +9,23 @@
 
 BTRC_WFPT_BEGIN
 
-constexpr uint32_t INST_ID_MISS        = static_cast<uint32_t>(-1);
-constexpr uint32_t INST_ID_MEDIUM_MASK = 0x80000000;
+constexpr uint32_t INST_ID_MISS_MASK    = 0b01111111111111111111111111111111;
+constexpr uint32_t INST_ID_SCATTER_MASK = 0b10000000000000000000000000000000;
+
+inline cuj::boolean is_inct_miss(cuj::u32 inst_id)
+{
+    return (inst_id & INST_ID_MISS_MASK) == INST_ID_MISS_MASK;
+}
+
+inline cuj::boolean has_scattered(cuj::u32 inst_id)
+{
+    return (inst_id & INST_ID_SCATTER_MASK) != 0;
+}
+
+inline cuj::u32 get_raw_inst_id(cuj::u32 masked_inst_id)
+{
+    return masked_inst_id & ~INST_ID_SCATTER_MASK;
+}
 
 struct StateCounters
 {

@@ -23,6 +23,9 @@ template<typename T>
 AABB3<T> union_aabb(const AABB3<T> &a, const AABB3<T> &b);
 
 template<typename T>
+AABB3<T> union_aabb(const AABB3<T> &a, const Vec3<T> &p);
+
+template<typename T>
 AABB3<T> intersect_aabb(const AABB3<T> &a, const AABB3<T> &b);
 
 // ========================== impl ==========================
@@ -47,6 +50,18 @@ AABB3<T> union_aabb(const AABB3<T> &a, const AABB3<T> &b)
 }
 
 template<typename T>
+AABB3<T> union_aabb(const AABB3<T> &a, const Vec3<T> &p)
+{
+    return AABB3<T>(
+        Vec3<T>((std::min)(a.lower.x, p.x),
+                (std::min)(a.lower.y, p.y), 
+                (std::min)(a.lower.z, p.z)),
+        Vec3<T>((std::max)(a.upper.x, p.x),
+                (std::max)(a.upper.y, p.y), 
+                (std::max)(a.upper.z, p.z)));
+}
+
+template<typename T>
 AABB3<T> intersect_aabb(const AABB3<T> &a, const AABB3<T> &b)
 {
     return AABB3<T>(
@@ -61,7 +76,7 @@ AABB3<T> intersect_aabb(const AABB3<T> &a, const AABB3<T> &b)
 template<typename T>
 bool AABB3<T>::empty() const
 {
-    return lower.x < upper.x && lower.y < upper.y && lower.z < upper.z;
+    return !(lower.x < upper.x && lower.y < upper.y && lower.z < upper.z);
 }
 
 BTRC_END

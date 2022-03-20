@@ -119,7 +119,7 @@ bool volume::BVH::is_empty() const
     return nodes_.is_empty();
 }
 
-boolean volume::BVH::find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref<CVec3f> &output_position) const
+boolean volume::BVH::find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref<CVec3f> output_position) const
 {
     if(nodes_.is_empty())
         return false;
@@ -129,15 +129,16 @@ boolean volume::BVH::find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref
 
     var nodes = cuj::import_pointer(nodes_.get());
     var prims = cuj::import_pointer(prims_.get());
-    
-    var inv_dir = 1.0f / (b - a);
+
+    var dir = b - a;
+    var inv_dir = 1.0f / dir;
     var final_t = btrc_max_float, t_max = 1.0f;
 
     cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
     traversal_stack[0] = 0;
 
     var top = 1;
-    $while(top >= 0)
+    $while(top > 0)
     {
         top = top - 1;
         var task_node_idx = traversal_stack[top];
@@ -147,7 +148,7 @@ boolean volume::BVH::find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref
         {
             $forrange(i, node.prim_beg, node.prim_end)
             {
-                var t = find_closest_intersection(a, inv_dir, t_max, prims[i]);
+                var t = find_closest_intersection(a, dir, t_max, prims[i]);
                 $if(t >= 0.0f)
                 {
                     final_t = cstd::min(final_t, t);
@@ -193,14 +194,33 @@ volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
     Overlap result;
     result.count = 0;
 
+    if(nodes_.is_empty())
+        return result;
+
     var nodes = cuj::import_pointer(nodes_.get());
     var prims = cuj::import_pointer(prims_.get());
 
     cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
     traversal_stack[0] = 0;
 
+    auto sort_result = [&result]
+    {
+        $forrange(i, 0, result.count)
+        {
+            $forrange(j, 0, result.count - 1 - i)
+            {
+                $if(result.data[j] > result.data[j + 1])
+                {
+                    var t = result.data[j + 1];
+                    result.data[j + 1] = result.data[j];
+                    result.data[j] = t;
+                };
+            };
+        };
+    };
+
     var top = 1;
-    $while(top >= 0)
+    $while(top > 0)
     {
         top = top - 1;
         ref node = nodes[traversal_stack[top]];
@@ -216,6 +236,7 @@ volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
                     result.count = result.count + 1;
                     $if(result.count >= MAX_OVERLAP_COUNT)
                     {
+                        sort_result();
                         $exit_scope;
                     };
                 };
@@ -239,12 +260,13 @@ volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
         };
     };
 
+    sort_result();
     return result;
 }
 
 boolean volume::BVH::is_leaf_node(ref<CBVHNode> node) const
 {
-    return node.prim_beg < 0;
+    return node.prim_beg >= 0;
 }
 
 boolean volume::BVH::is_in_prim(ref<CVec3f> pos, ref<CBVHPrimitive> prim) const
@@ -308,7 +330,7 @@ f32 volume::BVH::find_closest_intersection(ref<CVec3f> p, ref<CVec3f> d, f32 t_m
         $exit_scope;
     };
 
-    $if(t1 < 1)
+    $if(t1 < t_max)
     {
         result = t1;
         $exit_scope;

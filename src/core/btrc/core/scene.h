@@ -56,6 +56,8 @@ public:
 
     void add_instance(const Instance &inst);
 
+    void add_volume(RC<VolumePrimitive> vol);
+
     void set_envir_light(RC<EnvirLight> env);
 
     void set_light_sampler(RC<LightSampler> light_sampler);
@@ -82,16 +84,21 @@ public:
 
     const Medium *get_medium(int id) const;
 
+    const std::vector<RC<VolumePrimitive>> &get_volumes() const;
+
     bool has_motion_blur() const;
 
     bool is_triangle_only() const;
+
+    const AABB3f &get_bbox() const;
 
 private:
 
     optix::Context *optix_ctx_;
 
-    std::vector<Instance> instances_;
-    RC<EnvirLight>        env_light_;
+    std::vector<Instance>            instances_;
+    std::vector<RC<VolumePrimitive>> volumes_;
+    RC<EnvirLight>                   env_light_;
 
     optix::InstanceAS          tlas_;
     std::vector<RC<Material>>  materials_;
@@ -99,6 +106,8 @@ private:
     RC<LightSampler>           light_sampler_;
     cuda::Buffer<InstanceInfo> instance_info_;
     cuda::Buffer<GeometryInfo> geometry_info_;
+
+    AABB3f bbox_;
 };
 
 BTRC_END

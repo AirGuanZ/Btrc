@@ -41,7 +41,7 @@ namespace volume
 
         bool is_empty() const;
 
-        boolean find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref<CVec3f> &output_position) const;
+        boolean find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref<CVec3f> output_position) const;
 
         Overlap get_overlap(ref<CVec3f> position) const;
 

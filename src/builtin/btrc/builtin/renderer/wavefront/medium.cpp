@@ -16,11 +16,17 @@ namespace
 
 } // namespace anonymous
 
-void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Scene &scene, const ShadeParams &shade_params)
+void MediumPipeline::record_device_code(
+    CompileContext      &cc,
+    Film                &film,
+    const VolumeManager &vols,
+    const Scene         &scene,
+    const ShadeParams   &shade_params,
+    float                world_diagonal)
 {
     using namespace cuj;
 
-    kernel(KERNEL, [&cc, &film, &shade_params, &scene](
+    kernel(KERNEL, [&cc, &film, &vols, &shade_params, &scene, world_diagonal, this](
         i32                total_state_count,
         ptr<CInstanceInfo> instances,
         ptr<CGeometryInfo> geometries,
@@ -39,48 +45,45 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
         var inst_id = inct_inst_launch_index.x;
         var soa_index = inct_inst_launch_index.y;
 
-        $if(inst_id == INST_ID_MISS)
-        {
-            $return();
-        };
+        var ray_o_medium_id = load_aligned(soa.ray_o_medium_id + soa_index);
+        var ray_o = ray_o_medium_id.xyz();
 
         var ray_d_t1 = load_aligned(soa.ray_d_t1 + soa_index);
         var ray_d = ray_d_t1.xyz();
 
-        var inct_t_prim_uv = load_aligned(soa.inct_t_prim_uv + soa_index);
-        var prim_id = inct_t_prim_uv.y;
-
-        ref instance = instances[inst_id];
-        ref geometry = geometries[instance.geometry_id];
-        var local_normal = load_aligned(geometry.geometry_ez_tex_coord_u_ca + prim_id).xyz();
-        var inct_nor = instance.transform.apply_to_vector(local_normal);
-
-        var inct_medium_id = cstd::select(dot(ray_d, inct_nor) < 0, instance.outer_medium_id, instance.inner_medium_id);
-        var ray_o_medium_id = load_aligned(soa.ray_o_medium_id + soa_index);
-        var ray_medium_id = bitcast<CMediumID>(ray_o_medium_id.w);
-        var medium_id = resolve_mediums(inct_medium_id, ray_medium_id);
-        soa.ray_o_medium_id[soa_index].w = bitcast<f32>(medium_id);
-
-        $if(medium_id == MEDIUM_ID_VOID)
-        {
-            $return();
-        };
-
-        var ray_o = ray_o_medium_id.xyz();
-
-        var inct_t = bitcast<f32>(inct_t_prim_uv.x);
-        var inct_pos = intersection_offset(ray_o + inct_t * ray_d, inct_nor, -ray_d);
-
         var rng = soa.rng[soa_index];
 
-        CVec3f shadow_o, shadow_d; f32 shadow_t1, shadow_light_pdf;
-        CSpectrum shadow_li;
+        // resolve medium id
+
+        CMediumID medium_id;
+        CVec3f medium_end;
+        $if(is_inct_miss(inst_id))
+        {
+            medium_id = MEDIUM_ID_VOID;
+            medium_end = ray_o + normalize(ray_d) * world_diagonal;
+        }
+        $else
+        {
+            var inct_t_prim_uv = load_aligned(soa.inct_t_prim_uv + soa_index);
+            var prim_id = inct_t_prim_uv.y;
+            ref instance = instances[inst_id];
+            ref geometry = geometries[instance.geometry_id];
+            var local_normal = load_aligned(geometry.geometry_ez_tex_coord_u_ca + prim_id).xyz();
+            var inct_nor = instance.transform.apply_to_vector(local_normal);
+
+            var inct_medium_id = cstd::select(dot(ray_d, inct_nor) < 0, instance.outer_medium_id, instance.inner_medium_id);
+            var ray_medium_id = bitcast<CMediumID>(ray_o_medium_id.w);
+            medium_id = resolve_mediums(inct_medium_id, ray_medium_id);
+
+            var inct_t = bitcast<f32>(inct_t_prim_uv.x);
+            medium_end = intersection_offset(ray_o + inct_t * ray_d, inct_nor, -ray_d);
+        };
+        soa.ray_o_medium_id[soa_index].w = bitcast<f32>(medium_id);
 
         var tr = CSpectrum::one();
-        auto handle_medium = [&](const Medium *medium)
-        {
-            auto sample_medium = medium->sample(cc, ray_o, inct_pos, ray_o, inct_pos, rng);
 
+        auto handle_medium = [&](const Medium::SampleResult &sample_medium)
+        {
             $if(sample_medium.scattered)
             {
                 var beta = soa.beta[soa_index];
@@ -91,7 +94,7 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
                 var depth         = soa.depth[soa_index];
 
                 // mark this path as scattered
-                soa.inct_inst_launch_index[thread_index].x = inst_id | INST_ID_MEDIUM_MASK;
+                soa.inct_inst_launch_index[thread_index].x = inst_id | INST_ID_SCATTER_MASK;
 
                 $if(depth == 0)
                 {
@@ -136,56 +139,14 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
 
                 // generate shadow ray
 
-                Function sample_light_for_medium_direct_illum = [&cc, &scene](
-                    ref<CVec3f>    scatter_pos,
-                    ref<CRNG>      rng,
-                    f32            time,
-                    ref<CVec3f>    shadow_d,
-                    ref<f32>       shadow_t1,
-                    ref<f32>       shadow_light_pdf,
-                    ref<CSpectrum> shadow_li)
-                {
-                    auto select_light = scene.get_light_sampler()->sample(scatter_pos, time, rng.uniform_float());
-                    $if(select_light.light_idx >= 0)
-                    {
-                        $switch(select_light.light_idx)
-                        {
-                            for(int i = 0; i < scene.get_light_sampler()->get_light_count(); ++i)
-                            {
-                                $case(i)
-                                {
-                                    auto light = scene.get_light_sampler()->get_light(i);
-                                    var sam = CVec3f(rng);
-                                    if(auto area = light->as_area())
-                                    {
-                                        auto sample = area->sample_li(cc, scatter_pos, sam);
-                                        var diff = sample.position - scatter_pos;
-                                        var shadow_dst = intersection_offset(sample.position, sample.normal, -diff);
-                                        shadow_d = shadow_dst - scatter_pos;
-                                        shadow_t1 = 1;
-                                        shadow_li = sample.radiance;
-                                        shadow_light_pdf = select_light.pdf * sample.pdf;
-                                    }
-                                    else
-                                    {
-                                        assert(!light->is_area());
-                                        auto sample = light->as_envir()->sample_li(cc, sam);
-                                        shadow_d = sample.direction_to_light;
-                                        shadow_t1 = btrc_max_float;
-                                        shadow_li = sample.radiance;
-                                        shadow_light_pdf = select_light.pdf * sample.pdf;
-                                    }
-                                };
-                            }
-                        };
-                    };
-                };
+                CVec3f shadow_o, shadow_d; f32 shadow_t1, shadow_light_pdf;
+                CSpectrum shadow_li;
 
                 shadow_o = sample_medium.position;
 
                 var ray_time = bitcast<f32>(soa.ray_time_mask[soa_index].x);
-                sample_light_for_medium_direct_illum(
-                    sample_medium.position, rng, ray_time,
+                sample_light(
+                    cc, scene, sample_medium.position, rng, ray_time,
                     shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
                 
                 $if(shadow_t1 > 1e-4f & !shadow_li.is_zero())
@@ -211,7 +172,7 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
                         CVec2u(bitcast<u32>(ray_time), optix::RAY_MASK_ALL),
                         soa.output_shadow_ray_time_mask + shadow_soa_index);
 
-                    var beta_li = shadow_li * beta * shadow_phase_val / (shadow_phase_pdf + shadow_light_pdf);
+                    var beta_li = shadow_li * beta *shadow_phase_val / (shadow_phase_pdf + shadow_light_pdf);
                     save_aligned(
                         beta_li,
                         soa.output_shadow_beta_li + shadow_soa_index);
@@ -272,13 +233,13 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
                     var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
                     soa.output_rng[output_index] = rng;
                 };
+
+                $return();
             }
             $else
             {
                 tr = sample_medium.throughput;
             };
-
-            $return();
         };
 
         $switch(medium_id)
@@ -287,9 +248,16 @@ void MediumPipeline::record_device_code(CompileContext &cc, Film &film, const Sc
             {
                 $case(MediumID(i))
                 {
-                    handle_medium(scene.get_medium(i));
+                    auto medium = scene.get_medium(i);
+                    auto sample_medium = medium->sample(cc, ray_o, medium_end, ray_o, medium_end, rng);
+                    handle_medium(sample_medium);
                 };
             }
+            $case(MEDIUM_ID_VOID)
+            {
+                auto sample_medium = vols.sample_scattering(cc, ray_o, medium_end, rng);
+                handle_medium(sample_medium);
+            };
             $default
             {
                 cstd::unreachable();
@@ -361,6 +329,53 @@ void MediumPipeline::sample_scattering(int total_state_count, const SOAParams &s
         inactive_state_counter,
         shadow_ray_counter,
         soa);
+}
+
+void MediumPipeline::sample_light(
+    CompileContext &cc,
+    const Scene    &scene,
+    ref<CVec3f>     scatter_pos,
+    ref<CRNG>       rng,
+    f32             time,
+    ref<CVec3f>     shadow_d,
+    ref<f32>        shadow_t1,
+    ref<f32>        shadow_light_pdf,
+    ref<CSpectrum>  shadow_li) const
+{
+    auto select_light = scene.get_light_sampler()->sample(scatter_pos, time, rng.uniform_float());
+    $if(select_light.light_idx >= 0)
+    {
+        $switch(select_light.light_idx)
+        {
+            for(int i = 0; i < scene.get_light_sampler()->get_light_count(); ++i)
+            {
+                $case(i)
+                {
+                    auto light = scene.get_light_sampler()->get_light(i);
+                    var sam = CVec3f(rng);
+                    if(auto area = light->as_area())
+                    {
+                        auto sample = area->sample_li(cc, scatter_pos, sam);
+                        var diff = sample.position - scatter_pos;
+                        var shadow_dst = intersection_offset(sample.position, sample.normal, -diff);
+                        shadow_d = shadow_dst - scatter_pos;
+                        shadow_t1 = 1;
+                        shadow_li = sample.radiance;
+                        shadow_light_pdf = select_light.pdf * sample.pdf;
+                    }
+                    else
+                    {
+                        assert(!light->is_area());
+                        auto sample = light->as_envir()->sample_li(cc, sam);
+                        shadow_d = sample.direction_to_light;
+                        shadow_t1 = btrc_max_float;
+                        shadow_li = sample.radiance;
+                        shadow_light_pdf = select_light.pdf * sample.pdf;
+                    }
+                };
+            }
+        };
+    };
 }
 
 BTRC_WFPT_END

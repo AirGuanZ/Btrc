@@ -100,7 +100,7 @@ CSpectrum HetergeneousMedium::tr(
 
         var uvw = local_a + t * local_ba_div_t_max;
         var density = sigma_t_->sample_float(cc, uvw);
-        result = result * density * inv_max_density;
+        result = result * (1.0f - density * inv_max_density);
     };
 
     return CSpectrum::from_rgb(result, result, result);

@@ -52,6 +52,8 @@ public:
 
     void commit() override;
 
+    AABB3f get_bounding_box() const override;
+
     SampleWeResult generate_ray_inline(
         CompileContext &cc,
         ref<CVec2f>     film_coord,

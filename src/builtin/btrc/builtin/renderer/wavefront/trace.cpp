@@ -66,7 +66,7 @@ namespace
         {
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
-            var inct_inst_launch_index = CVec2u(INST_ID_MISS, launch_idx);
+            var inct_inst_launch_index = CVec2u(INST_ID_MISS_MASK, launch_idx);
             save_aligned(inct_inst_launch_index, launch_params.inct_inst_launch_index + launch_idx);
         });
 

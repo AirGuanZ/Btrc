@@ -1,11 +1,10 @@
 #pragma once
 
+#include <btrc/builtin/renderer/wavefront/volume.h>
 #include <btrc/core/film.h>
 #include <btrc/core/scene.h>
 #include <btrc/utils/cuda/module.h>
 #include <btrc/utils/uncopyable.h>
-
-#include "./common.h"
 
 BTRC_WFPT_BEGIN
 
@@ -120,10 +119,12 @@ public:
     MediumPipeline() = default;
 
     void record_device_code(
-        CompileContext    &cc,
-        Film              &film,
-        const Scene       &scene,
-        const ShadeParams &shade_params);
+        CompileContext      &cc,
+        Film                &film,
+        const VolumeManager &vols,
+        const Scene         &scene,
+        const ShadeParams   &shade_params,
+        float                world_diagonal);
 
     void initialize(
         RC<cuda::Module>                cuda_module,
@@ -139,6 +140,17 @@ public:
     void sample_scattering(int total_state_count, const SOAParams &soa);
 
 private:
+
+    void sample_light(
+        CompileContext &cc,
+        const Scene    &scene,
+        ref<CVec3f>     scatter_pos,
+        ref<CRNG>       rng,
+        f32             time,
+        ref<CVec3f>     shadow_d,
+        ref<f32>        shadow_t1,
+        ref<f32>        shadow_light_pdf,
+        ref<CSpectrum>  shadow_li) const;
 
     RC<cuda::Module>                cuda_module_;
     RC<cuda::Buffer<StateCounters>> state_counters_;

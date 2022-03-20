@@ -91,6 +91,11 @@ void PinholeCamera::commit()
     device_properties_.from_cpu(&device_properties);
 }
 
+AABB3f PinholeCamera::get_bounding_box() const
+{
+    return AABB3f(eye_, eye_);
+}
+
 Camera::SampleWeResult PinholeCamera::generate_ray_inline(
     CompileContext &cc, ref<CVec2f> film_coord, f32 time_sample) const
 {

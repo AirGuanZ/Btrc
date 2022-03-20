@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include <btrc/utils/math/mat4.h>
+#include <btrc/utils/math/aabb.h>
 #include <btrc/utils/math/quaterion.h>
 
 BTRC_BEGIN
@@ -18,6 +18,8 @@ struct Transform
     Transform inverse() const;
 
     Vec3f apply_to_point(const Vec3f &p) const;
+
+    AABB3f apply_to_aabb(const AABB3f &bbox) const;
 };
 
 BTRC_END

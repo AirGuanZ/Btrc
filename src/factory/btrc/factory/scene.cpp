@@ -54,6 +54,31 @@ RC<Scene> create_scene(const RC<const Node> &scene_root, Context &context)
         });
     }
 
+    if(auto volarr_node = scene_root->find_child_node("volumes"))
+    {
+        auto volume_array = volarr_node->as_array();
+        if(!volume_array)
+            throw BtrcException("'volumes' is not an array node");
+
+        for(size_t i = 0; i < volume_array->get_size(); ++i)
+        {
+            auto volume = volume_array->get_element(i);
+            auto o = volume->parse_child<Vec3f>("o");
+            auto x = volume->parse_child<Vec3f>("x");
+            auto y = volume->parse_child<Vec3f>("y");
+            auto z = volume->parse_child<Vec3f>("z");
+            auto sigma_t = context.create<Texture3D>(volume->child_node("sigma_t"));
+            auto albedo = context.create<Texture3D>(volume->child_node("albedo"));
+
+            auto vol = newRC<VolumePrimitive>();
+            vol->set_geometry(o, x, y, z);
+            vol->set_sigma_t(std::move(sigma_t));
+            vol->set_albedo(std::move(albedo));
+
+            result->add_volume(std::move(vol));
+        }
+    }
+
     if(auto env_node = scene_root->find_child_node("envir_light"))
     {
         auto light = context.create<Light>(env_node);

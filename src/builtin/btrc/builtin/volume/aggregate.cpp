@@ -5,8 +5,11 @@
 
 BTRC_BUILTIN_BEGIN
 
-volume::VolumeAggregate::VolumeAggregate(const std::vector<RC<VolumePrimitive>> &vols)
+volume::Aggregate::Aggregate(const std::vector<RC<VolumePrimitive>> &vols)
 {
+    if(vols.empty())
+        return;
+
     // find all overlap areas
 
     VolumeOverlapResolver overlap_resolver;
@@ -15,43 +18,51 @@ volume::VolumeAggregate::VolumeAggregate(const std::vector<RC<VolumePrimitive>> 
 
     // build overlap trie
 
+    std::map<RC<VolumePrimitive>, int> vol_to_id;
+    for(auto &&[i, vol] : enumerate(vols))
+        vol_to_id[vol] = i;
+
     overlaps_ = overlap_resolver.get_overlaps();
-    OverlapIndexer indexer(overlaps_);
+    OverlapIndexer indexer(overlaps_, vols, vol_to_id);
 
     auto &trie_indices = indexer.get_indices();
     overlap_trie_ = cuda::Buffer<int32_t>(trie_indices);
 }
 
-volume::VolumeAggregate::VolumeAggregate(VolumeAggregate &&other) noexcept
-    : VolumeAggregate()
+volume::Aggregate::Aggregate(Aggregate &&other) noexcept
+    : Aggregate()
 {
     swap(other);
 }
 
-volume::VolumeAggregate &volume::VolumeAggregate::operator=(VolumeAggregate &&other) noexcept
+volume::Aggregate &volume::Aggregate::operator=(Aggregate &&other) noexcept
 {
     swap(other);
     return *this;
 }
 
-void volume::VolumeAggregate::swap(VolumeAggregate &other) noexcept
+void volume::Aggregate::swap(Aggregate &other) noexcept
 {
     overlap_trie_.swap(other.overlap_trie_);
 }
 
-Medium::SampleResult volume::VolumeAggregate::sample_scattering(
-    CompileContext &cc, ref<Overlap> overlap,
-    ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+void volume::Aggregate::sample_scattering(
+    CompileContext              &cc,
+    ref<Overlap>                 overlap,
+    ref<CVec3f>                  a,
+    ref<CVec3f>                  b,
+    ref<CRNG>                    rng,
+    ref<boolean>                 output_scattered,
+    ref<CSpectrum>               output_throughput,
+    ref<CVec3f>                  output_position,
+    HenyeyGreensteinPhaseShader &output_shader) const
 {
     $declare_scope;
-    Medium::SampleResult result;
-    auto shader = newRC<HenyeyGreensteinPhaseShader>();
-    result.shader = shader;
 
     $if(overlap.count == i32(0))
     {
-        result.scattered = false;
-        result.throughput = CSpectrum::one();
+        output_scattered = false;
+        output_throughput = CSpectrum::one();
         $exit_scope;
     };
 
@@ -64,21 +75,19 @@ Medium::SampleResult volume::VolumeAggregate::sample_scattering(
             {
                 sample_scattering_in_overlap(
                     cc, overlaps_[i], a, b, rng,
-                    result.scattered, result.throughput,
-                    result.position, *shader);
+                    output_scattered, output_throughput,
+                    output_position, output_shader);
             };
         }
         $default
         {
-            result.scattered = false;
-            result.throughput = CSpectrum::one();
+            output_scattered = false;
+            output_throughput = CSpectrum::one();
         };
     };
-
-    return result;
 }
 
-CSpectrum volume::VolumeAggregate::tr(
+CSpectrum volume::Aggregate::tr(
     CompileContext &cc, ref<Overlap> overlap,
     ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
 {
@@ -110,7 +119,7 @@ CSpectrum volume::VolumeAggregate::tr(
     return result;
 }
 
-i32 volume::VolumeAggregate::find_overlap_index(ref<Overlap> overlap) const
+i32 volume::Aggregate::find_overlap_index(ref<Overlap> overlap) const
 {
     var overlap_index = 0;
     var trie = cuj::import_pointer(overlap_trie_.get());
@@ -125,7 +134,7 @@ i32 volume::VolumeAggregate::find_overlap_index(ref<Overlap> overlap) const
     return overlap_index;
 }
 
-float volume::VolumeAggregate::get_max_density(const std::set<RC<VolumePrimitive>> &vols) const
+float volume::Aggregate::get_max_density(const std::set<RC<VolumePrimitive>> &vols) const
 {
     float max_density = 0.0f;
     for(auto &vol : vols)
@@ -133,7 +142,7 @@ float volume::VolumeAggregate::get_max_density(const std::set<RC<VolumePrimitive
     return (std::max)(max_density, 0.01f);
 }
 
-void volume::VolumeAggregate::sample_scattering_in_overlap(
+void volume::Aggregate::sample_scattering_in_overlap(
     CompileContext                      &cc,
     const std::set<RC<VolumePrimitive>> &vols,
     ref<CVec3f>                          a,
@@ -183,6 +192,7 @@ void volume::VolumeAggregate::sample_scattering_in_overlap(
         $if(rng.uniform_float() < density_sum * inv_max_density)
         {
             output_scattered = true;
+            output_throughput = CSpectrum::one();
             output_position = a * (1.0f - tf) + b * tf;
 
             var albedo = CSpectrum::zero();
@@ -191,7 +201,7 @@ void volume::VolumeAggregate::sample_scattering_in_overlap(
             {
                 var uvw = uvws[i];
                 var weight = densities[i] / density_sum;
-                var lobe_albedo = vol->get_sigma_t()->sample_spectrum(cc, uvw);
+                var lobe_albedo = vol->get_albedo()->sample_spectrum(cc, uvw);
                 albedo = albedo + weight * lobe_albedo;
             }
 
@@ -203,7 +213,7 @@ void volume::VolumeAggregate::sample_scattering_in_overlap(
     };
 }
 
-CSpectrum volume::VolumeAggregate::tr_in_overlap(
+CSpectrum volume::Aggregate::tr_in_overlap(
     CompileContext                      &cc,
     const std::set<RC<VolumePrimitive>> &vols,
     ref<CVec3f>                          a,
@@ -240,7 +250,7 @@ CSpectrum volume::VolumeAggregate::tr_in_overlap(
             density_sum = density_sum + density;
         }
 
-        result = result * density_sum * inv_max_density;
+        result = result * (1.0f - density_sum * inv_max_density);
     };
 
     return CSpectrum::from_rgb(result, result, result);

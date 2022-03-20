@@ -1,3 +1,4 @@
+#include <btrc/utils/math/mat4.h>
 #include <btrc/utils/math/transform.h>
 
 BTRC_BEGIN
@@ -49,6 +50,22 @@ Transform Transform::inverse() const
 Vec3f Transform::apply_to_point(const Vec3f &p) const
 {
     return rotate.apply_to_vector(scale * p) + translate;
+}
+
+AABB3f Transform::apply_to_aabb(const AABB3f &bbox) const
+{
+    AABB3f result;
+    for(auto &p : {
+        Vec3f(bbox.lower.x, bbox.lower.y, bbox.lower.z),
+        Vec3f(bbox.lower.x, bbox.lower.y, bbox.upper.z),
+        Vec3f(bbox.lower.x, bbox.upper.y, bbox.lower.z),
+        Vec3f(bbox.lower.x, bbox.upper.y, bbox.upper.z),
+        Vec3f(bbox.upper.x, bbox.lower.y, bbox.lower.z),
+        Vec3f(bbox.upper.x, bbox.lower.y, bbox.upper.z),
+        Vec3f(bbox.upper.x, bbox.upper.y, bbox.lower.z),
+        Vec3f(bbox.upper.x, bbox.upper.y, bbox.upper.z) })
+        result = union_aabb(result, apply_to_point(p));
+    return result;
 }
 
 BTRC_END

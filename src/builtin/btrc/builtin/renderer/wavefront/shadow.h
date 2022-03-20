@@ -6,7 +6,7 @@
 #include <btrc/utils/optix/pipeline.h>
 #include <btrc/utils/uncopyable.h>
 
-#include "./common.h"
+#include "./volume.h"
 
 BTRC_WFPT_BEGIN
 
@@ -58,12 +58,14 @@ public:
     ShadowPipeline() = default;
 
     ShadowPipeline(
-        const Scene       &scene,
-        Film              &film,
-        OptixDeviceContext context,
-        bool               motion_blur,
-        bool               triangle_only,
-        int                traversable_depth);
+        const Scene         &scene,
+        Film                &film,
+        const VolumeManager &vols,
+        OptixDeviceContext   context,
+        bool                 motion_blur,
+        bool                 triangle_only,
+        int                  traversable_depth,
+        float                world_diagonal);
 
     ShadowPipeline(ShadowPipeline &&other) noexcept;
 

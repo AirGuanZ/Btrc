@@ -167,6 +167,10 @@ void TriangleMesh::commit()
     alias_table_ = CAliasTable(table);
 
     total_area_ = std::accumulate(triangle_areas.begin(), triangle_areas.end(), 0.0f);
+
+    bbox_ = AABB3f{};
+    for(auto &p : loader.get_positions())
+        bbox_ = union_aabb(bbox_, p);
 }
 
 OptixTraversableHandle TriangleMesh::get_blas() const
@@ -177,6 +181,11 @@ OptixTraversableHandle TriangleMesh::get_blas() const
 const GeometryInfo &TriangleMesh::get_geometry_info() const
 {
     return geo_info_;
+}
+
+AABB3f TriangleMesh::get_bounding_box() const
+{
+    return bbox_;
 }
 
 Geometry::SampleResult TriangleMesh::sample_inline(ref<CVec3f> sam) const

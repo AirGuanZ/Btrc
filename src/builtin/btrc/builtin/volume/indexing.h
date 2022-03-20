@@ -11,7 +11,10 @@ namespace volume
     {
     public:
 
-        explicit OverlapIndexer(const std::vector<std::set<RC<VolumePrimitive>>> &overlaps);
+        OverlapIndexer(
+            const std::vector<std::set<RC<VolumePrimitive>>> &overlaps,
+            const std::vector<RC<VolumePrimitive>> &all_vols,
+            const std::map<RC<VolumePrimitive>, int> &vol_to_id);
 
         const std::vector<int32_t> &get_indices() const;
 

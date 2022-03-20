@@ -55,12 +55,12 @@ AABB3f VolumePrimitive::get_bounding_box() const
     const Vec3f lower = {
         min(o.x, o.x + x.x, o.x + y.x, o.x + z.x),
         min(o.y, o.y + x.y, o.y + y.y, o.y + z.y),
-        min(o.y, o.z + x.z, o.z + y.z, o.z + z.z),
+        min(o.z, o.z + x.z, o.z + y.z, o.z + z.z),
     };
     const Vec3f upper = {
         max(o.x, o.x + x.x, o.x + y.x, o.x + z.x),
         max(o.y, o.y + x.y, o.y + y.y, o.y + z.y),
-        max(o.y, o.z + x.z, o.z + y.z, o.z + z.z),
+        max(o.z, o.z + x.z, o.z + y.z, o.z + z.z),
     };
     return { lower, upper };
 }

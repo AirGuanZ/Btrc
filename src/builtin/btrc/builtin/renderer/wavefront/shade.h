@@ -5,7 +5,7 @@
 #include <btrc/utils/cuda/module.h>
 #include <btrc/utils/uncopyable.h>
 
-#include "./common.h"
+#include "./volume.h"
 
 BTRC_WFPT_BEGIN
 
@@ -110,10 +110,12 @@ public:
     ShadePipeline() = default;
 
     void record_device_code(
-        CompileContext    &cc,
-        Film              &film,
-        const Scene       &scene,
-        const ShadeParams &shade_params);
+        CompileContext      &cc,
+        Film                &film,
+        const Scene         &scene,
+        const VolumeManager &vols,
+        const ShadeParams   &shade_params,
+        float                world_diagonal);
 
     void initialize(
         RC<cuda::Module>                cuda_module,
@@ -131,11 +133,16 @@ public:
 private:
 
     void handle_miss(
-        CompileContext     &cc,
+        CompileContext      &cc,
+        const Scene         &scene,
+        float                world_diagonal,
+        const VolumeManager &vols,
         const LightSampler *light_sampler,
         ref<CSOAParams>     soa_params,
         u32                 soa_index,
-        ref<CSpectrum>      path_rad);
+        ref<CSpectrum>      path_rad,
+        ref<CRNG>           rng,
+        boolean             scattered);
 
     RC<cuda::Module>                kernel_;
     const GeometryInfo             *geo_info_ = nullptr;

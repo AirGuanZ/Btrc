@@ -9,28 +9,32 @@ BTRC_BUILTIN_BEGIN
 namespace volume
 {
 
-    class VolumeAggregate : public Object
+    class Aggregate : public Object
     {
     public:
 
         using Overlap = BVH::Overlap;
 
-        VolumeAggregate() = default;
+        Aggregate() = default;
 
-        explicit VolumeAggregate(const std::vector<RC<VolumePrimitive>> &vols);
+        explicit Aggregate(const std::vector<RC<VolumePrimitive>> &vols);
 
-        VolumeAggregate(VolumeAggregate &&other) noexcept;
+        Aggregate(Aggregate &&other) noexcept;
 
-        VolumeAggregate &operator=(VolumeAggregate &&other) noexcept;
+        Aggregate &operator=(Aggregate &&other) noexcept;
 
-        void swap(VolumeAggregate &other) noexcept;
+        void swap(Aggregate &other) noexcept;
 
-        Medium::SampleResult sample_scattering(
-            CompileContext &cc,
-            ref<Overlap>    overlap,
-            ref<CVec3f>     a,
-            ref<CVec3f>     b,
-            ref<CRNG>       rng) const;
+        void sample_scattering(
+            CompileContext              &cc,
+            ref<Overlap>                 overlap,
+            ref<CVec3f>                  a,
+            ref<CVec3f>                  b,
+            ref<CRNG>                    rng,
+            ref<boolean>                 output_scattered,
+            ref<CSpectrum>               output_throughput,
+            ref<CVec3f>                  output_position,
+            HenyeyGreensteinPhaseShader &output_shader) const;
 
         CSpectrum tr(
             CompileContext &cc,
