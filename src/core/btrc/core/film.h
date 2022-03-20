@@ -47,20 +47,20 @@ public:
     bool has_output(std::string_view name) const;
 
     void splat(
-        const CVec2f &pixel_coord,
+        const CVec2u &pixel_coord,
         std::span<std::pair<std::string_view, CValue>> values);
 
     void splat_atomic(
-        const CVec2f &pixel_coord,
+        const CVec2u &pixel_coord,
         std::span<std::pair<std::string_view, CValue>> values);
     
     void splat(
-        const CVec2f    &pixel_coord,
+        const CVec2u &pixel_coord,
         std::string_view name,
         const CValue    &value);
 
     void splat_atomic(
-        const CVec2f    &pixel_coord,
+        const CVec2u &pixel_coord,
         std::string_view name,
         const CValue    &value);
 

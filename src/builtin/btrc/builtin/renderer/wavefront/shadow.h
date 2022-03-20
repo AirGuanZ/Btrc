@@ -17,7 +17,7 @@ namespace shadow_pipeline_detail
     {
         OptixTraversableHandle handle;
 
-        Vec2f      *pixel_coord;
+        Vec2u      *pixel_coord;
         Vec4f      *ray_o_medium_id;
         Vec4f      *ray_d_t1;
         Vec2u      *ray_time_mask;
@@ -44,7 +44,7 @@ public:
 
     struct SOAParams
     {
-        Vec2f       *pixel_coord;
+        Vec2u       *pixel_coord;
         Vec4f       *ray_o_medium_id;
         Vec4f       *ray_d_t1;
         Vec2u       *ray_time_mask;

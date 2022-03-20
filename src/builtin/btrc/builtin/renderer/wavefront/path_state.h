@@ -1,10 +1,9 @@
 #pragma once
 
+#include <btrc/builtin/renderer/wavefront/common.h>
 #include <btrc/core/spectrum.h>
 #include <btrc/utils/cuda/buffer.h>
 #include <btrc/utils/cmath/cmath.h>
-
-#include "./common.h"
 
 BTRC_WFPT_BEGIN
 
@@ -35,7 +34,7 @@ struct PathState
 
     cuda::Buffer<Spectrum> beta;
     cuda::Buffer<int32_t>  depth;
-    cuda::Buffer<Vec2f>    pixel_coord;
+    cuda::Buffer<Vec2u>    pixel_coord;
     cuda::Buffer<Spectrum> path_radiance;
 
     // ==== trace output ====
@@ -53,12 +52,12 @@ struct PathState
 
     cuda::Buffer<Spectrum> next_beta;
     cuda::Buffer<int32_t>  next_depth;
-    cuda::Buffer<Vec2f>    next_pixel_coord;
+    cuda::Buffer<Vec2u>    next_pixel_coord;
     cuda::Buffer<Spectrum> next_path_radiance;
 
     // direct illum with light sampling
 
-    cuda::Buffer<Vec2f>    shadow_pixel_coord;
+    cuda::Buffer<Vec2u>    shadow_pixel_coord;
     cuda::Buffer<Vec4f>    shadow_o_medium_id;
     cuda::Buffer<Vec4f>    shadow_d_t1;
     cuda::Buffer<Vec2u>    shadow_time_mask;

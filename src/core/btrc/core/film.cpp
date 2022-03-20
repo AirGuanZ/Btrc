@@ -73,7 +73,7 @@ bool Film::has_output(std::string_view name) const
 }
 
 void Film::splat(
-    const CVec2f &pixel_coord,
+    const CVec2u &pixel_coord,
     std::span<std::pair<std::string_view, CValue>> values)
 {
     for(auto &p : values)
@@ -81,7 +81,7 @@ void Film::splat(
 }
 
 void Film::splat_atomic(
-    const CVec2f &pixel_coord,
+    const CVec2u &pixel_coord,
     std::span<std::pair<std::string_view, CValue>> values)
 {
     for(auto &p : values)
@@ -89,7 +89,7 @@ void Film::splat_atomic(
 }
 
 void Film::splat(
-    const CVec2f &pixel_coord, std::string_view name, const CValue &value)
+    const CVec2u &pixel_coord, std::string_view name, const CValue &value)
 {
     auto buffer_it = buffers_.find(name);
     if(buffer_it == buffers_.end())
@@ -98,9 +98,9 @@ void Film::splat(
 
     var ptr_buffer = cuj::import_pointer(buffer.buffer.get());
 
-    i32 xi = i32(cstd::floor(pixel_coord.x));
-    i32 yi = i32(cstd::floor(pixel_coord.y));
-    $if(0 <= xi & xi < width_ & 0 <= yi & yi < height_)
+    var xi = pixel_coord.x;
+    var yi = pixel_coord.y;
+    $if(0u <= xi & xi < width_ & 0u <= yi & yi < height_)
     {
         if(buffer.format == Float)
         {
@@ -124,7 +124,7 @@ void Film::splat(
 }
 
 void Film::splat_atomic(
-    const CVec2f &pixel_coord, std::string_view name, const CValue &value)
+    const CVec2u &pixel_coord, std::string_view name, const CValue &value)
 {
     auto buffer_it = buffers_.find(name);
     if(buffer_it == buffers_.end())
@@ -134,9 +134,9 @@ void Film::splat_atomic(
     var ptr_u64 = reinterpret_cast<uint64_t>(buffer.buffer.get());
     var ptr_buffer = cuj::bitcast<ptr<f32>>(ptr_u64);
 
-    i32 xi = i32(cstd::floor(pixel_coord.x));
-    i32 yi = i32(cstd::floor(pixel_coord.y));
-    $if(0 <= xi & xi < width_ & 0 <= yi & yi < height_)
+    var xi = pixel_coord.x;
+    var yi = pixel_coord.y;
+    $if(0u <= xi & xi < width_ & 0u <= yi & yi < height_)
     {
         if(buffer.format == Float)
         {

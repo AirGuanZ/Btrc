@@ -19,7 +19,7 @@ namespace shade_pipeline_detail
         // per path
 
         Spectrum *path_radiance;
-        Vec2f    *pixel_coord;
+        Vec2u    *pixel_coord;
         int32_t  *depth;
         Spectrum *beta;
 
@@ -46,13 +46,13 @@ namespace shade_pipeline_detail
         // ouput when active
 
         Spectrum *output_path_radiance;
-        Vec2f    *output_pixel_coord;
+        Vec2u *output_pixel_coord;
         int32_t  *output_depth;
         Spectrum *output_beta;
 
         // for shadow ray
 
-        Vec2f    *output_shadow_pixel_coord;
+        Vec2u    *output_shadow_pixel_coord;
         Vec4f    *output_shadow_ray_o_medium_id;
         Vec4f    *output_shadow_ray_d_t1;
         Vec2u    *output_shadow_ray_time_mask;

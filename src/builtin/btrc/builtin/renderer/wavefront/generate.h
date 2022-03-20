@@ -14,7 +14,7 @@ namespace generate_pipeline_detail
     struct SOAParams
     {
         CRNG::Data *rng;
-        Vec2f      *output_pixel_coord;
+        Vec2u      *output_pixel_coord;
         Vec4f      *output_ray_o_medium_id;
         Vec4f      *output_ray_d_t1;
         Vec2u      *output_ray_time_mask;

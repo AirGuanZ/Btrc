@@ -56,7 +56,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         auto sample_we_result = camera.generate_ray(
             cc, CVec2f(film_x, film_y), time_sample);
 
-        soa_params.output_pixel_coord[state_index] = CVec2f(pixel_xf, pixel_yf);
+        soa_params.output_pixel_coord[state_index] = CVec2u(u32(pixel_x), u32(pixel_y));
 
         var o_t0 = CVec4f(
             sample_we_result.pos.x,
