@@ -23,14 +23,14 @@ void PathState::initialize(int state_count)
         o_medium_id,
         d_t1,
         time_mask,
-        beta_le,
-        bsdf_pdf,
+        beta_le_bsdf_pdf,
         beta,
         depth,
         pixel_coord,
         path_radiance,
         path_flag,
         inct_t_prim_uv,
+        next_state_index,
         next_rng,
         next_beta,
         next_depth,
@@ -44,8 +44,7 @@ void PathState::initialize(int state_count)
         next_o_medium_id, 
         next_d_t1,
         next_time_mask,
-        next_beta_le,
-        next_bsdf_pdf,
+        next_beta_le_bsdf_pdf,
         shadow_rng);
 }
 
@@ -75,8 +74,7 @@ void PathState::next_iteration()
     pixel_coord.swap(next_pixel_coord);
 
     beta.swap(next_beta);
-    beta_le.swap(next_beta_le);
-    bsdf_pdf.swap(next_bsdf_pdf);
+    beta_le_bsdf_pdf.swap(next_beta_le_bsdf_pdf);
     depth.swap(next_depth);
     path_radiance.swap(next_path_radiance);
 }

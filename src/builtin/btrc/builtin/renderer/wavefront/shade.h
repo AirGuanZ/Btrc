@@ -25,8 +25,7 @@ namespace shade_pipeline_detail
 
         // for computing mis le
 
-        Spectrum *beta_le;
-        float    *bsdf_pdf;
+        Spectrum *beta_le_bsdf_pdf;
 
         // last intersection
 
@@ -39,7 +38,7 @@ namespace shade_pipeline_detail
         Vec4f    *ray_d_t1;
         Vec2u    *ray_time_mask;
 
-        // always output
+        int32_t *next_state_index;
 
         CRNG::Data *output_rng;
 
@@ -64,8 +63,7 @@ namespace shade_pipeline_detail
         Vec4f    *output_new_ray_d_t1;
         Vec2u    *output_new_ray_time_mask;
 
-        Spectrum *output_beta_le;
-        float    *output_bsdf_pdf;
+        Spectrum *output_beta_le_bsdf_pdf;
     };
 
     CUJ_PROXY_CLASS(
@@ -75,13 +73,13 @@ namespace shade_pipeline_detail
         pixel_coord,
         depth,
         beta,
-        beta_le,
-        bsdf_pdf,
+        beta_le_bsdf_pdf,
         path_flag,
         inct_t_prim_uv,
         ray_o_medium_id,
         ray_d_t1,
         ray_time_mask,
+        next_state_index,
         output_rng,
         output_path_radiance,
         output_pixel_coord,
@@ -95,8 +93,7 @@ namespace shade_pipeline_detail
         output_new_ray_o_medium_id,
         output_new_ray_d_t1,
         output_new_ray_time_mask,
-        output_beta_le,
-        output_bsdf_pdf);
+        output_beta_le_bsdf_pdf);
 
 } // namespace shade_pipeline_detail
 
@@ -134,7 +131,6 @@ private:
 
     void handle_miss(
         CompileContext      &cc,
-        const Scene         &scene,
         float                world_diagonal,
         const VolumeManager &vols,
         const LightSampler *light_sampler,

@@ -206,16 +206,15 @@ Renderer::RenderResult WavefrontPathTracer::render() const
         const int new_state_count = impl_->generate.generate(
             active_state_count,
             wfpt::GeneratePipeline::SOAParams{
-                .rng                    = soa.rng,
-                .output_pixel_coord     = soa.pixel_coord,
-                .output_ray_o_medium_id = soa.o_medium_id,
-                .output_ray_d_t1        = soa.d_t1,
-                .output_ray_time_mask   = soa.time_mask,
-                .output_beta            = soa.beta,
-                .output_beta_le         = soa.beta_le,
-                .output_bsdf_pdf        = soa.bsdf_pdf,
-                .output_depth           = soa.depth,
-                .output_path_radiance   = soa.path_radiance
+                .rng                     = soa.rng,
+                .output_pixel_coord      = soa.pixel_coord,
+                .output_ray_o_medium_id  = soa.o_medium_id,
+                .output_ray_d_t1         = soa.d_t1,
+                .output_ray_time_mask    = soa.time_mask,
+                .output_beta             = soa.beta,
+                .output_beta_le_bsdf_pdf = soa.beta_le_bsdf_pdf,
+                .output_depth            = soa.depth,
+                .output_path_radiance    = soa.path_radiance
             },
             limited_state_count);
 
@@ -242,12 +241,13 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .pixel_coord                   = soa.pixel_coord,
                 .depth                         = soa.depth,
                 .beta                          = soa.beta,
-                .beta_le                       = soa.beta_le,
+                .beta_le_bsdf_pdf              = soa.beta_le_bsdf_pdf,
                 .path_flag                     = soa.path_flag,
                 .inct_t_prim_uv                = soa.inct_t_prim_uv,
                 .ray_o_medium_id               = soa.o_medium_id,
                 .ray_d_t1                      = soa.d_t1,
                 .ray_time_mask                 = soa.time_mask,
+                .next_state_index              = soa.next_state_index,
                 .output_rng                    = soa.next_rng,
                 .output_path_radiance          = soa.next_path_radiance,
                 .output_pixel_coord            = soa.next_pixel_coord,
@@ -261,8 +261,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .output_new_ray_o_medium_id    = soa.next_o_medium_id,
                 .output_new_ray_d_t1           = soa.next_d_t1,
                 .output_new_ray_time_mask      = soa.next_time_mask,
-                .output_beta_le                = soa.next_beta_le,
-                .output_bsdf_pdf               = soa.next_bsdf_pdf
+                .output_beta_le_bsdf_pdf       = soa.next_beta_le_bsdf_pdf
             });
 
         // impl_->sort.sort(active_state_count, soa.inct_t, soa.inct_uv_id, soa.active_state_indices);
@@ -275,13 +274,13 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .pixel_coord                   = soa.pixel_coord,
                 .depth                         = soa.depth,
                 .beta                          = soa.beta,
-                .beta_le                       = soa.beta_le,
-                .bsdf_pdf                      = soa.bsdf_pdf,
+                .beta_le_bsdf_pdf              = soa.beta_le_bsdf_pdf,
                 .path_flag                     = soa.path_flag,
                 .inct_t_prim_uv                = soa.inct_t_prim_uv,
                 .ray_o_medium_id               = soa.o_medium_id,
                 .ray_d_t1                      = soa.d_t1,
                 .ray_time_mask                 = soa.time_mask,
+                .next_state_index              = soa.next_state_index,
                 .output_rng                    = soa.next_rng,
                 .output_path_radiance          = soa.next_path_radiance,
                 .output_pixel_coord            = soa.next_pixel_coord,
@@ -295,8 +294,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .output_new_ray_o_medium_id    = soa.next_o_medium_id,
                 .output_new_ray_d_t1           = soa.next_d_t1,
                 .output_new_ray_time_mask      = soa.next_time_mask,
-                .output_beta_le                = soa.next_beta_le,
-                .output_bsdf_pdf               = soa.next_bsdf_pdf
+                .output_beta_le_bsdf_pdf       = soa.next_beta_le_bsdf_pdf
             });
 
         wfpt::StateCounters state_counters;

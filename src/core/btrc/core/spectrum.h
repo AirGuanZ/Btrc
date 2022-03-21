@@ -9,7 +9,7 @@ class Spectrum
 public:
 
     float r, g, b;
-    float _unused_pad_;
+    float additional_data;
 
     static Spectrum from_rgb(float r, float g, float b);
 
@@ -26,7 +26,7 @@ public:
     Vec3f to_rgb() const;
 };
 
-CUJ_PROXY_CLASS_EX(CSpectrum, Spectrum, r, g, b, _unused_pad_)
+CUJ_PROXY_CLASS_EX(CSpectrum, Spectrum, r, g, b, additional_data)
 {
     CUJ_BASE_CONSTRUCTORS
 
@@ -37,6 +37,8 @@ CUJ_PROXY_CLASS_EX(CSpectrum, Spectrum, r, g, b, _unused_pad_)
     static CSpectrum zero();
         
     CSpectrum(const Spectrum &s = {});
+
+    CSpectrum(f32 r, f32 g, f32 b, f32 w);
 
     boolean is_zero() const;
 

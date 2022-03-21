@@ -26,7 +26,7 @@ namespace medium_pipeline_detail
 
         // beta and beta_le is modified if not scattered
 
-        Spectrum *beta_le;
+        Spectrum *beta_le_bsdf_pdf;
 
         // last intersection
 
@@ -42,6 +42,8 @@ namespace medium_pipeline_detail
 
         // output only when scattered
         // and mark original inst_id with INST_ID_MEDIUM_MASK
+
+        int32_t *next_state_index;
 
         CRNG::Data *output_rng;
         Spectrum   *output_path_radiance;
@@ -61,8 +63,7 @@ namespace medium_pipeline_detail
         Vec4f    *output_new_ray_d_t1;
         Vec2u    *output_new_ray_time_mask;
 
-        Spectrum *output_beta_le;
-        float    *output_bsdf_pdf;
+        Spectrum *output_beta_le_bsdf_pdf;
     };
 
     CUJ_PROXY_CLASS(
@@ -72,12 +73,13 @@ namespace medium_pipeline_detail
         pixel_coord,
         depth,
         beta,
-        beta_le,
+        beta_le_bsdf_pdf,
         path_flag,
         inct_t_prim_uv,
         ray_o_medium_id,
         ray_d_t1,
         ray_time_mask,
+        next_state_index,
         output_rng,
         output_path_radiance,
         output_pixel_coord,
@@ -91,8 +93,7 @@ namespace medium_pipeline_detail
         output_new_ray_o_medium_id,
         output_new_ray_d_t1,
         output_new_ray_time_mask,
-        output_beta_le,
-        output_bsdf_pdf);
+        output_beta_le_bsdf_pdf);
 
 } // namespace medium_pipeline_detail
 

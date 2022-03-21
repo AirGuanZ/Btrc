@@ -14,13 +14,13 @@ constexpr uint32_t PATH_FLAG_HAS_INTERSECTION = 0b010u << 29;
 constexpr uint32_t PATH_FLAG_HAS_SCATTERING   = 0b100u << 29;
 constexpr uint32_t PATH_FLAG_INSTANCE_ID_MASK = ~0u << 3 >> 3;
 
-cuj::boolean is_path_active(cuj::u32 path_state);
+cuj::boolean is_path_active(cuj::u32 path_flag);
 
-cuj::boolean is_path_intersected(cuj::u32 path_state);
+cuj::boolean is_path_intersected(cuj::u32 path_flag);
 
-cuj::boolean is_path_scattered(cuj::u32 path_state);
+cuj::boolean is_path_scattered(cuj::u32 path_flag);
 
-cuj::u32 extract_instance_id(cuj::u32 path_state);
+cuj::u32 extract_instance_id(cuj::u32 path_flag);
 
 struct StateCounters
 {

@@ -68,6 +68,14 @@ CSpectrum::CSpectrum(const Spectrum &s)
     b = s.b;
 }
 
+CSpectrum::CSpectrum(f32 r, f32 g, f32 b, f32 w)
+{
+    this->r = r;
+    this->g = g;
+    this->b = b;
+    additional_data = w;
+}
+
 boolean CSpectrum::is_zero() const
 {
     return r == f32(0) & g == f32(0) & b == f32(0);
@@ -87,12 +95,14 @@ CSpectrum load_aligned(ptr<CSpectrum> addr)
 {
     f32 r, g, b, u;
     cstd::load_f32x4(cuj::bitcast<ptr<f32>>(addr), r, g, b, u);
-    return CSpectrum::from_rgb(r, g, b);
+    var ret = CSpectrum::from_rgb(r, g, b);
+    ret.additional_data = u;
+    return ret;
 }
 
 void save_aligned(ref<CSpectrum> spec, ptr<CSpectrum> addr)
 {
-    cstd::store_f32x4(cuj::bitcast<ptr<f32>>(addr), spec.r, spec.g, spec.b, f32(0));
+    cstd::store_f32x4(cuj::bitcast<ptr<f32>>(addr), spec.r, spec.g, spec.b, spec.additional_data);
 }
 
 Spectrum operator+(const Spectrum &a, const Spectrum &b)

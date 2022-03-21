@@ -27,8 +27,7 @@ struct PathState
 
     // for direct illum with bsdf sampling
 
-    cuda::Buffer<Spectrum> beta_le;
-    cuda::Buffer<float>    bsdf_pdf;
+    cuda::Buffer<Spectrum> beta_le_bsdf_pdf;
 
     // path state
 
@@ -42,7 +41,9 @@ struct PathState
     cuda::Buffer<uint32_t> path_flag;
     cuda::Buffer<Vec4u>    inct_t_prim_uv;
 
-    // ==== shade output ====
+    // ==== medium & shade output ====
+
+    cuda::Buffer<int32_t> next_state_index;
 
     // 'state' state
 
@@ -71,8 +72,7 @@ struct PathState
 
     // next direct illum with bsdf sampling
 
-    cuda::Buffer<Spectrum> next_beta_le;
-    cuda::Buffer<float>    next_bsdf_pdf;
+    cuda::Buffer<Spectrum> next_beta_le_bsdf_pdf;
 
     // ==== shadow ====
 

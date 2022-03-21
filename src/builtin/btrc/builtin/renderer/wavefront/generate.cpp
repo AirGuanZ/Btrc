@@ -79,10 +79,12 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         save_aligned(time_mask, soa_params.output_ray_time_mask + state_index);
 
         soa_params.output_depth[state_index] = 0;
-        soa_params.output_bsdf_pdf[state_index] = -1;
+
+        save_aligned(
+            CSpectrum(sample_we_result.throughput.r, sample_we_result.throughput.g, sample_we_result.throughput.b, -1),
+            soa_params.output_beta_le_bsdf_pdf + state_index);
 
         save_aligned(sample_we_result.throughput, soa_params.output_beta + state_index);
-        save_aligned(sample_we_result.throughput, soa_params.output_beta_le + state_index);
         save_aligned(CSpectrum::zero(), soa_params.output_path_radiance + state_index);
     });
 }

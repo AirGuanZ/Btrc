@@ -117,22 +117,31 @@ void ShadePipeline::record_device_code(
         var pixel_coord = load_aligned(soa_params.pixel_coord + soa_index);
         i32 depth = soa_params.depth[soa_index];
 
-        var rng = soa_params.rng[soa_index];
-        
         var scattered = is_path_scattered(path_flag);
+
+        CRNG rng;
+        i32 next_state_index;
+        $if(scattered)
+        {
+            next_state_index = soa_params.next_state_index[soa_index];
+            rng = soa_params.output_rng[next_state_index];
+        }
+        $else
+        {
+            rng = soa_params.rng[soa_index];
+        };
 
         $if(!is_path_intersected(path_flag))
         {
             handle_miss(
-                cc, scene, world_diagonal, vols,
-                light_sampler, soa_params, soa_index,
-                path_radiance, rng, scattered);
-            $if(!scattered)
+                cc, world_diagonal, vols, light_sampler, soa_params,
+                soa_index, path_radiance, rng, scattered);
+            $if(scattered)
             {
-                //$if(depth == 0)
-                //{
-                //    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-                //};
+                soa_params.output_rng[next_state_index] = rng;
+            }
+            $else
+            {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
                 var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
                 soa_params.output_rng[output_index] = rng;
@@ -167,8 +176,8 @@ void ShadePipeline::record_device_code(
                 return;
 
             var le = area->eval_le(cc, inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
-            var beta_le = load_aligned(soa_params.beta_le + soa_index);
-            var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
+            var beta_le = load_aligned(soa_params.beta_le_bsdf_pdf + soa_index);
+            var bsdf_pdf = beta_le.additional_data;
 
             $if(scattered)
             {
@@ -225,6 +234,7 @@ void ShadePipeline::record_device_code(
 
         $if(scattered)
         {
+            soa_params.output_rng[next_state_index] = rng;
             $return();
         };
 
@@ -257,12 +267,7 @@ void ShadePipeline::record_device_code(
 
         $if(rr_exit)
         {
-            //$if(depth == 0)
-            //{
-            //    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-            //};
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-
             var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
             soa_params.output_rng[output_index] = rng;
             $return();
@@ -390,9 +395,8 @@ void ShadePipeline::record_device_code(
                 shadow_medium_id = instance.inner_medium_id;
             };
 
-            save_aligned(
-                pixel_coord,
-                soa_params.output_shadow_pixel_coord + shadow_soa_index);
+            save_aligned(pixel_coord, soa_params.output_shadow_pixel_coord + shadow_soa_index);
+
             save_aligned(
                 CVec4f(shadow_o, bitcast<f32>(shadow_medium_id)),
                 soa_params.output_shadow_ray_o_medium_id + shadow_soa_index);
@@ -413,7 +417,6 @@ void ShadePipeline::record_device_code(
         $if(depth == 0)
         {
             std::vector<std::pair<std::string_view, Film::CValue>> values = {
-                //{ Film::OUTPUT_WEIGHT, f32(1) },
                 { Film::OUTPUT_ALBEDO, gbuffer_albedo },
                 { Film::OUTPUT_NORMAL, gbuffer_normal }
             };
@@ -459,11 +462,9 @@ void ShadePipeline::record_device_code(
                 CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
                 soa_params.output_new_ray_time_mask + output_index);
 
-            save_aligned(beta_le, soa_params.output_beta_le + output_index);
-
             var stored_pdf = cstd::select(is_bsdf_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
-            soa_params.output_bsdf_pdf[output_index] = stored_pdf;
-            
+            beta_le.additional_data = stored_pdf;
+            save_aligned(beta_le, soa_params.output_beta_le_bsdf_pdf + output_index);
         }
         $else
         {
@@ -530,7 +531,6 @@ void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
 
 void ShadePipeline::handle_miss(
     CompileContext      &cc,
-    const Scene         &scene,
     float                world_diagonal,
     const VolumeManager &vols,
     const LightSampler *light_sampler,
@@ -547,7 +547,8 @@ void ShadePipeline::handle_miss(
         var ray_ori = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_medium_id + soa_index));
         var ray_dir = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
         var le = envir_light->eval_le(cc, ray_dir);
-        var beta_le = load_aligned(soa_params.beta_le + soa_index);
+        var beta_le = load_aligned(soa_params.beta_le_bsdf_pdf + soa_index);
+        var bsdf_pdf = beta_le.additional_data;
 
         $if(scattered)
         {
@@ -555,7 +556,6 @@ void ShadePipeline::handle_miss(
             beta_le = beta_le * tr;
         };
 
-        var bsdf_pdf = soa_params.bsdf_pdf[soa_index];
         $if(bsdf_pdf < 0) // delta
         {
             var rad = beta_le * le / -bsdf_pdf;

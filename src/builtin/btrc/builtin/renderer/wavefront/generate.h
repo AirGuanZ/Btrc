@@ -20,8 +20,7 @@ namespace generate_pipeline_detail
         Vec4f      *output_ray_d_t1;
         Vec2u      *output_ray_time_mask;
         Spectrum   *output_beta;
-        Spectrum   *output_beta_le;
-        float      *output_bsdf_pdf;
+        Spectrum   *output_beta_le_bsdf_pdf;
         int        *output_depth;
         Spectrum   *output_path_radiance;
     };
@@ -35,8 +34,7 @@ namespace generate_pipeline_detail
         output_ray_d_t1,
         output_ray_time_mask,
         output_beta,
-        output_beta_le,
-        output_bsdf_pdf,
+        output_beta_le_bsdf_pdf,
         output_depth,
         output_path_radiance);
 

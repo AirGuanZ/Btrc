@@ -78,40 +78,52 @@ void MediumPipeline::record_device_code(
         };
         soa.ray_o_medium_id[soa_index].w = bitcast<f32>(medium_id);
 
-        var tr = CSpectrum::one();
+        boolean scattered = false;
+
+        boolean emit_shadow = false;
+        CVec3f shadow_o;
+        CVec3f shadow_d;
+        f32 shadow_t1;
+        f32 shadow_light_pdf;
+        CSpectrum shadow_beta;
+
+        f32 scatter_ray_time;
+        CSpectrum scatter_beta, scatter_path_radiance;
+        i32 scatter_depth;
+
+        PhaseShader::SampleResult phase_sample;
+        CVec3f scatter_position;
+
+        CSpectrum unscatter_tr;
 
         auto handle_medium = [&](const Medium::SampleResult &sample_medium)
         {
             $if(sample_medium.scattered)
             {
-                var beta = soa.beta[soa_index];
-                beta = beta * sample_medium.throughput;
+                scattered = true;
+                scatter_position = sample_medium.position;
 
-                var path_radiance = load_aligned(soa.path_radiance + soa_index);
-                var pixel_coord   = load_aligned(soa.pixel_coord + soa_index);
-                var depth         = soa.depth[soa_index];
+                scatter_beta = load_aligned(soa.beta + soa_index);
+                scatter_beta = scatter_beta * sample_medium.throughput;
 
-                // mark this path as scattered
+                scatter_path_radiance = load_aligned(soa.path_radiance + soa_index);
+                scatter_depth = soa.depth[soa_index];
+
                 soa.path_flag[soa_index] = path_flag | PATH_FLAG_HAS_SCATTERING;
-
-                //$if(depth == 0)
-                //{
-                //    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-                //};
 
                 // terminate
 
                 var rr_exit = false;
-                $if(depth >= shade_params.min_depth)
+                $if(scatter_depth >= shade_params.min_depth)
                 {
-                    $if(depth >= shade_params.max_depth)
+                    $if(scatter_depth >= shade_params.max_depth)
                     {
                         rr_exit = true;
                     }
                     $else
                     {
                         var sam = rng.uniform_float();
-                        var lum = beta.get_lum();
+                        var lum = scatter_beta.get_lum();
                         $if(lum < shade_params.rr_threshold)
                         {
                             $if(sam > shade_params.rr_cont_prob)
@@ -120,7 +132,7 @@ void MediumPipeline::record_device_code(
                             }
                             $else
                             {
-                                beta = beta / shade_params.rr_cont_prob;
+                                scatter_beta = scatter_beta / shade_params.rr_cont_prob;
                             };
                         };
                     };
@@ -128,21 +140,20 @@ void MediumPipeline::record_device_code(
 
                 $if(rr_exit)
                 {
-                    film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-
+                    var pixel_coord = load_aligned(soa.pixel_coord + soa_index);
+                    film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
                     var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
                     soa.output_rng[output_index] = rng;
+                    soa.next_state_index[soa_index] = output_index;
                     $return();
                 };
 
                 // generate shadow ray
 
-                CVec3f shadow_o, shadow_d; f32 shadow_t1, shadow_light_pdf;
-                CSpectrum shadow_li;
-
                 shadow_o = sample_medium.position;
 
                 var ray_time = bitcast<f32>(soa.ray_time_mask[soa_index].x);
+                CSpectrum shadow_li;
                 sample_light(
                     cc, scene, sample_medium.position, rng, ray_time,
                     shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
@@ -151,92 +162,17 @@ void MediumPipeline::record_device_code(
                 {
                     var shadow_phase_val = sample_medium.shader->eval(cc, shadow_d, -ray_d);
                     var shadow_phase_pdf = sample_medium.shader->pdf(cc, shadow_d, -ray_d);
-
-                    var shadow_soa_index = cstd::atomic_add(shadow_ray_counter, 1);
-
-                    var shadow_medium_id = cstd::select(
-                        shadow_t1 > 1, CMediumID(MEDIUM_ID_VOID), CMediumID(medium_id));
-
-                    save_aligned(
-                        pixel_coord,
-                        soa.output_shadow_pixel_coord + shadow_soa_index);
-                    save_aligned(
-                        CVec4f(shadow_o, bitcast<f32>(shadow_medium_id)),
-                        soa.output_shadow_ray_o_medium_id + shadow_soa_index);
-                    save_aligned(
-                        CVec4f(shadow_d, shadow_t1),
-                        soa.output_shadow_ray_d_t1 + shadow_soa_index);
-                    save_aligned(
-                        CVec2u(bitcast<u32>(ray_time), optix::RAY_MASK_ALL),
-                        soa.output_shadow_ray_time_mask + shadow_soa_index);
-
-                    var beta_li = shadow_li * beta *shadow_phase_val / (shadow_phase_pdf + shadow_light_pdf);
-                    save_aligned(
-                        beta_li,
-                        soa.output_shadow_beta_li + shadow_soa_index);
+                    shadow_beta = shadow_li * scatter_beta * shadow_phase_val / (shadow_phase_pdf + shadow_light_pdf);
+                    emit_shadow = true;
                 };
 
                 // generate next ray
 
-                PhaseShader::SampleResult phase_sample = sample_medium.shader->sample(cc, -ray_d, CVec3f(rng));
-                $if(!phase_sample.phase.is_zero())
-                {
-                    phase_sample.dir = normalize(phase_sample.dir);
-
-                    var beta_le = beta * phase_sample.phase;
-                    beta = beta_le / phase_sample.pdf;
-
-                    var next_ray_o      = sample_medium.position;
-                    var next_ray_d      = phase_sample.dir;
-                    var next_ray_t1     = btrc_max_float;
-                    var next_ray_time   = ray_time;
-                    var next_ray_mask   = optix::RAY_MASK_ALL;
-                    var next_ray_medium = medium_id;
-
-                    var output_soa_index = cstd::atomic_add(active_state_counter, 1);
-
-                    soa.output_rng[output_soa_index] = rng;
-
-                    save_aligned(
-                        path_radiance,
-                        soa.output_path_radiance + output_soa_index);
-                    save_aligned(
-                        pixel_coord,
-                        soa.output_pixel_coord + output_soa_index);
-                    save_aligned(
-                        beta,
-                        soa.output_beta + output_soa_index);
-
-                    soa.output_depth[output_soa_index] = depth + 1;
-
-                    save_aligned(
-                        CVec4f(next_ray_o, bitcast<f32>(next_ray_medium)),
-                        soa.output_new_ray_o_medium_id + output_soa_index);
-                    save_aligned(
-                        CVec4f(next_ray_d, next_ray_t1),
-                        soa.output_new_ray_d_t1 + output_soa_index);
-                    save_aligned(
-                        CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
-                        soa.output_new_ray_time_mask + output_soa_index);
-
-                    save_aligned(
-                        beta_le,
-                        soa.output_beta_le + output_soa_index);
-
-                    soa.output_bsdf_pdf[output_soa_index] = phase_sample.pdf;
-                }
-                $else
-                {
-                    film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-                    var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-                    soa.output_rng[output_index] = rng;
-                };
-
-                $return();
+                phase_sample = sample_medium.shader->sample(cc, -ray_d, CVec3f(rng));
             }
             $else
             {
-                tr = sample_medium.throughput;
+                unscatter_tr = sample_medium.throughput;
             };
         };
 
@@ -262,16 +198,91 @@ void MediumPipeline::record_device_code(
             };
         };
 
-        var beta = load_aligned(soa.beta + soa_index);
-        var beta_le = load_aligned(soa.beta_le + soa_index);
+        var pixel_coord = load_aligned(soa.pixel_coord + soa_index);
 
-        beta = beta * tr;
-        beta_le = beta_le * tr;
+        $if(scattered)
+        {
+            $if(emit_shadow)
+            {
+                var shadow_soa_index = cstd::atomic_add(shadow_ray_counter, 1);
+                var shadow_medium_id = cstd::select(shadow_t1 > 1, CMediumID(MEDIUM_ID_VOID), CMediumID(medium_id));
 
-        save_aligned(beta, soa.beta + soa_index);
-        save_aligned(beta_le, soa.beta_le + soa_index);
+                save_aligned(pixel_coord, soa.output_shadow_pixel_coord + shadow_soa_index);
+                save_aligned(shadow_beta, soa.output_shadow_beta_li + shadow_soa_index);
 
-        soa.rng[soa_index] = rng;
+                save_aligned(
+                    CVec4f(shadow_o, bitcast<f32>(shadow_medium_id)),
+                    soa.output_shadow_ray_o_medium_id + shadow_soa_index);
+                save_aligned(
+                    CVec4f(shadow_d, shadow_t1),
+                    soa.output_shadow_ray_d_t1 + shadow_soa_index);
+                save_aligned(
+                    CVec2u(bitcast<u32>(scatter_ray_time), optix::RAY_MASK_ALL),
+                    soa.output_shadow_ray_time_mask + shadow_soa_index);
+            };
+
+            $if(!phase_sample.phase.is_zero())
+            {
+                phase_sample.dir = normalize(phase_sample.dir);
+
+                var beta_le = scatter_beta * phase_sample.phase;
+                scatter_beta = beta_le / phase_sample.pdf;
+
+                var next_ray_o = scatter_position;
+                var next_ray_d = phase_sample.dir;
+                var next_ray_t1 = btrc_max_float;
+                var next_ray_time = scatter_ray_time;
+                var next_ray_mask = optix::RAY_MASK_ALL;
+                var next_ray_medium = medium_id;
+
+                var output_index = cstd::atomic_add(active_state_counter, 1);
+
+                soa.output_rng[output_index] = rng;
+
+                save_aligned(scatter_path_radiance, soa.output_path_radiance + output_index);
+                save_aligned(pixel_coord, soa.output_pixel_coord + output_index);
+                save_aligned(scatter_beta, soa.output_beta + output_index);
+
+                soa.output_depth[output_index] = scatter_depth + 1;
+
+                save_aligned(
+                    CVec4f(next_ray_o, bitcast<f32>(next_ray_medium)),
+                    soa.output_new_ray_o_medium_id + output_index);
+                save_aligned(
+                    CVec4f(next_ray_d, next_ray_t1),
+                    soa.output_new_ray_d_t1 + output_index);
+                save_aligned(
+                    CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
+                    soa.output_new_ray_time_mask + output_index);
+
+                beta_le.additional_data = phase_sample.pdf;
+                save_aligned(beta_le, soa.output_beta_le_bsdf_pdf + output_index);
+
+                soa.next_state_index[soa_index] = output_index;
+            }
+            $else
+            {
+                film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
+                var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
+                soa.output_rng[output_index] = rng;
+                soa.next_state_index[soa_index] = output_index;
+            };
+        }
+        $else
+        {
+            var beta = load_aligned(soa.beta + soa_index);
+            var beta_le = load_aligned(soa.beta_le_bsdf_pdf + soa_index);
+            var bsdf_pdf = beta_le.additional_data;
+
+            beta = beta * unscatter_tr;
+            beta_le = beta_le * unscatter_tr;
+            beta_le.additional_data = bsdf_pdf;
+
+            save_aligned(beta, soa.beta + soa_index);
+            save_aligned(beta_le, soa.beta_le_bsdf_pdf + soa_index);
+
+            soa.rng[soa_index] = rng;
+        };
     });
 }
 
