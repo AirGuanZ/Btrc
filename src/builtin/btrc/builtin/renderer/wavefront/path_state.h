@@ -39,8 +39,8 @@ struct PathState
 
     // ==== trace output ====
 
-    cuda::Buffer<Vec2u> inct_inst_launch_index;
-    cuda::Buffer<Vec4u> inct_t_prim_uv;
+    cuda::Buffer<uint32_t> path_flag;
+    cuda::Buffer<Vec4u>    inct_t_prim_uv;
 
     // ==== shade output ====
 

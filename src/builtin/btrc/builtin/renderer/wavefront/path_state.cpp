@@ -29,7 +29,7 @@ void PathState::initialize(int state_count)
         depth,
         pixel_coord,
         path_radiance,
-        inct_inst_launch_index,
+        path_flag,
         inct_t_prim_uv,
         next_rng,
         next_beta,

@@ -66,8 +66,7 @@ namespace
         {
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
-            var inct_inst_launch_index = CVec2u(INST_ID_MISS_MASK, launch_idx);
-            save_aligned(inct_inst_launch_index, launch_params.inct_inst_launch_index + launch_idx);
+            launch_params.path_flag[launch_idx] = 0;
         });
 
         kernel(
@@ -77,15 +76,14 @@ namespace
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
             
+            
+            var inst_id = optix::get_instance_id();
+            launch_params.path_flag[launch_idx] = inst_id | PATH_FLAG_HAS_INTERSECTION;
+
             var t = optix::get_ray_tmax();
             var uv = optix::get_triangle_barycentrics();
             var prim_id = optix::get_primitive_index();
-            var inst_id = optix::get_instance_id();
-
-            var inct_inst_launch_index = CVec2u(inst_id, launch_idx);
             var inct_t_prim_uv = CVec4u(bitcast<u32>(t), prim_id, bitcast<u32>(uv.x), bitcast<u32>(uv.y));
-
-            save_aligned(inct_inst_launch_index, launch_params.inct_inst_launch_index + launch_idx);
             save_aligned(inct_t_prim_uv, launch_params.inct_t_prim_uv + launch_idx);
         });
 
@@ -142,12 +140,12 @@ void TracePipeline::trace(
     const SOAParams &soa_params) const
 {
     const LaunchParams launch_params = {
-        .handle                 = handle,
-        .ray_o_medium_id        = soa_params.ray_o_medium_id,
-        .ray_d_t1               = soa_params.ray_d_t1,
-        .ray_time_mask          = soa_params.ray_time_mask,
-        .inct_inst_launch_index = soa_params.inct_inst_launch_index,
-        .inct_t_prim_uv         = soa_params.inct_t_prim_uv
+        .handle          = handle,
+        .ray_o_medium_id = soa_params.ray_o_medium_id,
+        .ray_d_t1        = soa_params.ray_d_t1,
+        .ray_time_mask   = soa_params.ray_time_mask,
+        .path_flag       = soa_params.path_flag,
+        .inct_t_prim_uv  = soa_params.inct_t_prim_uv
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(

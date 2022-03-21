@@ -90,7 +90,7 @@ void ShadePipeline::record_device_code(
     using namespace cuj;
 
     auto light_sampler = scene.get_light_sampler();
-    
+
     kernel(
         SHADE_KERNEL_NAME, [&](
             i32                total_state_count,
@@ -101,16 +101,15 @@ void ShadePipeline::record_device_code(
             ptr<i32>           shadow_ray_counter,
             CSOAParams         soa_params)
     {
-        var thread_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
-        $if(thread_index >= total_state_count)
+        var soa_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
+        $if(soa_index >= total_state_count)
         {
             $return();
         };
 
         // basic path state
 
-        var inct_inst_launch_index = load_aligned(soa_params.inct_inst_launch_index + thread_index);
-        var soa_index = inct_inst_launch_index.y;
+        var path_flag = soa_params.path_flag[soa_index];
         
         var beta = load_aligned(soa_params.beta + soa_index);
         var path_radiance = load_aligned(soa_params.path_radiance + soa_index);
@@ -119,16 +118,10 @@ void ShadePipeline::record_device_code(
         i32 depth = soa_params.depth[soa_index];
 
         var rng = soa_params.rng[soa_index];
+        
+        var scattered = is_path_scattered(path_flag);
 
-        var inst_id = inct_inst_launch_index.x;
-        var scattered = false;
-        $if(has_scattered(inst_id))
-        {
-            scattered = true;
-            inst_id = get_raw_inst_id(inst_id);
-        };
-
-        $if(is_inct_miss(inst_id))
+        $if(!is_path_intersected(path_flag))
         {
             handle_miss(
                 cc, scene, world_diagonal, vols,
@@ -136,16 +129,18 @@ void ShadePipeline::record_device_code(
                 path_radiance, rng, scattered);
             $if(!scattered)
             {
-                $if(depth == 0)
-                {
-                    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-                };
+                //$if(depth == 0)
+                //{
+                //    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
+                //};
                 film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
                 var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
                 soa_params.output_rng[output_index] = rng;
             };
             $return();
         };
+
+        var inst_id = extract_instance_id(path_flag);
 
         var ray_o_medium_id = load_aligned(soa_params.ray_o_medium_id + soa_index);
         var ray_o = ray_o_medium_id.xyz();
@@ -262,10 +257,10 @@ void ShadePipeline::record_device_code(
 
         $if(rr_exit)
         {
-            $if(depth == 0)
-            {
-                film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-            };
+            //$if(depth == 0)
+            //{
+            //    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
+            //};
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
 
             var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
@@ -418,7 +413,7 @@ void ShadePipeline::record_device_code(
         $if(depth == 0)
         {
             std::vector<std::pair<std::string_view, Film::CValue>> values = {
-                { Film::OUTPUT_WEIGHT, f32(1) },
+                //{ Film::OUTPUT_WEIGHT, f32(1) },
                 { Film::OUTPUT_ALBEDO, gbuffer_albedo },
                 { Film::OUTPUT_NORMAL, gbuffer_normal }
             };
@@ -540,7 +535,7 @@ void ShadePipeline::handle_miss(
     const VolumeManager &vols,
     const LightSampler *light_sampler,
     ref<CSOAParams>     soa_params,
-    u32                 soa_index,
+    i32                 soa_index,
     ref<CSpectrum>      path_rad,
     ref<CRNG>           rng,
     boolean             scattered)

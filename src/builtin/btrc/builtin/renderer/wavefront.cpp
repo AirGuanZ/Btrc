@@ -131,7 +131,7 @@ void WavefrontPathTracer::recompile()
     {
         cuj::ScopedModule cuj_module;
 
-        impl_->generate.record_device_code(cc, *impl_->camera, { impl_->width, impl_->height });
+        impl_->generate.record_device_code(cc, *impl_->camera, impl_->film);
         impl_->medium.record_device_code(cc, impl_->film, impl_->volumes, *impl_->scene, shade_params, world_diagonal);
         impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, impl_->volumes, shade_params, world_diagonal);
 
@@ -225,11 +225,11 @@ Renderer::RenderResult WavefrontPathTracer::render() const
             scene.get_tlas(),
             active_state_count,
             wfpt::TracePipeline::SOAParams{
-                .ray_o_medium_id        = soa.o_medium_id,
-                .ray_d_t1               = soa.d_t1,
-                .ray_time_mask          = soa.time_mask,
-                .inct_inst_launch_index = soa.inct_inst_launch_index,
-                .inct_t_prim_uv         = soa.inct_t_prim_uv
+                .ray_o_medium_id = soa.o_medium_id,
+                .ray_d_t1        = soa.d_t1,
+                .ray_time_mask   = soa.time_mask,
+                .path_flag       = soa.path_flag,
+                .inct_t_prim_uv  = soa.inct_t_prim_uv
             });
 
         cudaMemsetAsync(impl_->state_counters->get(), 0, sizeof(wfpt::StateCounters));
@@ -243,7 +243,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .depth                         = soa.depth,
                 .beta                          = soa.beta,
                 .beta_le                       = soa.beta_le,
-                .inct_inst_launch_index        = soa.inct_inst_launch_index,
+                .path_flag                     = soa.path_flag,
                 .inct_t_prim_uv                = soa.inct_t_prim_uv,
                 .ray_o_medium_id               = soa.o_medium_id,
                 .ray_d_t1                      = soa.d_t1,
@@ -277,7 +277,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .beta                          = soa.beta,
                 .beta_le                       = soa.beta_le,
                 .bsdf_pdf                      = soa.bsdf_pdf,
-                .inct_inst_launch_index        = soa.inct_inst_launch_index,
+                .path_flag                     = soa.path_flag,
                 .inct_t_prim_uv                = soa.inct_t_prim_uv,
                 .ray_o_medium_id               = soa.o_medium_id,
                 .ray_d_t1                      = soa.d_t1,

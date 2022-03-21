@@ -35,15 +35,13 @@ void MediumPipeline::record_device_code(
         ptr<i32>           shadow_ray_counter,
         CSOAParams         soa)
     {
-        var thread_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
-        $if(thread_index >= total_state_count)
+        var soa_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
+        $if(soa_index >= total_state_count)
         {
             $return();
         };
 
-        var inct_inst_launch_index = load_aligned(soa.inct_inst_launch_index + thread_index);
-        var inst_id = inct_inst_launch_index.x;
-        var soa_index = inct_inst_launch_index.y;
+        var path_flag = soa.path_flag[soa_index];
 
         var ray_o_medium_id = load_aligned(soa.ray_o_medium_id + soa_index);
         var ray_o = ray_o_medium_id.xyz();
@@ -57,16 +55,11 @@ void MediumPipeline::record_device_code(
 
         CMediumID medium_id;
         CVec3f medium_end;
-        $if(is_inct_miss(inst_id))
-        {
-            medium_id = MEDIUM_ID_VOID;
-            medium_end = ray_o + normalize(ray_d) * world_diagonal;
-        }
-        $else
+        $if(is_path_intersected(path_flag))
         {
             var inct_t_prim_uv = load_aligned(soa.inct_t_prim_uv + soa_index);
             var prim_id = inct_t_prim_uv.y;
-            ref instance = instances[inst_id];
+            ref instance = instances[extract_instance_id(path_flag)];
             ref geometry = geometries[instance.geometry_id];
             var local_normal = load_aligned(geometry.geometry_ez_tex_coord_u_ca + prim_id).xyz();
             var inct_nor = instance.transform.apply_to_vector(local_normal);
@@ -77,6 +70,11 @@ void MediumPipeline::record_device_code(
 
             var inct_t = bitcast<f32>(inct_t_prim_uv.x);
             medium_end = intersection_offset(ray_o + inct_t * ray_d, inct_nor, -ray_d);
+        }
+        $else
+        {
+            medium_id = MEDIUM_ID_VOID;
+            medium_end = ray_o + normalize(ray_d) * world_diagonal;
         };
         soa.ray_o_medium_id[soa_index].w = bitcast<f32>(medium_id);
 
@@ -94,12 +92,12 @@ void MediumPipeline::record_device_code(
                 var depth         = soa.depth[soa_index];
 
                 // mark this path as scattered
-                soa.inct_inst_launch_index[thread_index].x = inst_id | INST_ID_SCATTER_MASK;
+                soa.path_flag[soa_index] = path_flag | PATH_FLAG_HAS_SCATTERING;
 
-                $if(depth == 0)
-                {
-                    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
-                };
+                //$if(depth == 0)
+                //{
+                //    film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, f32(1));
+                //};
 
                 // terminate
 

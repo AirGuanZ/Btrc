@@ -1,7 +1,6 @@
+#include <btrc/builtin/renderer/wavefront/generate.h>
 #include <btrc/core/medium.h>
 #include <btrc/utils/cmath/cmath.h>
-
-#include "./generate.h"
 
 BTRC_WFPT_BEGIN
 
@@ -19,13 +18,15 @@ GeneratePipeline::GeneratePipeline()
 
 }
 
-void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &camera, const Vec2i &film_res)
+void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &camera, Film &film)
 {
     using namespace cuj;
 
+    const Vec2i film_res = { film.width(), film.height() };
+
     kernel(
         GENERATE_KERNEL_NAME,
-        [&cc, &camera, &film_res](
+        [&cc, &camera, &film, &film_res](
             CSOAParams soa_params,
             i32        initial_pixel_index,
             i32        new_state_count,
@@ -56,7 +57,9 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         auto sample_we_result = camera.generate_ray(
             cc, CVec2f(film_x, film_y), time_sample);
 
-        soa_params.output_pixel_coord[state_index] = CVec2u(u32(pixel_x), u32(pixel_y));
+        var pixel_coord = CVec2u(u32(pixel_x), u32(pixel_y));
+        soa_params.output_pixel_coord[state_index] = pixel_coord;
+        film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, 1.0f);
 
         var o_t0 = CVec4f(
             sample_we_result.pos.x,

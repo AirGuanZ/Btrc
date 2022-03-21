@@ -30,8 +30,8 @@ namespace medium_pipeline_detail
 
         // last intersection
 
-        Vec2u *inct_inst_launch_index;
-        Vec4u *inct_t_prim_uv;
+        uint32_t *path_flag;
+        Vec4u    *inct_t_prim_uv;
 
         // last ray
         // resolved medium id will always be stored
@@ -73,7 +73,7 @@ namespace medium_pipeline_detail
         depth,
         beta,
         beta_le,
-        inct_inst_launch_index,
+        path_flag,
         inct_t_prim_uv,
         ray_o_medium_id,
         ray_d_t1,

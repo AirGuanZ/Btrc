@@ -9,23 +9,18 @@
 
 BTRC_WFPT_BEGIN
 
-constexpr uint32_t INST_ID_MISS_MASK    = 0b01111111111111111111111111111111;
-constexpr uint32_t INST_ID_SCATTER_MASK = 0b10000000000000000000000000000000;
+constexpr uint32_t PATH_FLAG_ACTIVE           = 0b001u << 29;
+constexpr uint32_t PATH_FLAG_HAS_INTERSECTION = 0b010u << 29;
+constexpr uint32_t PATH_FLAG_HAS_SCATTERING   = 0b100u << 29;
+constexpr uint32_t PATH_FLAG_INSTANCE_ID_MASK = ~0u << 3 >> 3;
 
-inline cuj::boolean is_inct_miss(cuj::u32 inst_id)
-{
-    return (inst_id & INST_ID_MISS_MASK) == INST_ID_MISS_MASK;
-}
+cuj::boolean is_path_active(cuj::u32 path_state);
 
-inline cuj::boolean has_scattered(cuj::u32 inst_id)
-{
-    return (inst_id & INST_ID_SCATTER_MASK) != 0;
-}
+cuj::boolean is_path_intersected(cuj::u32 path_state);
 
-inline cuj::u32 get_raw_inst_id(cuj::u32 masked_inst_id)
-{
-    return masked_inst_id & ~INST_ID_SCATTER_MASK;
-}
+cuj::boolean is_path_scattered(cuj::u32 path_state);
+
+cuj::u32 extract_instance_id(cuj::u32 path_state);
 
 struct StateCounters
 {

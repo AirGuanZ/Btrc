@@ -30,8 +30,8 @@ namespace shade_pipeline_detail
 
         // last intersection
 
-        Vec2u *inct_inst_launch_index;
-        Vec4u *inct_t_prim_uv;
+        uint32_t *path_flag;
+        Vec4u    *inct_t_prim_uv;
 
         // last ray
 
@@ -77,7 +77,7 @@ namespace shade_pipeline_detail
         beta,
         beta_le,
         bsdf_pdf,
-        inct_inst_launch_index,
+        path_flag,
         inct_t_prim_uv,
         ray_o_medium_id,
         ray_d_t1,
@@ -139,7 +139,7 @@ private:
         const VolumeManager &vols,
         const LightSampler *light_sampler,
         ref<CSOAParams>     soa_params,
-        u32                 soa_index,
+        i32                 soa_index,
         ref<CSpectrum>      path_rad,
         ref<CRNG>           rng,
         boolean             scattered);
