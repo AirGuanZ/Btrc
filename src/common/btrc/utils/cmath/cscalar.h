@@ -15,6 +15,7 @@ using cuj::f32;
 using cuj::i32;
 using cuj::u32;
 using cuj::u64;
+using cuj::u8;
 
 namespace cstd = cuj::cstd;
 

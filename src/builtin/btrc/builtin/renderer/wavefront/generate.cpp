@@ -1,6 +1,7 @@
 #include <btrc/builtin/renderer/wavefront/generate.h>
 #include <btrc/core/medium.h>
 #include <btrc/utils/cmath/cmath.h>
+#include <btrc/utils/hash.h>
 
 BTRC_WFPT_BEGIN
 
@@ -28,7 +29,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         GENERATE_KERNEL_NAME,
         [&cc, &camera, &film, &filter, &film_res](
             CSOAParams soa_params,
-            i32        initial_pixel_index,
+            i64        initial_pixel_index,
             i32        new_state_count,
             i32        active_state_count)
     {
@@ -39,9 +40,11 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         };
 
         i32 state_index = active_state_count + thread_idx;
-        i32 pixel_index = (initial_pixel_index + thread_idx) % (film_res.x * film_res.y);
+        i32 pixel_index = i32((initial_pixel_index + i64(thread_idx)) % (film_res.x * film_res.y));
+        i64 sample_index = ((initial_pixel_index + i64(thread_idx)) / (film_res.x * film_res.y));
 
-        ref rng = soa_params.rng[state_index];
+        var rng = CRNG(hash::hash(pixel_index));
+        rng.advance(sample_index * i64(65536));
 
         i32 pixel_x = pixel_index % film_res.x;
         i32 pixel_y = pixel_index / film_res.y;
@@ -88,6 +91,8 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
 
         save_aligned(sample_we_result.throughput, soa_params.output_beta + state_index);
         save_aligned(CSpectrum::zero(), soa_params.output_path_radiance + state_index);
+
+        soa_params.rng[state_index] = rng;
     });
 }
 
@@ -153,7 +158,7 @@ int GeneratePipeline::generate(
     if(rest_state_count <= 0)
         return 0;
 
-    const int64_t unfinished_path_count = (spp_ - finished_spp_) * pixel_count_ - finished_pixel_;
+    const int64_t unfinished_path_count = spp_ * pixel_count_ - finished_pixel_;
     if(unfinished_path_count > rest_state_count &&
        rest_state_count + rest_state_count < total_state_count)
         return 0;
@@ -174,8 +179,7 @@ int GeneratePipeline::generate(
         active_state_count);
 
     finished_pixel_ += new_state_count;
-    finished_spp_   += finished_pixel_ / pixel_count_;
-    finished_pixel_ %= pixel_count_;
+    finished_spp_   = finished_pixel_ / pixel_count_;
 
     return new_state_count;
 }
