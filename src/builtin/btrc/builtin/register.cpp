@@ -1,4 +1,6 @@
 #include <btrc/builtin/camera/pinhole.h>
+#include <btrc/builtin/film_filter/box.h>
+#include <btrc/builtin/film_filter/gaussian.h>
 #include <btrc/builtin/geometry/triangle_mesh.h>
 #include <btrc/builtin/light/gradient_sky.h>
 #include <btrc/builtin/light/ibl.h>
@@ -22,6 +24,12 @@ BTRC_BUILTIN_BEGIN
 void register_builtin_creators(factory::Factory<Camera> &factory)
 {
     factory.add_creator(newBox<PinholeCameraCreator>());
+}
+
+void register_builtin_creators(factory::Factory<FilmFilter> &factory)
+{
+    factory.add_creator(newBox<BoxFilterCreator>());
+    factory.add_creator(newBox<GaussianFilterCreator>());
 }
 
 void register_builtin_creators(factory::Factory<Geometry> &factory)
@@ -72,6 +80,7 @@ void register_builtin_creators(factory::Factory<Texture3D> &factory)
 void register_builtin_creators(factory::Context &context)
 {
     register_builtin_creators(context.get_factory<Camera>());
+    register_builtin_creators(context.get_factory<FilmFilter>());
     register_builtin_creators(context.get_factory<Geometry>());
     register_builtin_creators(context.get_factory<Light>());
     register_builtin_creators(context.get_factory<Material>());

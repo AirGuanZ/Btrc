@@ -6,10 +6,10 @@ Work in progress...
 
 ## TODO
 
-- [ ] volume primitive
-- [ ] filter importance sampling
-- [ ] separable bssrdf
+- [x] volume primitive
+- [x] filter importance sampling
 - [ ] disney bsdf
+- [ ] separable bssrdf
 - [ ] separate rng dimensions & low-discrepancy samplers
 - [ ] radiance cache
 - [ ] lightweight photon mapping

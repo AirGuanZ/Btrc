@@ -2,6 +2,7 @@
 
 #include <btrc/core/camera.h>
 #include <btrc/core/film.h>
+#include <btrc/core/film_filter.h>
 #include <btrc/utils/cuda/module.h>
 #include <btrc/utils/uncopyable.h>
 
@@ -49,7 +50,7 @@ public:
 
     GeneratePipeline();
 
-    void record_device_code(CompileContext &cc, const Camera &camera, Film &film);
+    void record_device_code(CompileContext &cc, const Camera &camera, Film &film, FilmFilter &filter);
 
     void initialize(RC<cuda::Module> cuda_module, int spp, int state_count, const Vec2i &film_res);
 

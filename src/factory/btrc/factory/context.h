@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/camera.h>
+#include <btrc/core/film_filter.h>
 #include <btrc/core/geometry.h>
 #include <btrc/core/light.h>
 #include <btrc/core/material.h>
@@ -25,6 +26,7 @@ const char *get_object_typename();
     inline const char *get_object_typename<TYPE>() { return #NAME; }
 
 REGISTER_OBJECT_TYPENAME(Camera,       camera)
+REGISTER_OBJECT_TYPENAME(FilmFilter,   film_filter)
 REGISTER_OBJECT_TYPENAME(Geometry,     geometry)
 REGISTER_OBJECT_TYPENAME(Light,        light)
 REGISTER_OBJECT_TYPENAME(Material,     material)
@@ -88,6 +90,7 @@ private:
 
     FactoryTuple<
         Camera,
+        FilmFilter,
         Geometry,
         Light,
         Material,

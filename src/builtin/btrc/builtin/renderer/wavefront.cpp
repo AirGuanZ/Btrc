@@ -1,14 +1,14 @@
+#include <btrc/builtin/film_filter/box.h>
+#include <btrc/builtin/renderer/wavefront/generate.h>
+#include <btrc/builtin/renderer/wavefront/medium.h>
+#include <btrc/builtin/renderer/wavefront/path_state.h>
+#include <btrc/builtin/renderer/wavefront/preview.h>
+#include <btrc/builtin/renderer/wavefront/shade.h>
+#include <btrc/builtin/renderer/wavefront/shadow.h>
+#include <btrc/builtin/renderer/wavefront/sort.h>
+#include <btrc/builtin/renderer/wavefront/trace.h>
+#include <btrc/builtin/renderer/wavefront/volume.h>
 #include <btrc/builtin/renderer/wavefront.h>
-
-#include "./wavefront/generate.h"
-#include "./wavefront/medium.h"
-#include "./wavefront/path_state.h"
-#include "./wavefront/preview.h"
-#include "./wavefront/shade.h"
-#include "./wavefront/shadow.h"
-#include "./wavefront/sort.h"
-#include "./wavefront/trace.h"
-#include "./wavefront/volume.h"
 
 BTRC_BUILTIN_BEGIN
 
@@ -16,10 +16,11 @@ struct WavefrontPathTracer::Impl
 {
     optix::Context *optix_ctx = nullptr;
 
-    Params       params;
-    RC<Scene>    scene;
-    RC<Camera>   camera;
-    RC<Reporter> reporter;
+    Params         params;
+    RC<FilmFilter> filter;
+    RC<Scene>      scene;
+    RC<Camera>     camera;
+    RC<Reporter>   reporter;
 
     int width = 512;
     int height = 512;
@@ -57,6 +58,11 @@ void WavefrontPathTracer::set_params(const Params &params)
     impl_->params = params;
 }
 
+void WavefrontPathTracer::set_film_filter(RC<FilmFilter> filter)
+{
+    impl_->filter = std::move(filter);
+}
+
 void WavefrontPathTracer::set_scene(RC<Scene> scene)
 {
     impl_->scene = scene;
@@ -84,6 +90,7 @@ std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
     impl_->scene->collect_objects(scene_objects);
     std::vector<RC<Object>> result = { scene_objects.begin(), scene_objects.end() };
     result.push_back(impl_->camera);
+    result.push_back(impl_->filter);
     return result;
 }
 
@@ -131,7 +138,7 @@ void WavefrontPathTracer::recompile()
     {
         cuj::ScopedModule cuj_module;
 
-        impl_->generate.record_device_code(cc, *impl_->camera, impl_->film);
+        impl_->generate.record_device_code(cc, *impl_->camera, impl_->film, *impl_->filter);
         impl_->medium.record_device_code(cc, impl_->film, impl_->volumes, *impl_->scene, shade_params, world_diagonal);
         impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, impl_->volumes, shade_params, world_diagonal);
 
@@ -423,8 +430,16 @@ RC<Renderer> WavefrontPathTracerCreator::create(RC<const factory::Node> node, fa
     params.state_count  = node->parse_child_or("state_count", params.state_count);
     params.albedo       = node->parse_child_or("albedo", params.albedo);
     params.normal       = node->parse_child_or("normal", params.normal);
+
+    RC<FilmFilter> filter;
+    if(auto n = node->find_child_node("filter"))
+        filter = context.create<FilmFilter>(n);
+    else
+        filter = newRC<BoxFilter>();
+
     auto wfpt = newRC<WavefrontPathTracer>(context.get_optix_context());
     wfpt->set_params(params);
+    wfpt->set_film_filter(std::move(filter));
     return wfpt;
 }
 

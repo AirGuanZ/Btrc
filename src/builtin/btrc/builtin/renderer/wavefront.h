@@ -1,5 +1,6 @@
 #pragma once
 
+#include <btrc/core/film_filter.h>
 #include <btrc/core/renderer.h>
 #include <btrc/factory/context.h>
 
@@ -29,6 +30,8 @@ public:
     ~WavefrontPathTracer() override;
 
     void set_params(const Params &params);
+
+    void set_film_filter(RC<FilmFilter> filter);
 
     void set_scene(RC<Scene> scene) override;
 

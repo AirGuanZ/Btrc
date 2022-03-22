@@ -5,6 +5,7 @@
 BTRC_BUILTIN_BEGIN
 
 void register_builtin_creators(factory::Factory<Camera>       &factory);
+void register_builtin_creators(factory::Factory<FilmFilter>   &factory);
 void register_builtin_creators(factory::Factory<Geometry>     &factory);
 void register_builtin_creators(factory::Factory<Light>        &factory);
 void register_builtin_creators(factory::Factory<Material>     &factory);

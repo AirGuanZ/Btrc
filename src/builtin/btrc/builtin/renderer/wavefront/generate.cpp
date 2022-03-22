@@ -18,7 +18,7 @@ GeneratePipeline::GeneratePipeline()
 
 }
 
-void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &camera, Film &film)
+void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &camera, Film &film, FilmFilter &filter)
 {
     using namespace cuj;
 
@@ -26,7 +26,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
 
     kernel(
         GENERATE_KERNEL_NAME,
-        [&cc, &camera, &film, &film_res](
+        [&cc, &camera, &film, &filter, &film_res](
             CSOAParams soa_params,
             i32        initial_pixel_index,
             i32        new_state_count,
@@ -46,8 +46,10 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         i32 pixel_x = pixel_index % film_res.x;
         i32 pixel_y = pixel_index / film_res.y;
 
-        f32 pixel_xf = f32(pixel_x) + rng.uniform_float();
-        f32 pixel_yf = f32(pixel_y) + rng.uniform_float();
+        var filter_sample = filter.sample(rng);
+
+        f32 pixel_xf = f32(pixel_x) + 0.5f + filter_sample.x;
+        f32 pixel_yf = f32(pixel_y) + 0.5f + filter_sample.y;
 
         f32 film_x = pixel_xf / static_cast<float>(film_res.x);
         f32 film_y = pixel_yf / static_cast<float>(film_res.y);
