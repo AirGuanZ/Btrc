@@ -1,6 +1,6 @@
 # Btrc
 
-GPU path tracer using two-stage programming
+GPU wavefront path tracer using two-stage programming
 
 Work in progress...
 
@@ -8,7 +8,7 @@ Work in progress...
 
 - [x] volume primitive
 - [x] filter importance sampling
-- [ ] disney bsdf
+- [x] disney bsdf
 - [ ] separable bssrdf
 - [ ] separate rng dimensions & low-discrepancy samplers
 - [ ] radiance cache

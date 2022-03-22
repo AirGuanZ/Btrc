@@ -32,6 +32,14 @@ f32 dielectric_fresnel(f32 eta_i, f32 eta_o, f32 cos_theta_i)
     return result;
 }
 
+f32 schlick_approx(f32 R0, f32 cos_theta_i)
+{
+    var t = 1.0f - cos_theta_i;
+    var t2 = t * t;
+    var t5 = t2 * t2 * t;
+    return R0 + (1.0f - R0) * t5;
+}
+
 CSpectrum schlick_approx(ref<CSpectrum> R0, f32 cos_theta_i)
 {
     var t = 1.0f - cos_theta_i;

@@ -215,4 +215,9 @@ CSpectrum (min)(const CSpectrum &a, const CSpectrum &b)
     return CSpectrum::from_rgb(cstd::min(a.r, b.r), cstd::min(a.g, b.g), cstd::min(a.b, b.b));
 }
 
+CSpectrum lerp(const CSpectrum &a, const CSpectrum &b, f32 t)
+{
+    return a * (1.0f - t) + b * t;
+}
+
 BTRC_END

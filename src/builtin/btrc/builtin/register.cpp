@@ -7,6 +7,7 @@
 #include <btrc/builtin/light/mesh_light.h>
 #include <btrc/builtin/material/black.h>
 #include <btrc/builtin/material/diffuse.h>
+#include <btrc/builtin/material/disney.h>
 #include <btrc/builtin/material/glass.h>
 #include <btrc/builtin/material/invisible.h>
 #include <btrc/builtin/material/metal.h>
@@ -48,6 +49,7 @@ void register_builtin_creators(factory::Factory<Material> &factory)
 {
     factory.add_creator(newBox<BlackCreator>());
     factory.add_creator(newBox<DiffuseCreator>());
+    factory.add_creator(newBox<DisneyMaterialCreator>());
     factory.add_creator(newBox<GlassCreator>());
     factory.add_creator(newBox<InvisibleSurfaceCreator>());
     factory.add_creator(newBox<MetalCreator>());

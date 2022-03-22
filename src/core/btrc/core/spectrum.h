@@ -81,4 +81,6 @@ CSpectrum operator*(f32 a, const CSpectrum &b);
 CSpectrum (max)(const CSpectrum &a, const CSpectrum &b);
 CSpectrum (min)(const CSpectrum &a, const CSpectrum &b);
 
+CSpectrum lerp(const CSpectrum &a, const CSpectrum &b, f32 t);
+
 BTRC_END

@@ -143,8 +143,8 @@ void ShadePipeline::record_device_code(
             $else
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-                var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-                soa_params.output_rng[output_index] = rng;
+                //var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
+                //soa_params.output_rng[output_index] = rng;
             };
             $return();
         };
@@ -268,8 +268,6 @@ void ShadePipeline::record_device_code(
         $if(rr_exit)
         {
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-            var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-            soa_params.output_rng[output_index] = rng;
             $return();
         };
 
@@ -469,8 +467,6 @@ void ShadePipeline::record_device_code(
         $else
         {
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-            var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-            soa_params.output_rng[output_index] = rng;
         };
     });
 }
