@@ -6,7 +6,7 @@ BTRC_BEGIN
 
 inline CVec3f intersection_offset(ref<CVec3f> inct_pos, ref<CVec3f> inct_nor)
 {
-    static auto func = cuj::function_contextless(
+    /*static auto func = cuj::function_contextless(
         "btrc_intersection_offset", [](ref<CVec3f> pos, ref<CVec3f> nor)
     {
         constexpr float ORIGIN      = 1.0f / 32.0f;
@@ -27,7 +27,8 @@ inline CVec3f intersection_offset(ref<CVec3f> inct_pos, ref<CVec3f> inct_nor)
 
         return CVec3f(r_x, r_y, r_z);
     });
-    return func(inct_pos, inct_nor);
+    return func(inct_pos, inct_nor);*/
+    return inct_pos + inct_nor * 2e-4f;
 }
 
 inline CVec3f intersection_offset(ref<CVec3f> inct_pos, ref<CVec3f> inct_nor, ref<CVec3f> next_dir)

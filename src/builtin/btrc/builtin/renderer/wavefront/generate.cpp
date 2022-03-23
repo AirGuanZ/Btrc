@@ -47,7 +47,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         rng.advance(sample_index * i64(65536));
 
         i32 pixel_x = pixel_index % film_res.x;
-        i32 pixel_y = pixel_index / film_res.y;
+        i32 pixel_y = pixel_index / film_res.x;
 
         var filter_sample = filter.sample(rng);
 
