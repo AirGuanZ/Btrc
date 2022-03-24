@@ -18,12 +18,12 @@ Medium::SampleResult TransformMedium::sample(
     ref<CVec3f>     b,
     ref<CVec3f>     uvw_a,
     ref<CVec3f>     uvw_b,
-    ref<CRNG>       rng) const
+    Sampler        &sampler) const
 {
     var world_to_local = CTransform(world_to_local_);
     var local_uvw_a = world_to_local.apply_to_point(uvw_a);
     var local_uvw_b = world_to_local.apply_to_point(uvw_b);
-    return transformed_->sample(cc, a, b, local_uvw_a, local_uvw_b, rng);
+    return transformed_->sample(cc, a, b, local_uvw_a, local_uvw_b, sampler);
 }
 
 CSpectrum TransformMedium::tr(
@@ -32,12 +32,12 @@ CSpectrum TransformMedium::tr(
     ref<CVec3f>     b,
     ref<CVec3f>     uvw_a,
     ref<CVec3f>     uvw_b,
-    ref<CRNG>       rng) const
+    Sampler        &sampler) const
 {
     var world_to_local = CTransform(world_to_local_);
     var local_uvw_a = world_to_local.apply_to_point(uvw_a);
     var local_uvw_b = world_to_local.apply_to_point(uvw_b);
-    return transformed_->tr(cc, a, b, local_uvw_a, local_uvw_b, rng);
+    return transformed_->tr(cc, a, b, local_uvw_a, local_uvw_b, sampler);
 }
 
 float TransformMedium::get_priority() const

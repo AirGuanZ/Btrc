@@ -15,7 +15,7 @@ namespace medium_pipeline_detail
     {
         // rng is updated if not scattered
 
-        CRNG::Data *rng;
+        IndependentSampler::State *sampler_state;
 
         // per path
 
@@ -45,11 +45,11 @@ namespace medium_pipeline_detail
 
         int32_t *next_state_index;
 
-        CRNG::Data *output_rng;
-        Spectrum   *output_path_radiance;
-        Vec2u      *output_pixel_coord;
-        int32_t    *output_depth;
-        Spectrum   *output_beta;
+        IndependentSampler::State *output_sampler_state;
+        Spectrum                  *output_path_radiance;
+        Vec2u                     *output_pixel_coord;
+        int32_t                   *output_depth;
+        Spectrum                  *output_beta;
         
         Vec2u    *output_shadow_pixel_coord;
         Vec4f    *output_shadow_ray_o_medium_id;
@@ -68,7 +68,7 @@ namespace medium_pipeline_detail
 
     CUJ_PROXY_CLASS(
         CSOAParams, SOAParams,
-        rng,
+        sampler_state,
         path_radiance,
         pixel_coord,
         depth,
@@ -80,7 +80,7 @@ namespace medium_pipeline_detail
         ray_d_t1,
         ray_time_mask,
         next_state_index,
-        output_rng,
+        output_sampler_state,
         output_path_radiance,
         output_pixel_coord,
         output_depth,
@@ -146,7 +146,7 @@ private:
         CompileContext &cc,
         const Scene    &scene,
         ref<CVec3f>     scatter_pos,
-        ref<CRNG>       rng,
+        Sampler        &sampler,
         f32             time,
         ref<CVec3f>     shadow_d,
         ref<f32>        shadow_t1,

@@ -2,7 +2,7 @@
 
 #include <cuj.h>
 
-#include <btrc/common.h>
+#include <btrc/builtin/sampler/independent.h>
 
 #define BTRC_WFPT_BEGIN BTRC_BUILTIN_BEGIN namespace wfpt {
 #define BTRC_WFPT_END   } BTRC_BUILTIN_END

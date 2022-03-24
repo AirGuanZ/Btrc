@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/core/context.h>
+#include <btrc/core/sampler.h>
 #include <btrc/core/spectrum.h>
 
 BTRC_BEGIN
@@ -59,7 +60,7 @@ public:
         ref<CVec3f>     b,
         ref<CVec3f>     uvw_a,
         ref<CVec3f>     uvw_b,
-        ref<CRNG>       rng) const = 0;
+        Sampler        &sampler) const = 0;
 
     virtual CSpectrum tr(
         CompileContext &cc,
@@ -67,7 +68,7 @@ public:
         ref<CVec3f>     b,
         ref<CVec3f>     uvw_a,
         ref<CVec3f>     uvw_b,
-        ref<CRNG>       rng) const = 0;
+        Sampler        &sampler) const = 0;
 
     virtual float get_priority() const = 0;
 };
@@ -86,7 +87,7 @@ public:
         ref<CVec3f>     b,
         ref<CVec3f>     uvw_a,
         ref<CVec3f>     uvw_b,
-        ref<CRNG>       rng) const override;
+        Sampler        &sampler) const override;
 
     CSpectrum tr(
         CompileContext &cc,
@@ -94,7 +95,7 @@ public:
         ref<CVec3f>     b,
         ref<CVec3f>     uvw_a,
         ref<CVec3f>     uvw_b,
-        ref<CRNG>       rng) const override;
+        Sampler        &sampler) const override;
 
     float get_priority() const override;
 

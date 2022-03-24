@@ -43,13 +43,12 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         i32 pixel_index = i32((initial_pixel_index + i64(thread_idx)) % (film_res.x * film_res.y));
         i64 sample_index = ((initial_pixel_index + i64(thread_idx)) / (film_res.x * film_res.y));
 
-        var rng = CRNG(hash::hash(pixel_index));
-        rng.advance(sample_index * i64(65536));
-
+        IndependentSampler sampler(hash::hash(pixel_index), u64(sample_index * i64(65536)));
+        
         i32 pixel_x = pixel_index % film_res.x;
         i32 pixel_y = pixel_index / film_res.x;
 
-        var filter_sample = filter.sample(rng);
+        var filter_sample = filter.sample(sampler);
 
         f32 pixel_xf = f32(pixel_x) + 0.5f + filter_sample.x;
         f32 pixel_yf = f32(pixel_y) + 0.5f + filter_sample.y;
@@ -57,7 +56,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         f32 film_x = pixel_xf / static_cast<float>(film_res.x);
         f32 film_y = pixel_yf / static_cast<float>(film_res.y);
 
-        f32 time_sample = rng.uniform_float();
+        f32 time_sample = sampler.get1d();
 
         auto sample_we_result = camera.generate_ray(
             cc, CVec2f(film_x, film_y), time_sample);
@@ -92,7 +91,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
         save_aligned(sample_we_result.throughput, soa_params.output_beta + state_index);
         save_aligned(CSpectrum::zero(), soa_params.output_path_radiance + state_index);
 
-        soa_params.rng[state_index] = rng;
+        sampler.save(soa_params.output_sampler_state + state_index);
     });
 }
 

@@ -213,7 +213,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
         const int new_state_count = impl_->generate.generate(
             active_state_count,
             wfpt::GeneratePipeline::SOAParams{
-                .rng                     = soa.rng,
+                .output_sampler_state    = soa.sampler_state,
                 .output_pixel_coord      = soa.pixel_coord,
                 .output_ray_o_medium_id  = soa.o_medium_id,
                 .output_ray_d_t1         = soa.d_t1,
@@ -243,7 +243,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
         impl_->medium.sample_scattering(
             active_state_count,
             wfpt::MediumPipeline::SOAParams{
-                .rng                           = soa.rng,
+                .sampler_state                 = soa.sampler_state,
                 .path_radiance                 = soa.path_radiance,
                 .pixel_coord                   = soa.pixel_coord,
                 .depth                         = soa.depth,
@@ -255,7 +255,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .ray_d_t1                      = soa.d_t1,
                 .ray_time_mask                 = soa.time_mask,
                 .next_state_index              = soa.next_state_index,
-                .output_rng                    = soa.next_rng,
+                .output_sampler_state          = soa.next_sampler_state,
                 .output_path_radiance          = soa.next_path_radiance,
                 .output_pixel_coord            = soa.next_pixel_coord,
                 .output_depth                  = soa.next_depth,
@@ -276,7 +276,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
         impl_->shade.shade(
             active_state_count,
             wfpt::ShadePipeline::SOAParams{
-                .rng                           = soa.rng,
+                .sampler_state                 = soa.sampler_state,
                 .path_radiance                 = soa.path_radiance,
                 .pixel_coord                   = soa.pixel_coord,
                 .depth                         = soa.depth,
@@ -288,7 +288,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                 .ray_d_t1                      = soa.d_t1,
                 .ray_time_mask                 = soa.time_mask,
                 .next_state_index              = soa.next_state_index,
-                .output_rng                    = soa.next_rng,
+                .output_sampler_state          = soa.next_sampler_state,
                 .output_path_radiance          = soa.next_path_radiance,
                 .output_pixel_coord            = soa.next_pixel_coord,
                 .output_depth                  = soa.next_depth,
@@ -322,7 +322,7 @@ Renderer::RenderResult WavefrontPathTracer::render() const
                     .ray_d_t1        = soa.shadow_d_t1,
                     .ray_time_mask   = soa.shadow_time_mask,
                     .beta_li         = soa.shadow_beta_li,
-                    .rng             = soa.shadow_rng
+                    .sampler_state   = soa.shadow_sampler_state
                 });
         }
 

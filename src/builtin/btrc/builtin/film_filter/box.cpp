@@ -2,10 +2,10 @@
 
 BTRC_BUILTIN_BEGIN
 
-CVec2f BoxFilter::sample(ref<CRNG> rng) const
+CVec2f BoxFilter::sample(Sampler &sampler) const
 {
-    var x = rng.uniform_float() - 0.5f;
-    var y = rng.uniform_float() - 0.5f;
+    var x = sampler.get1d() - 0.5f;
+    var y = sampler.get1d() - 0.5f;
     return CVec2f(x, y);
 }
 

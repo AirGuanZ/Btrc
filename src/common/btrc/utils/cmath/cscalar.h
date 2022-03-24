@@ -11,6 +11,7 @@ using cuj::ref;
 using cuj::var;
 
 using cuj::boolean;
+using cuj::i64;
 using cuj::f32;
 using cuj::i32;
 using cuj::u32;

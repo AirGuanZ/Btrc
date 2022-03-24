@@ -9,7 +9,7 @@ class BoxFilter : public FilmFilter
 {
 public:
 
-    CVec2f sample(ref<CRNG> rng) const override;
+    CVec2f sample(Sampler &sampler) const override;
 };
 
 class BoxFilterCreator : public factory::Creator<FilmFilter>

@@ -1,5 +1,3 @@
-#include <numeric>
-
 #include <btrc/builtin/film_filter/gaussian.h>
 
 BTRC_BUILTIN_BEGIN
@@ -55,17 +53,17 @@ void GaussianFilter::commit()
     alias_table_ = CAliasTable(alias_table);
 }
 
-CVec2f GaussianFilter::sample(ref<CRNG> rng) const
+CVec2f GaussianFilter::sample(Sampler &sampler) const
 {
-    var grid_index = alias_table_.sample(rng.uniform_float());
+    var grid_index = alias_table_.sample(sampler.get1d());
     var grid_y = grid_index / GRID_SIZE;
     var grid_x = grid_index % GRID_SIZE;
     var x_beg = -radius_ + 2 * radius_ / GRID_SIZE * f32(grid_x);
     var x_end = -radius_ + 2 * radius_ / GRID_SIZE * f32(grid_x + 1);
     var y_beg = -radius_ + 2 * radius_ / GRID_SIZE * f32(grid_y);
     var y_end = -radius_ + 2 * radius_ / GRID_SIZE * f32(grid_y + 1);
-    var xf = lerp(x_beg, x_end, rng.uniform_float());
-    var yf = lerp(y_beg, y_end, rng.uniform_float());
+    var xf = lerp(x_beg, x_end, sampler.get1d());
+    var yf = lerp(y_beg, y_end, sampler.get1d());
     return CVec2f(xf, yf);
 }
 

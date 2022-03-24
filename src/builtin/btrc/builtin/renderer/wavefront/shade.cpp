@@ -116,7 +116,8 @@ void ShadePipeline::record_device_code(
 
         var scattered = is_path_scattered(path_flag);
 
-        var rng = soa_params.rng[soa_index];
+        IndependentSampler sampler(soa_params.sampler_state[soa_index]);
+
         i32 next_state_index;
         $if(scattered)
         {
@@ -127,10 +128,10 @@ void ShadePipeline::record_device_code(
         {
             handle_miss(
                 cc, world_diagonal, vols, light_sampler, soa_params,
-                soa_index, path_radiance, rng, scattered);
+                soa_index, path_radiance, sampler, scattered);
             $if(scattered)
             {
-                soa_params.output_rng[next_state_index] = rng;
+                sampler.save(soa_params.output_sampler_state + next_state_index);
             }
             $else
             {
@@ -183,12 +184,12 @@ void ShadePipeline::record_device_code(
                     {
                         $case(i)
                         {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position, ray_o, inct.position, rng);
+                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position, ray_o, inct.position, sampler);
                         };
                     }
                     $case(MEDIUM_ID_VOID)
                     {
-                        tr = vols.tr(cc, ray_o, inct.position, rng);
+                        tr = vols.tr(cc, ray_o, inct.position, sampler);
                     };
                     $default
                     {
@@ -229,7 +230,7 @@ void ShadePipeline::record_device_code(
 
         $if(scattered)
         {
-            soa_params.output_rng[next_state_index] = rng;
+            sampler.save(soa_params.output_sampler_state + next_state_index);
             $return();
         };
 
@@ -244,7 +245,7 @@ void ShadePipeline::record_device_code(
             }
             $else
             {
-                var sam = rng.uniform_float();
+                var sam = sampler.get1d();
                 var lum = beta.get_lum();
                 $if(lum < shade_params.rr_threshold)
                 {
@@ -268,7 +269,7 @@ void ShadePipeline::record_device_code(
 
         // sample light
 
-        auto select_light = light_sampler->sample(inct.position, ray_time, rng.uniform_float());
+        auto select_light = light_sampler->sample(inct.position, ray_time, sampler.get1d());
         var light_id = select_light.light_idx;
         
         CVec3f shadow_o, shadow_d;
@@ -276,6 +277,7 @@ void ShadePipeline::record_device_code(
         var li = CSpectrum::zero();
         $if(light_id >= 0)
         {
+            var sam = sampler.get3d();
             $switch(light_id)
             {
                 for(int i = 0; i < light_sampler->get_light_count(); ++i)
@@ -283,7 +285,6 @@ void ShadePipeline::record_device_code(
                     $case(i)
                     {
                         auto light = light_sampler->get_light(i);
-                        var sam = CVec3f(rng);
                         if(auto area = light->as_area())
                         {
                             auto sample = area->sample_li(cc, inct.position, sam);
@@ -307,6 +308,10 @@ void ShadePipeline::record_device_code(
                         }
                     };
                 }
+                $default
+                {
+                    cstd::unreachable();
+                };
             };
         };
 
@@ -351,7 +356,7 @@ void ShadePipeline::record_device_code(
 
             // sample bsdf
 
-            bsdf_sample = shader->sample(cc, -ray_d, CVec3f(rng), TransportMode::Radiance);
+            bsdf_sample = shader->sample(cc, -ray_d, sampler.get3d(), TransportMode::Radiance);
             is_bsdf_delta = shader->is_delta(cc);
         };
 
@@ -434,7 +439,7 @@ void ShadePipeline::record_device_code(
 
             var output_index = cstd::atomic_add(active_state_counter, 1);
 
-            soa_params.output_rng[output_index] = rng;
+            sampler.save(soa_params.output_sampler_state + output_index);
             
             save_aligned(pixel_coord, soa_params.output_pixel_coord + output_index);
             soa_params.output_depth[output_index] = depth + 1;
@@ -520,7 +525,7 @@ void ShadePipeline::handle_miss(
     ref<CSOAParams>     soa_params,
     i32                 soa_index,
     ref<CSpectrum>      path_rad,
-    ref<CRNG>           rng,
+    Sampler            &sampler,
     boolean             scattered)
 {
     var time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
@@ -535,7 +540,7 @@ void ShadePipeline::handle_miss(
 
         $if(scattered)
         {
-            var tr = vols.tr(cc, ray_ori, ray_ori + normalize(ray_dir) * world_diagonal, rng);
+            var tr = vols.tr(cc, ray_ori, ray_ori + normalize(ray_dir) * world_diagonal, sampler);
             beta_le = beta_le * tr;
         };
 

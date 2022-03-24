@@ -23,7 +23,7 @@ public:
         ref<CVec3f>     b,
         ref<CVec3f>     uvw_a,
         ref<CVec3f>     uvw_b,
-        ref<CRNG>       rng) const override;
+        Sampler        &sampler) const override;
 
     CSpectrum tr(
         CompileContext &cc,
@@ -31,7 +31,7 @@ public:
         ref<CVec3f>     b,
         ref<CVec3f>     uvw_a,
         ref<CVec3f>     uvw_b,
-        ref<CRNG>       rng) const override;
+        Sampler        &sampler) const override;
 
     float get_priority() const override;
 

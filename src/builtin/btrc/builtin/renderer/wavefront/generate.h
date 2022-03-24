@@ -1,12 +1,11 @@
 #pragma once
 
+#include <btrc/builtin/renderer/wavefront/common.h>
 #include <btrc/core/camera.h>
 #include <btrc/core/film.h>
 #include <btrc/core/film_filter.h>
 #include <btrc/utils/cuda/module.h>
 #include <btrc/utils/uncopyable.h>
-
-#include "./common.h"
 
 BTRC_WFPT_BEGIN
 
@@ -15,21 +14,21 @@ namespace generate_pipeline_detail
 
     struct SOAParams
     {
-        CRNG::Data *rng;
-        Vec2u      *output_pixel_coord;
-        Vec4f      *output_ray_o_medium_id;
-        Vec4f      *output_ray_d_t1;
-        Vec2u      *output_ray_time_mask;
-        Spectrum   *output_beta;
-        Spectrum   *output_beta_le_bsdf_pdf;
-        int        *output_depth;
-        Spectrum   *output_path_radiance;
+        IndependentSampler::State *output_sampler_state;
+        Vec2u                     *output_pixel_coord;
+        Vec4f                     *output_ray_o_medium_id;
+        Vec4f                     *output_ray_d_t1;
+        Vec2u                     *output_ray_time_mask;
+        Spectrum                  *output_beta;
+        Spectrum                  *output_beta_le_bsdf_pdf;
+        int                       *output_depth;
+        Spectrum                  *output_path_radiance;
     };
 
     CUJ_PROXY_CLASS(
         CSOAParams,
         SOAParams,
-        rng,
+        output_sampler_state,
         output_pixel_coord,
         output_ray_o_medium_id,
         output_ray_d_t1,

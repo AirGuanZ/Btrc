@@ -30,7 +30,7 @@ namespace volume
             ref<Overlap>                 overlap,
             ref<CVec3f>                  a,
             ref<CVec3f>                  b,
-            ref<CRNG>                    rng,
+            Sampler                     &sampler,
             ref<boolean>                 output_scattered,
             ref<CSpectrum>               output_throughput,
             ref<CVec3f>                  output_position,
@@ -41,7 +41,7 @@ namespace volume
             ref<Overlap>    overlap,
             ref<CVec3f>     a,
             ref<CVec3f>     b,
-            ref<CRNG>       rng) const;
+            Sampler        &sampler) const;
 
     private:
 
@@ -54,7 +54,7 @@ namespace volume
             const std::set<RC<VolumePrimitive>> &vols,
             ref<CVec3f>                          a,
             ref<CVec3f>                          b,
-            ref<CRNG>                            rng,
+            Sampler                             &sampler,
             ref<boolean>                         output_scattered,
             ref<CSpectrum>                       output_throughput,
             ref<CVec3f>                          output_position,
@@ -65,7 +65,7 @@ namespace volume
             const std::set<RC<VolumePrimitive>> &vols,
             ref<CVec3f>                          a,
             ref<CVec3f>                          b,
-            ref<CRNG>                            rng) const;
+            Sampler                             &sampler) const;
 
         std::vector<std::set<RC<VolumePrimitive>>> overlaps_;
         cuda::Buffer<int32_t> overlap_trie_;

@@ -20,7 +20,7 @@ volume::Aggregate::Aggregate(const std::vector<RC<VolumePrimitive>> &vols)
 
     std::map<RC<VolumePrimitive>, int> vol_to_id;
     for(auto &&[i, vol] : enumerate(vols))
-        vol_to_id[vol] = i;
+        vol_to_id[vol] = static_cast<int>(i);
 
     overlaps_ = overlap_resolver.get_overlaps();
     OverlapIndexer indexer(overlaps_, vols, vol_to_id);
@@ -51,7 +51,7 @@ void volume::Aggregate::sample_scattering(
     ref<Overlap>                 overlap,
     ref<CVec3f>                  a,
     ref<CVec3f>                  b,
-    ref<CRNG>                    rng,
+    Sampler                     &sampler,
     ref<boolean>                 output_scattered,
     ref<CSpectrum>               output_throughput,
     ref<CVec3f>                  output_position,
@@ -74,7 +74,7 @@ void volume::Aggregate::sample_scattering(
             $case(i)
             {
                 sample_scattering_in_overlap(
-                    cc, overlaps_[i], a, b, rng,
+                    cc, overlaps_[i], a, b, sampler,
                     output_scattered, output_throughput,
                     output_position, output_shader);
             };
@@ -89,7 +89,7 @@ void volume::Aggregate::sample_scattering(
 
 CSpectrum volume::Aggregate::tr(
     CompileContext &cc, ref<Overlap> overlap,
-    ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+    ref<CVec3f> a, ref<CVec3f> b, Sampler &sampler) const
 {
     $declare_scope;
     CSpectrum result;
@@ -107,7 +107,7 @@ CSpectrum volume::Aggregate::tr(
         {
             $case(i)
             {
-                result = tr_in_overlap(cc, overlaps_[i], a, b, rng);
+                result = tr_in_overlap(cc, overlaps_[i], a, b, sampler);
             };
         }
         $default
@@ -147,7 +147,7 @@ void volume::Aggregate::sample_scattering_in_overlap(
     const std::set<RC<VolumePrimitive>> &vols,
     ref<CVec3f>                          a,
     ref<CVec3f>                          b,
-    ref<CRNG>                            rng,
+    Sampler                             &sampler,
     ref<boolean>                         output_scattered,
     ref<CSpectrum>                       output_throughput,
     ref<CVec3f>                          output_position,
@@ -167,7 +167,7 @@ void volume::Aggregate::sample_scattering_in_overlap(
     var t_max = length(b - a), t = 0.0f;
     $loop
     {
-        var dt = -cstd::log(1.0f - rng.uniform_float()) * inv_max_density;
+        var dt = -cstd::log(1.0f - sampler.get1d()) * inv_max_density;
         t = t + dt;
         $if(t >= t_max)
         {
@@ -189,7 +189,7 @@ void volume::Aggregate::sample_scattering_in_overlap(
             density_sum = density_sum + density;
         }
 
-        $if(rng.uniform_float() < density_sum * inv_max_density)
+        $if(sampler.get1d() < density_sum * inv_max_density)
         {
             output_scattered = true;
             output_throughput = CSpectrum::one();
@@ -218,7 +218,7 @@ CSpectrum volume::Aggregate::tr_in_overlap(
     const std::set<RC<VolumePrimitive>> &vols,
     ref<CVec3f>                          a,
     ref<CVec3f>                          b,
-    ref<CRNG>                            rng) const
+    Sampler                             &sampler) const
 {
     const float max_density = get_max_density(vols);
     const float inv_max_density = 1.0f / max_density;
@@ -234,7 +234,7 @@ CSpectrum volume::Aggregate::tr_in_overlap(
     var result = 1.0f, t_max = length(b - a), t = 0.0f;
     $loop
     {
-        var dt = -cstd::log(1.0f - rng.uniform_float()) * inv_max_density;
+        var dt = -cstd::log(1.0f - sampler.get1d()) * inv_max_density;
         t = t + dt;
         $if(t >= t_max)
         {

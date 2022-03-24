@@ -20,9 +20,9 @@ public:
 
     void swap(VolumeManager &other) noexcept;
 
-    Medium::SampleResult sample_scattering(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const;
+    Medium::SampleResult sample_scattering(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, Sampler &sampler) const;
 
-    CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const;
+    CSpectrum tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, Sampler &sampler) const;
 
 private:
 

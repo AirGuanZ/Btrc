@@ -19,7 +19,7 @@ void PathState::initialize(int state_count)
 {
     init(
         state_count,
-        rng,
+        sampler_state,
         o_medium_id,
         d_t1,
         time_mask,
@@ -31,7 +31,7 @@ void PathState::initialize(int state_count)
         path_flag,
         inct_t_prim_uv,
         next_state_index,
-        next_rng,
+        next_sampler_state,
         next_beta,
         next_depth,
         next_pixel_coord,
@@ -45,28 +45,24 @@ void PathState::initialize(int state_count)
         next_d_t1,
         next_time_mask,
         next_beta_le_bsdf_pdf,
-        shadow_rng);
+        shadow_sampler_state);
 }
 
 void PathState::clear()
 {
-    const int state_count = static_cast<int>(rng.get_size());
-    std::vector<CRNG::Data> rng_init_data(state_count);
+    const int state_count = static_cast<int>(shadow_sampler_state.get_size());
+    std::vector<IndependentSampler::State> rng_init_data(state_count);
     for(int i = 0; i < state_count; ++i)
-        rng_init_data[i] = CRNG::Data(static_cast<uint32_t>(i));
+        rng_init_data[i].rng = CRNG::Data(static_cast<uint32_t>(i));
 
     std::default_random_engine random_engine{ 42 };
     std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
-    rng.from_cpu(rng_init_data.data());
-    next_rng.from_cpu(rng_init_data.data());
-
-    std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
-    shadow_rng.from_cpu(rng_init_data.data());
+    shadow_sampler_state.from_cpu(rng_init_data.data());
 }
 
 void PathState::next_iteration()
 {
-    rng.swap(next_rng);
+    sampler_state.swap(next_sampler_state);
 
     o_medium_id.swap(next_o_medium_id);
     d_t1.swap(next_d_t1);

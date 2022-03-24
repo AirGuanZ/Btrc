@@ -29,7 +29,7 @@ Medium::SampleResult HomogeneousMedium::sample(
     ref<CVec3f>     b,
     ref<CVec3f>     uvw_a,
     ref<CVec3f>     uvw_b,
-    ref<CRNG>       rng) const
+    Sampler        &sampler) const
 {
     SampleResult result;
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
@@ -38,7 +38,7 @@ Medium::SampleResult HomogeneousMedium::sample(
     var sigma_t = sigma_t_;
 
     var t_max = length(b - a);
-    var st = -cstd::log(1.0f - rng.uniform_float()) / sigma_t;
+    var st = -cstd::log(1.0f - sampler.get1d()) / sigma_t;
 
     $if(st < t_max)
     {
@@ -64,7 +64,7 @@ CSpectrum HomogeneousMedium::tr(
     ref<CVec3f>     b,
     ref<CVec3f>     uvw_a,
     ref<CVec3f>     uvw_b,
-    ref<CRNG>       rng) const
+    Sampler        &sampler) const
 {
     var sigma_t = sigma_t_;
     var albedo = CSpectrum(albedo_);

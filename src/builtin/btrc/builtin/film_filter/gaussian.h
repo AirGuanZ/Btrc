@@ -15,7 +15,7 @@ public:
 
     void commit() override;
 
-    CVec2f sample(ref<CRNG> rng) const override;
+    CVec2f sample(Sampler &sampler) const override;
 
 private:
 

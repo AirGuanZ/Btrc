@@ -29,7 +29,7 @@ Medium::SampleResult HetergeneousMedium::sample(
     ref<CVec3f>     b,
     ref<CVec3f>     uvw_a,
     ref<CVec3f>     uvw_b,
-    ref<CRNG>       rng) const
+    Sampler        &sampler) const
 {
     const float max_density = std::max(sigma_t_->get_max_float(), 0.001f);
     const float inv_max_density = 1.0f / max_density;
@@ -46,7 +46,7 @@ Medium::SampleResult HetergeneousMedium::sample(
 
     $loop
     {
-        var dt = -cstd::log(1.0f - rng.uniform_float()) * inv_max_density;
+        var dt = -cstd::log(1.0f - sampler.get1d()) * inv_max_density;
         t = t + dt;
         $if(t >= t_max)
         {
@@ -57,7 +57,7 @@ Medium::SampleResult HetergeneousMedium::sample(
         
         var uvw = local_a + t * local_ba_div_t_max;
         var density = sigma_t_->sample_float(cc, uvw);
-        $if(rng.uniform_float() < density * inv_max_density)
+        $if(sampler.get1d() < density * inv_max_density)
         {
             var albedo = albedo_->sample_spectrum(cc, uvw);
             var g = g_->sample_float(cc, uvw);
@@ -79,7 +79,7 @@ CSpectrum HetergeneousMedium::tr(
     ref<CVec3f>     b,
     ref<CVec3f>     uvw_a,
     ref<CVec3f>     uvw_b,
-    ref<CRNG>       rng) const
+    Sampler        &sampler) const
 {
     var result = 1.0f, t = 0.0f, t_max = length(b - a);
     const float max_density = std::max(sigma_t_->get_max_float(), 0.001f);
@@ -91,7 +91,7 @@ CSpectrum HetergeneousMedium::tr(
 
     $loop
     {
-        var dt = -cstd::log(1.0f - rng.uniform_float()) * inv_max_density;
+        var dt = -cstd::log(1.0f - sampler.get1d()) * inv_max_density;
         t = t + dt;
         $if(t >= t_max)
         {

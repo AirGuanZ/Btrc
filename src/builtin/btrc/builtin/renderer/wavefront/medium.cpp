@@ -47,8 +47,8 @@ void MediumPipeline::record_device_code(
         var ray_d_t1 = load_aligned(soa.ray_d_t1 + soa_index);
         var ray_d = ray_d_t1.xyz();
 
-        var rng = soa.rng[soa_index];
-
+        IndependentSampler sampler(soa.sampler_state[soa_index]);
+        
         // resolve medium id
 
         CMediumID medium_id;
@@ -125,7 +125,7 @@ void MediumPipeline::record_device_code(
                     }
                     $else
                     {
-                        var sam = rng.uniform_float();
+                        var sam = sampler.get1d();
                         var lum = scatter_beta.get_lum();
                         $if(lum < shade_params.rr_threshold)
                         {
@@ -145,7 +145,7 @@ void MediumPipeline::record_device_code(
                 {
                     var pixel_coord = load_aligned(soa.pixel_coord + soa_index);
                     film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
-                    soa.rng[soa_index] = rng;
+                    sampler.save(soa.sampler_state + soa_index);
                     var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
                     soa.next_state_index[soa_index] = output_index;
                     $return();
@@ -158,7 +158,7 @@ void MediumPipeline::record_device_code(
                 var ray_time = bitcast<f32>(soa.ray_time_mask[soa_index].x);
                 CSpectrum shadow_li;
                 sample_light(
-                    cc, scene, sample_medium.position, rng, ray_time,
+                    cc, scene, sample_medium.position, sampler, ray_time,
                     shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
                 
                 $if(shadow_t1 > 1e-4f & !shadow_li.is_zero())
@@ -171,7 +171,7 @@ void MediumPipeline::record_device_code(
 
                 // generate next ray
 
-                phase_sample = sample_medium.shader->sample(cc, -ray_d, CVec3f(rng));
+                phase_sample = sample_medium.shader->sample(cc, -ray_d, sampler.get3d());
             }
             $else
             {
@@ -186,13 +186,13 @@ void MediumPipeline::record_device_code(
                 $case(MediumID(i))
                 {
                     auto medium = scene.get_medium(i);
-                    auto sample_medium = medium->sample(cc, ray_o, medium_end, ray_o, medium_end, rng);
+                    auto sample_medium = medium->sample(cc, ray_o, medium_end, ray_o, medium_end, sampler);
                     handle_medium(sample_medium);
                 };
             }
             $case(MEDIUM_ID_VOID)
             {
-                auto sample_medium = vols.sample_scattering(cc, ray_o, medium_end, rng);
+                auto sample_medium = vols.sample_scattering(cc, ray_o, medium_end, sampler);
                 handle_medium(sample_medium);
             };
             $default
@@ -260,13 +260,13 @@ void MediumPipeline::record_device_code(
                 beta_le.additional_data = phase_sample.pdf;
                 save_aligned(beta_le, soa.output_beta_le_bsdf_pdf + output_index);
 
-                soa.rng[soa_index] = rng;
+                sampler.save(soa.sampler_state + soa_index);
                 soa.next_state_index[soa_index] = output_index;
             }
             $else
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
-                soa.rng[soa_index] = rng;
+                sampler.save(soa.sampler_state + soa_index);
                 var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
                 soa.next_state_index[soa_index] = output_index;
             };
@@ -284,7 +284,7 @@ void MediumPipeline::record_device_code(
             save_aligned(beta, soa.beta + soa_index);
             save_aligned(beta_le, soa.beta_le_bsdf_pdf + soa_index);
 
-            soa.rng[soa_index] = rng;
+            sampler.save(soa.sampler_state + soa_index);
         };
     });
 }
@@ -341,14 +341,15 @@ void MediumPipeline::sample_light(
     CompileContext &cc,
     const Scene    &scene,
     ref<CVec3f>     scatter_pos,
-    ref<CRNG>       rng,
+    Sampler        &sampler,
     f32             time,
     ref<CVec3f>     shadow_d,
     ref<f32>        shadow_t1,
     ref<f32>        shadow_light_pdf,
     ref<CSpectrum>  shadow_li) const
 {
-    auto select_light = scene.get_light_sampler()->sample(scatter_pos, time, rng.uniform_float());
+    var sam = sampler.get3d();
+    auto select_light = scene.get_light_sampler()->sample(scatter_pos, time, sampler.get1d());
     $if(select_light.light_idx >= 0)
     {
         $switch(select_light.light_idx)
@@ -358,7 +359,6 @@ void MediumPipeline::sample_light(
                 $case(i)
                 {
                     auto light = scene.get_light_sampler()->get_light(i);
-                    var sam = CVec3f(rng);
                     if(auto area = light->as_area())
                     {
                         auto sample = area->sample_li(cc, scatter_pos, sam);

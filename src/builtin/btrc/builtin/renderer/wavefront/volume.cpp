@@ -26,7 +26,7 @@ void VolumeManager::swap(VolumeManager &other) noexcept
     bvh_.swap(other.bvh_);
 }
 
-Medium::SampleResult VolumeManager::sample_scattering(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+Medium::SampleResult VolumeManager::sample_scattering(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, Sampler &sampler) const
 {
     Medium::SampleResult result;
     auto shader = newRC<HenyeyGreensteinPhaseShader>();
@@ -57,7 +57,7 @@ Medium::SampleResult VolumeManager::sample_scattering(CompileContext &cc, ref<CV
         $if(overlap.count != i32(0))
         {
             aggregate_->sample_scattering(
-                cc, overlap, o, inct_pos, rng,
+                cc, overlap, o, inct_pos, sampler,
                 result.scattered, result.throughput, result.position, *shader);
             $if(result.scattered)
             {
@@ -71,7 +71,7 @@ Medium::SampleResult VolumeManager::sample_scattering(CompileContext &cc, ref<CV
     return result;
 }
 
-CSpectrum VolumeManager::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, ref<CRNG> rng) const
+CSpectrum VolumeManager::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, Sampler &sampler) const
 {
     var result = CSpectrum::one();
     if(bvh_->is_empty())
@@ -92,7 +92,7 @@ CSpectrum VolumeManager::tr(CompileContext &cc, ref<CVec3f> a, ref<CVec3f> b, re
         var overlap = bvh_->get_overlap(0.5f * (o + inct_pos));
         $if(overlap.count != i32(0))
         {
-            var seg_tr = aggregate_->tr(cc, overlap, o, inct_pos, rng);
+            var seg_tr = aggregate_->tr(cc, overlap, o, inct_pos, sampler);
             result = result * seg_tr;
         };
         o = inct_pos + 0.001f * d;

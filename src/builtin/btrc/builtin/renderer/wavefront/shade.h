@@ -14,7 +14,7 @@ namespace shade_pipeline_detail
 
     struct SOAParams
     {
-        CRNG::Data *rng;
+        IndependentSampler::State *sampler_state;
 
         // per path
 
@@ -40,12 +40,12 @@ namespace shade_pipeline_detail
 
         int32_t *next_state_index;
 
-        CRNG::Data *output_rng;
+        IndependentSampler::State  *output_sampler_state;
 
         // ouput when active
 
         Spectrum *output_path_radiance;
-        Vec2u *output_pixel_coord;
+        Vec2u    *output_pixel_coord;
         int32_t  *output_depth;
         Spectrum *output_beta;
 
@@ -68,7 +68,7 @@ namespace shade_pipeline_detail
 
     CUJ_PROXY_CLASS(
         CSOAParams, SOAParams,
-        rng,
+        sampler_state,
         path_radiance,
         pixel_coord,
         depth,
@@ -80,7 +80,7 @@ namespace shade_pipeline_detail
         ray_d_t1,
         ray_time_mask,
         next_state_index,
-        output_rng,
+        output_sampler_state,
         output_path_radiance,
         output_pixel_coord,
         output_depth,
@@ -137,7 +137,7 @@ private:
         ref<CSOAParams>     soa_params,
         i32                 soa_index,
         ref<CSpectrum>      path_rad,
-        ref<CRNG>           rng,
+        Sampler            &sampler,
         boolean             scattered);
 
     RC<cuda::Module>                kernel_;

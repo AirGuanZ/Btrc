@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btrc/builtin/renderer/wavefront/common.h>
+#include <btrc/builtin/sampler/independent.h>
 #include <btrc/core/spectrum.h>
 #include <btrc/utils/cuda/buffer.h>
 #include <btrc/utils/cmath/cmath.h>
@@ -15,7 +16,7 @@ struct PathState
 
     void next_iteration();
 
-    cuda::Buffer<CRNG::Data> rng;
+    cuda::Buffer<IndependentSampler::State> sampler_state;
 
     // ==== generate output ====
 
@@ -45,9 +46,9 @@ struct PathState
 
     cuda::Buffer<int32_t> next_state_index;
 
-    // 'state' state
+    // sampler state
 
-    cuda::Buffer<CRNG::Data> next_rng;
+    cuda::Buffer<IndependentSampler::State> next_sampler_state;
 
     // path state
 
@@ -76,7 +77,7 @@ struct PathState
 
     // ==== shadow ====
 
-    cuda::Buffer<CRNG::Data> shadow_rng;
+    cuda::Buffer<IndependentSampler::State> shadow_sampler_state;
 };
 
 BTRC_WFPT_END

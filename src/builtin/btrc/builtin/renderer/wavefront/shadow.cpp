@@ -57,7 +57,8 @@ namespace
 
             var pixel_coord = load_aligned(launch_params.pixel_coord + launch_idx);
             var beta = load_aligned(launch_params.beta_li + launch_idx);
-            var rng = launch_params.rng[launch_idx];
+
+            IndependentSampler sampler(launch_params.sampler_state[launch_idx]);
 
             var ray_o = optix::get_ray_o();
             var ray_d = optix::get_ray_d();
@@ -68,7 +69,7 @@ namespace
             
             $if(medium_id == MEDIUM_ID_VOID)
             {
-                tr = vols.tr(cc, ray_o, ray_o + normalize(ray_d) * world_diagonal, rng);
+                tr = vols.tr(cc, ray_o, ray_o + normalize(ray_d) * world_diagonal, sampler);
             }
             $elif(ray_t1 != btrc_max_float)
             {
@@ -79,7 +80,7 @@ namespace
                     {
                         $case(i)
                         {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, end_pnt, ray_o, end_pnt, rng);
+                            tr = scene.get_medium(i)->tr(cc, ray_o, end_pnt, ray_o, end_pnt, sampler);
                         };
                     }
                     $default
@@ -90,7 +91,7 @@ namespace
             };
             beta = beta * tr;
 
-            launch_params.rng[launch_idx] = rng;
+            sampler.save(launch_params.sampler_state + launch_idx);
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, beta.to_rgb());
         });
 
@@ -174,7 +175,7 @@ void ShadowPipeline::test(
         .ray_d_t1        = soa_params.ray_d_t1,
         .ray_time_mask   = soa_params.ray_time_mask,
         .beta_li         = soa_params.beta_li,
-        .rng             = soa_params.rng
+        .sampler_state   = soa_params.sampler_state
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(
