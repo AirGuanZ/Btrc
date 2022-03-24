@@ -118,11 +118,17 @@ void Glass::set_ior(RC<Texture2D> ior)
     ior_ = std::move(ior);
 }
 
+void Glass::set_normal(RC<NormalMap> normal)
+{
+    normal_ = std::move(normal);
+}
+
 RC<Shader> Glass::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     GlassShaderImpl impl;
     impl.frame.geometry = inct.frame;
     impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
+    impl.frame.shading = normal_->adjust_frame(cc, inct, impl.frame.shading);
     impl.color = color_->sample_spectrum(cc, inct);
     impl.ior = ior_->sample_float(cc, inct);
     return newRC<ShaderClosure<GlassShaderImpl>>(as_shared(), impl);
@@ -132,9 +138,12 @@ RC<Material> GlassCreator::create(RC<const factory::Node> node, factory::Context
 {
     auto color = context.create<Texture2D>(node->child_node("color"));
     auto ior = context.create<Texture2D>(node->child_node("ior"));
+    auto normal = newRC<NormalMap>();
+    normal->load(node, context);
     auto glass = newRC<Glass>();
     glass->set_color(std::move(color));
     glass->set_ior(std::move(ior));
+    glass->set_normal(std::move(normal));
     return glass;
 }
 

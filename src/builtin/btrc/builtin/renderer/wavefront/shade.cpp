@@ -54,10 +54,8 @@ namespace
 
         // interpolated normal
 
-        var interp_normal =
-            sn_v_a.xyz() + sn_v_ba.xyz() * uv.x + sn_v_ca.xyz() * uv.y;
-        interp_normal = normalize(
-            local_to_world.apply_to_vector(interp_normal));
+        var interp_normal = sn_v_a.xyz() + sn_v_ba.xyz() * uv.x + sn_v_ca.xyz() * uv.y;
+        interp_normal = normalize(local_to_world.apply_to_vector(interp_normal));
 
         // tex coord
 

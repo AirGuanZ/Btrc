@@ -18,11 +18,17 @@ void Metal::set_anisotropic(RC<Texture2D> anisoropic)
     anisotropic_ = std::move(anisoropic);
 }
 
+void Metal::set_normal(RC<NormalMap> normal)
+{
+    normal_ = std::move(normal);
+}
+
 RC<Shader> Metal::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     ShaderFrame frame;
     frame.geometry = inct.frame;
     frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
+    frame.shading = normal_->adjust_frame(cc, inct, frame.shading);
 
     ConductorFresnelPoint fresnel;
     fresnel.R0 = R0_->sample_spectrum(cc, inct);
@@ -51,10 +57,14 @@ RC<Material> MetalCreator::create(RC<const factory::Node> node, factory::Context
         anisotropic = std::move(c);
     }
 
+    auto normal = newRC<NormalMap>();
+    normal->load(node, context);
+
     auto result = newRC<Metal>();
     result->set_r0(std::move(r0));
     result->set_roughness(std::move(roughness));
     result->set_anisotropic(std::move(anisotropic));
+    result->set_normal(std::move(normal));
     return result;
 }
 

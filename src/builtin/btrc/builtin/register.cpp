@@ -16,6 +16,7 @@
 #include <btrc/builtin/medium/hetergeneous.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
+#include <btrc/builtin/texture2d/transform.h>
 #include <btrc/builtin/texture3d/array3d.h>
 #include <btrc/builtin/texture3d/binary.h>
 #include <btrc/builtin/register.h>
@@ -70,6 +71,7 @@ void register_builtin_creators(factory::Factory<Renderer> &factory)
 void register_builtin_creators(factory::Factory<Texture2D> &factory)
 {
     factory.add_creator(newBox<Array2DCreator>());
+    factory.add_creator(newBox<TransformTexture2DCreator>());
 }
 
 void register_builtin_creators(factory::Factory<Texture3D> &factory)

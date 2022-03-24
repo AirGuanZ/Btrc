@@ -73,11 +73,17 @@ void Mirror::set_color(RC<Texture2D> color)
     color_ = std::move(color);
 }
 
+void Mirror::set_normal(RC<NormalMap> normal)
+{
+    normal_ = std::move(normal);
+}
+
 RC<Shader> Mirror::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     MirrorShaderImpl impl;
     impl.frame.geometry = inct.frame;
     impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
+    impl.frame.shading = normal_->adjust_frame(cc, inct, impl.frame.shading);
     impl.color = color_->sample_spectrum(cc, inct);
     return newRC<ShaderClosure<MirrorShaderImpl>>(as_shared(), impl);
 }
@@ -85,8 +91,11 @@ RC<Shader> Mirror::create_shader(CompileContext &cc, const SurfacePoint &inct) c
 RC<Material> MirrorCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
     auto color = context.create<Texture2D>(node->child_node("color"));
+    auto normal = newRC<NormalMap>();
+    normal->load(node, context);
     auto mirror = newRC<Mirror>();
     mirror->set_color(std::move(color));
+    mirror->set_normal(std::move(normal));
     return mirror;
 }
 

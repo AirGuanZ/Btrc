@@ -1,5 +1,6 @@
 #pragma once
 
+#include <btrc/builtin/material/utils/normal_map.h>
 #include <btrc/core/material.h>
 #include <btrc/factory/context.h>
 
@@ -35,6 +36,8 @@ public:
 
     void set_ior(RC<Texture2D> tex);
 
+    void set_normal(RC<NormalMap> normal);
+
     RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 
 private:
@@ -52,6 +55,7 @@ private:
     BTRC_OBJECT(Texture2D, transmission_);
     BTRC_OBJECT(Texture2D, transmission_roughness_);
     BTRC_OBJECT(Texture2D, ior_);
+    BTRC_OBJECT(NormalMap, normal_);
 };
 
 class DisneyMaterialCreator : public factory::Creator<Material>

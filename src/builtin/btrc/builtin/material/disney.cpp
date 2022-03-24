@@ -770,11 +770,17 @@ void DisneyMaterial::set_ior(RC<Texture2D> tex)
     ior_ = std::move(tex);
 }
 
+void DisneyMaterial::set_normal(RC<NormalMap> normal)
+{
+    normal_ = std::move(normal);
+}
+
 RC<Shader> DisneyMaterial::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     ShaderFrame frame;
     frame.geometry = inct.frame;
     frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
+    frame.shading = normal_->adjust_frame(cc, inct, frame.shading);
 
     var base_color             = base_color_->sample_spectrum(cc, inct);
     var metallic               = metallic_->sample_float(cc, inct);
@@ -828,6 +834,9 @@ RC<Material> DisneyMaterialCreator::create(RC<const factory::Node> node, factory
     if(auto n = node->find_child_node("transmission_roughness"))
         transmission_roughness = context.create<Texture2D>(n);
 
+    auto normal = newRC<NormalMap>();
+    normal->load(node, context);
+
     auto result = newRC<DisneyMaterial>();
     result->set_base_color(std::move(base_color));
     result->set_metallic(std::move(metallic));
@@ -842,6 +851,7 @@ RC<Material> DisneyMaterialCreator::create(RC<const factory::Node> node, factory
     result->set_clearcoat(std::move(clearcoat));
     result->set_clearcoat_gloss(std::move(clearcoat_gloss));
     result->set_transmission_roughness(std::move(transmission_roughness));
+    result->set_normal(std::move(normal));
     return result;
 }
 

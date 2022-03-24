@@ -1,5 +1,6 @@
 #pragma once
 
+#include <btrc/builtin/material/utils/normal_map.h>
 #include <btrc/core/material.h>
 #include <btrc/core/texture2d.h>
 #include <btrc/factory/context.h>
@@ -12,13 +13,14 @@ public:
 
     void set_albedo(RC<Texture2D> albedo);
 
-    std::vector<RC<Object>> get_dependent_objects() override;
+    void set_normal(RC<NormalMap> normal);
 
     RC<Shader> create_shader(CompileContext &cc, const SurfacePoint &inct) const override;
 
 private:
 
-    RC<Texture2D> albedo_;
+    BTRC_OBJECT(Texture2D, albedo_);
+    BTRC_OBJECT(NormalMap, normal_);
 };
 
 class DiffuseCreator : public factory::Creator<Material>
