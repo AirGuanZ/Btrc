@@ -58,8 +58,8 @@ namespace volume
         // returns -1 when there is no intersection
         f32 find_closest_intersection(ref<CVec3f> o, ref<CVec3f> inv_d, f32 t_max, ref<CBVHPrimitive> prim) const;
 
-        cuda::Buffer<BVHNode>      nodes_;
-        cuda::Buffer<BVHPrimitive> prims_;
+        std::vector<BVHNode>      nodes_;
+        std::vector<BVHPrimitive> prims_;
     };
 
 } // namespace volume

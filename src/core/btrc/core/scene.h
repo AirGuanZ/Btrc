@@ -70,7 +70,15 @@ public:
 
     void collect_objects(std::set<RC<Object>> &output) const;
 
+    int get_geometry_count() const;
+
+    const GeometryInfo *get_host_geometry_info() const;
+
     const GeometryInfo *get_device_geometry_info() const;
+
+    int get_instance_count() const;
+
+    const InstanceInfo *get_host_instance_info() const;
 
     const InstanceInfo *get_device_instance_info() const;
 
@@ -104,8 +112,10 @@ private:
     std::vector<RC<Material>>  materials_;
     std::vector<RC<Medium>>    mediums_;
     RC<LightSampler>           light_sampler_;
-    cuda::Buffer<InstanceInfo> instance_info_;
-    cuda::Buffer<GeometryInfo> geometry_info_;
+    std::vector<InstanceInfo>  host_instance_info_;
+    cuda::Buffer<InstanceInfo> device_instance_info_;
+    std::vector<GeometryInfo>  host_geometry_info_;
+    cuda::Buffer<GeometryInfo> device_geometry_info_;
 
     AABB3f bbox_;
 };

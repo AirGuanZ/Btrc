@@ -155,8 +155,6 @@ private:
 
     RC<cuda::Module>                cuda_module_;
     RC<cuda::Buffer<StateCounters>> state_counters_;
-    const GeometryInfo             *geo_info_ = nullptr;
-    const InstanceInfo             *inst_info_ = nullptr;
 };
 
 BTRC_WFPT_END

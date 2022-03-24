@@ -110,25 +110,25 @@ volume::BVH::BVH(const std::vector<RC<VolumePrimitive>> &vols)
         }
     }
 
-    nodes_.initialize(nodes.size(), nodes.data());
-    prims_.initialize(prims.size(), prims.data());
+    nodes_.swap(nodes);
+    prims_.swap(prims);
 }
 
 bool volume::BVH::is_empty() const
 {
-    return nodes_.is_empty();
+    return nodes_.empty();
 }
 
 boolean volume::BVH::find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref<CVec3f> output_position) const
 {
-    if(nodes_.is_empty())
+    if(nodes_.empty())
         return false;
 
     $declare_scope;
     boolean result;
 
-    var nodes = cuj::import_pointer(nodes_.get());
-    var prims = cuj::import_pointer(prims_.get());
+    var nodes = cuj::const_data(std::span{ nodes_ });
+    var prims = cuj::const_data(std::span{ prims_ });
 
     var dir = b - a;
     var inv_dir = 1.0f / dir;
@@ -194,11 +194,11 @@ volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
     Overlap result;
     result.count = 0;
 
-    if(nodes_.is_empty())
+    if(nodes_.empty())
         return result;
 
-    var nodes = cuj::import_pointer(nodes_.get());
-    var prims = cuj::import_pointer(prims_.get());
+    var nodes = cuj::const_data(std::span{ nodes_ });
+    var prims = cuj::const_data(std::span{ prims_ });
 
     cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
     traversal_stack[0] = 0;

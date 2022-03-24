@@ -93,13 +93,10 @@ void ShadePipeline::record_device_code(
 
     kernel(
         SHADE_KERNEL_NAME, [&](
-            i32                total_state_count,
-            ptr<CInstanceInfo> instances,
-            ptr<CGeometryInfo> geometries,
-            ptr<i32>           active_state_counter,
-            ptr<i32>           inactive_state_counter,
-            ptr<i32>           shadow_ray_counter,
-            CSOAParams         soa_params)
+            i32        total_state_count,
+            ptr<i32>   active_state_counter,
+            ptr<i32>   shadow_ray_counter,
+            CSOAParams soa_params)
     {
         var soa_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
         $if(soa_index >= total_state_count)
@@ -119,16 +116,11 @@ void ShadePipeline::record_device_code(
 
         var scattered = is_path_scattered(path_flag);
 
-        CRNG rng;
+        var rng = soa_params.rng[soa_index];
         i32 next_state_index;
         $if(scattered)
         {
             next_state_index = soa_params.next_state_index[soa_index];
-            rng = soa_params.output_rng[next_state_index];
-        }
-        $else
-        {
-            rng = soa_params.rng[soa_index];
         };
 
         $if(!is_path_intersected(path_flag))
@@ -143,8 +135,6 @@ void ShadePipeline::record_device_code(
             $else
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
-                //var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-                //soa_params.output_rng[output_index] = rng;
             };
             $return();
         };
@@ -161,6 +151,11 @@ void ShadePipeline::record_device_code(
         var inct_t = bitcast<f32>(inct_t_prim_uv.x);
         var prim_id = inct_t_prim_uv.y;
         var uv = CVec2f(bitcast<f32>(inct_t_prim_uv.z), bitcast<f32>(inct_t_prim_uv.w));
+
+        var instances = const_data(std::span{
+            scene.get_host_instance_info(), static_cast<size_t>(scene.get_instance_count()) });
+        var geometries = const_data(std::span{
+            scene.get_host_geometry_info(), static_cast<size_t>(scene.get_geometry_count()) });
 
         ref instance = instances[inst_id];
         ref geometry = geometries[instance.geometry_id];
@@ -474,8 +469,6 @@ void ShadePipeline::record_device_code(
 void ShadePipeline::initialize(RC<cuda::Module> cuda_module, RC<cuda::Buffer<StateCounters>> counters, const Scene &scene)
 {
     kernel_ = std::move(cuda_module);
-    geo_info_ = scene.get_device_geometry_info();
-    inst_info_ = scene.get_device_instance_info();
     counters_ = std::move(counters);
 }
 
@@ -494,8 +487,6 @@ ShadePipeline &ShadePipeline::operator=(ShadePipeline &&other) noexcept
 void ShadePipeline::swap(ShadePipeline &other) noexcept
 {
     std::swap(kernel_,    other.kernel_);
-    std::swap(geo_info_,  other.geo_info_);
-    std::swap(inst_info_, other.inst_info_);
     std::swap(counters_,  other.counters_);
 }
 
@@ -505,7 +496,6 @@ void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
 
     StateCounters *device_counters = counters_->get();
     int32_t *active_state_counter   = reinterpret_cast<int32_t *>(device_counters);
-    int32_t *inactive_state_counter = active_state_counter + 1;
     int32_t *shadow_ray_counter     = active_state_counter + 2;
 
     constexpr int BLOCK_DIM = 256;
@@ -517,10 +507,7 @@ void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
         { block_count, 1, 1 },
         { BLOCK_DIM, 1, 1 },
         total_state_count,
-        inst_info_,
-        geo_info_,
         active_state_counter,
-        inactive_state_counter,
         shadow_ray_counter,
         soa);
 }

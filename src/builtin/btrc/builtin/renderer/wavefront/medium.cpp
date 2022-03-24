@@ -27,13 +27,11 @@ void MediumPipeline::record_device_code(
     using namespace cuj;
 
     kernel(KERNEL, [&cc, &film, &vols, &shade_params, &scene, world_diagonal, this](
-        i32                total_state_count,
-        ptr<CInstanceInfo> instances,
-        ptr<CGeometryInfo> geometries,
-        ptr<i32>           active_state_counter,
-        ptr<i32>           inactive_state_counter,
-        ptr<i32>           shadow_ray_counter,
-        CSOAParams         soa)
+        i32        total_state_count,
+        ptr<i32>   active_state_counter,
+        ptr<i32>   inactive_state_counter,
+        ptr<i32>   shadow_ray_counter,
+        CSOAParams soa)
     {
         var soa_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
         $if(soa_index >= total_state_count)
@@ -57,6 +55,11 @@ void MediumPipeline::record_device_code(
         CVec3f medium_end;
         $if(is_path_intersected(path_flag))
         {
+            var instances = const_data(std::span{
+                scene.get_host_instance_info(), static_cast<size_t>(scene.get_instance_count()) });
+            var geometries = const_data(std::span{
+                scene.get_host_geometry_info(), static_cast<size_t>(scene.get_geometry_count()) });
+
             var inct_t_prim_uv = load_aligned(soa.inct_t_prim_uv + soa_index);
             var prim_id = inct_t_prim_uv.y;
             ref instance = instances[extract_instance_id(path_flag)];
@@ -142,8 +145,8 @@ void MediumPipeline::record_device_code(
                 {
                     var pixel_coord = load_aligned(soa.pixel_coord + soa_index);
                     film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
+                    soa.rng[soa_index] = rng;
                     var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-                    soa.output_rng[output_index] = rng;
                     soa.next_state_index[soa_index] = output_index;
                     $return();
                 };
@@ -237,7 +240,6 @@ void MediumPipeline::record_device_code(
 
                 var output_index = cstd::atomic_add(active_state_counter, 1);
 
-                soa.output_rng[output_index] = rng;
 
                 save_aligned(scatter_path_radiance, soa.output_path_radiance + output_index);
                 save_aligned(pixel_coord, soa.output_pixel_coord + output_index);
@@ -258,13 +260,14 @@ void MediumPipeline::record_device_code(
                 beta_le.additional_data = phase_sample.pdf;
                 save_aligned(beta_le, soa.output_beta_le_bsdf_pdf + output_index);
 
+                soa.rng[soa_index] = rng;
                 soa.next_state_index[soa_index] = output_index;
             }
             $else
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
+                soa.rng[soa_index] = rng;
                 var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-                soa.output_rng[output_index] = rng;
                 soa.next_state_index[soa_index] = output_index;
             };
         }
@@ -290,8 +293,6 @@ void MediumPipeline::initialize(RC<cuda::Module> cuda_module, RC<cuda::Buffer<St
 {
     cuda_module_ = std::move(cuda_module);
     state_counters_ = std::move(counters);
-    geo_info_ = scene.get_device_geometry_info();
-    inst_info_ = scene.get_device_instance_info();
 }
 
 MediumPipeline::MediumPipeline(MediumPipeline &&other) noexcept
@@ -310,8 +311,6 @@ void MediumPipeline::swap(MediumPipeline &other) noexcept
 {
     std::swap(cuda_module_, other.cuda_module_);
     std::swap(state_counters_, other.state_counters_);
-    std::swap(geo_info_, other.geo_info_);
-    std::swap(inst_info_, other.inst_info_);
 }
 
 void MediumPipeline::sample_scattering(int total_state_count, const SOAParams &soa)
@@ -332,8 +331,6 @@ void MediumPipeline::sample_scattering(int total_state_count, const SOAParams &s
         { block_count, 1, 1 },
         { BLOCK_DIM, 1, 1 },
         total_state_count,
-        inst_info_,
-        geo_info_,
         active_state_counter,
         inactive_state_counter,
         shadow_ray_counter,

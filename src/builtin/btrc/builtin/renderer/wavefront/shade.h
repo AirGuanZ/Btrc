@@ -141,8 +141,6 @@ private:
         boolean             scattered);
 
     RC<cuda::Module>                kernel_;
-    const GeometryInfo             *geo_info_ = nullptr;
-    const InstanceInfo             *inst_info_ = nullptr;
     RC<cuda::Buffer<StateCounters>> counters_;
 };
 

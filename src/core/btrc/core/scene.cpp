@@ -147,16 +147,16 @@ void Scene::postcommit()
 
     if(!instance_info.empty())
     {
-        instance_info_.initialize(instance_info.size());
-        assert(instance_info_.get_size() == instance_info.size());
-        instance_info_.from_cpu(instance_info.data());
+        device_instance_info_.initialize(instance_info.size());
+        device_instance_info_.from_cpu(instance_info.data());
+        host_instance_info_ = std::move(instance_info);
     }
 
     if(!geometry_info.empty())
     {
-        geometry_info_.initialize(geometry_info.size());
-        assert(geometry_info_.get_size() == geometry_info.size());
-        geometry_info_.from_cpu(geometry_info.data());
+        device_geometry_info_.initialize(geometry_info.size());
+        device_geometry_info_.from_cpu(geometry_info.data());
+        host_geometry_info_ = std::move(geometry_info);
     }
 
     bbox_ = {};
@@ -196,14 +196,34 @@ void Scene::collect_objects(std::set<RC<Object>> &output) const
         output.insert(env_light_);
 }
 
+int Scene::get_instance_count() const
+{
+    return static_cast<int>(instances_.size());
+}
+
+int Scene::get_geometry_count() const
+{
+    return static_cast<int>(host_geometry_info_.size());
+}
+
+const GeometryInfo *Scene::get_host_geometry_info() const
+{
+    return host_geometry_info_.data();
+}
+
+const InstanceInfo *Scene::get_host_instance_info() const
+{
+    return host_instance_info_.data();
+}
+
 const GeometryInfo *Scene::get_device_geometry_info() const
 {
-    return geometry_info_;
+    return device_geometry_info_;
 }
 
 const InstanceInfo *Scene::get_device_instance_info() const
 {
-    return instance_info_;
+    return device_instance_info_;
 }
 
 const LightSampler *Scene::get_light_sampler() const
