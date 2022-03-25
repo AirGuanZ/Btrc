@@ -94,7 +94,7 @@ void OptixAIDenoiser::denoise(const Vec4f *color, const Vec4f *albedo, const Vec
         .height = static_cast<unsigned>(impl_->height),
         .rowStrideInBytes = static_cast<unsigned>(sizeof(Vec4f) * impl_->width),
         .pixelStrideInBytes = sizeof(Vec4f),
-        .format = OPTIX_PIXEL_FORMAT_FLOAT4
+        .format = OPTIX_PIXEL_FORMAT_FLOAT3
     };
     layer.output = OptixImage2D{
         .data = impl_->output.get_device_ptr(),
@@ -102,26 +102,34 @@ void OptixAIDenoiser::denoise(const Vec4f *color, const Vec4f *albedo, const Vec
         .height = static_cast<unsigned>(impl_->height),
         .rowStrideInBytes = static_cast<unsigned>(sizeof(Vec4f) * impl_->width),
         .pixelStrideInBytes = sizeof(Vec4f),
-        .format = OPTIX_PIXEL_FORMAT_FLOAT4
+        .format = OPTIX_PIXEL_FORMAT_FLOAT3
     };
 
     OptixDenoiserGuideLayer guide_layer{};
-    guide_layer.albedo = OptixImage2D{
-        .data = reinterpret_cast<CUdeviceptr>(albedo),
-        .width = static_cast<unsigned>(impl_->width),
-        .height = static_cast<unsigned>(impl_->height),
-        .rowStrideInBytes = static_cast<unsigned>(sizeof(Vec4f) * impl_->width),
-        .pixelStrideInBytes = sizeof(Vec4f),
-        .format = OPTIX_PIXEL_FORMAT_FLOAT4
-    };
-    guide_layer.normal = OptixImage2D{
-        .data = reinterpret_cast<CUdeviceptr>(normal),
-        .width = static_cast<unsigned>(impl_->width),
-        .height = static_cast<unsigned>(impl_->height),
-        .rowStrideInBytes = static_cast<unsigned>(sizeof(Vec4f) * impl_->width),
-        .pixelStrideInBytes = sizeof(Vec4f),
-        .format = OPTIX_PIXEL_FORMAT_FLOAT4
-    };
+
+    if(albedo)
+    {
+        guide_layer.albedo = OptixImage2D{
+            .data = reinterpret_cast<CUdeviceptr>(albedo),
+            .width = static_cast<unsigned>(impl_->width),
+            .height = static_cast<unsigned>(impl_->height),
+            .rowStrideInBytes = static_cast<unsigned>(sizeof(Vec4f) * impl_->width),
+            .pixelStrideInBytes = sizeof(Vec4f),
+            .format = OPTIX_PIXEL_FORMAT_FLOAT3
+        };
+    }
+
+    if(normal)
+    {
+        guide_layer.normal = OptixImage2D{
+            .data = reinterpret_cast<CUdeviceptr>(normal),
+            .width = static_cast<unsigned>(impl_->width),
+            .height = static_cast<unsigned>(impl_->height),
+            .rowStrideInBytes = static_cast<unsigned>(sizeof(Vec4f) * impl_->width),
+            .pixelStrideInBytes = sizeof(Vec4f),
+            .format = OPTIX_PIXEL_FORMAT_FLOAT3
+        };
+    }
 
     throw_on_error(optixDenoiserComputeIntensity(
         impl_->denoiser, nullptr, &layer.input,

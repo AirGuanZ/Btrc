@@ -430,7 +430,7 @@ void WavefrontPathTracer::new_preview_image() const
         if(impl_->device_preview_albedo.get_size() != texel_count)
             impl_->device_preview_albedo.initialize(texel_count);
 
-        impl_->preview.generate(
+        impl_->preview.generate_albedo(
             impl_->width, impl_->height,
             impl_->film.get_float3_output(Film::OUTPUT_ALBEDO).as<Vec4f>(),
             impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
@@ -442,7 +442,7 @@ void WavefrontPathTracer::new_preview_image() const
         if(impl_->device_preview_normal.get_size() != texel_count)
             impl_->device_preview_normal.initialize(texel_count);
 
-        impl_->preview.generate(
+        impl_->preview.generate_normal(
             impl_->width, impl_->height,
             impl_->film.get_float3_output(Film::OUTPUT_NORMAL).as<Vec4f>(),
             impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),

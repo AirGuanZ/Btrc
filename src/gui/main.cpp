@@ -261,10 +261,15 @@ void run(const std::string &config_filename)
                 ImGui::EndMenu();
             }
 
-            if(ImGui::MenuItem("Denoise On/Off"))
+            const char *denoise_button = denoise ? "Disable Denoise###DenoiseButton"
+                                                 : "Enable Denoise###DenoiseButton";
+            if(ImGui::MenuItem(denoise_button))
             {
                 denoise = !denoise;
                 reporter->set_denoise(denoise);
+                if(scene.renderer->is_waitable())
+                    scene.renderer->stop_async();
+                restart_render();
             }
         }
         ImGui::EndMainMenuBar();
@@ -275,14 +280,8 @@ void run(const std::string &config_filename)
 
         const auto imgui_viewport = ImGui::GetMainViewport();
         Rect2D display_rect = compute_preview_image_rect(
-            {
-                imgui_viewport->WorkSize.x,
-                imgui_viewport->WorkSize.y
-            },
-            {
-                static_cast<float>(scene.width),
-                static_cast<float>(scene.height)
-            });
+            { imgui_viewport->WorkSize.x, imgui_viewport->WorkSize.y },
+            { static_cast<float>(scene.width), static_cast<float>(scene.height) });
         if(updated_image_count >= MIN_UPDATED_IMAGE_COUNT)
         {
             auto mouse_pos = ImGui::GetMousePos();
@@ -307,9 +306,7 @@ void run(const std::string &config_filename)
             {
                 if(scene.renderer->is_waitable())
                     scene.renderer->stop_async();
-
                 scene.camera->commit();
-
                 restart_render();
             }
             else if(updated_image_count == MIN_UPDATED_IMAGE_COUNT)
@@ -319,7 +316,7 @@ void run(const std::string &config_filename)
             }
         }
 
-        if(reporter->get_percentage() > 5)
+        if(reporter->get_percentage() > 3)
             reporter->set_preview_interval(1000);
 
         {

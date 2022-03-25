@@ -9,7 +9,9 @@ BTRC_WFPT_BEGIN
 namespace
 {
 
-    const char *KERNEL = "generate_preview_image";
+    const char *KERNEL_COLOR  = "generate_preview_color";
+    const char *KERNEL_ALBEDO = "generate_preview_albedo";
+    const char *KERNEL_NORMAL = "generate_preview_normal";
     const char *CACHE  = "./.btrc_cache/wfpt_preview.ptx";
 
     std::string generate_kernel_ptx()
@@ -24,7 +26,7 @@ namespace
 
         ScopedModule cuj_module;
 
-        kernel(KERNEL, [&](
+        kernel(KERNEL_COLOR, [&](
             i32         width,
             i32         height,
             ptr<CVec4f> value_buffer,
@@ -46,6 +48,60 @@ namespace
                 output.x = cstd::pow(output.x, 1 / 2.2f);
                 output.y = cstd::pow(output.y, 1 / 2.2f);
                 output.z = cstd::pow(output.z, 1 / 2.2f);
+                save_aligned(CVec4f(output, 1), output_buffer + i);
+            };
+        });
+        
+        kernel(KERNEL_ALBEDO, [&](
+            i32         width,
+            i32         height,
+            ptr<CVec4f> value_buffer,
+            ptr<f32>    weight_buffer,
+            ptr<CVec4f> output_buffer)
+        {
+            i32 xi = cstd::thread_idx_x() + cstd::block_idx_x() * cstd::block_dim_x();
+            i32 yi = cstd::thread_idx_y() + cstd::block_idx_y() * cstd::block_dim_y();
+            $if(xi < width & yi < height)
+            {
+                i32 i = yi * width + xi;
+                CVec4f value = load_aligned(value_buffer + i);
+                f32 weight = weight_buffer[i];
+                CVec3f output;
+                $if(weight > 0)
+                {
+                    output = value.xyz() / weight;
+                };
+                save_aligned(CVec4f(output, 1), output_buffer + i);
+            };
+        });
+        
+        kernel(KERNEL_NORMAL, [&](
+            i32         width,
+            i32         height,
+            ptr<CVec4f> value_buffer,
+            ptr<f32>    weight_buffer,
+            ptr<CVec4f> output_buffer)
+        {
+            i32 xi = cstd::thread_idx_x() + cstd::block_idx_x() * cstd::block_dim_x();
+            i32 yi = cstd::thread_idx_y() + cstd::block_idx_y() * cstd::block_dim_y();
+            $if(xi < width & yi < height)
+            {
+                i32 i = yi * width + xi;
+                CVec4f value = load_aligned(value_buffer + i);
+                f32 weight = weight_buffer[i];
+                CVec3f output;
+                $if(weight > 0)
+                {
+                    output = value.xyz() / weight;
+                    $if(length(output) > 1e-3f)
+                    {
+                        output = normalize(output);
+                    }
+                    $else
+                    {
+                        output = CVec3f(0);
+                    };
+                };
                 save_aligned(CVec4f(output, 1), output_buffer + i);
             };
         });
@@ -83,7 +139,51 @@ void PreviewImageGenerator::generate(
     const int block_cnt_y = up_align(height, BLOCK_SIZE) / BLOCK_SIZE;
 
     cuda_module_.launch(
-        KERNEL,
+        KERNEL_COLOR,
+        { block_cnt_x, block_cnt_y, 1 },
+        { BLOCK_SIZE, BLOCK_SIZE, 1 },
+        width,
+        height,
+        value_buffer,
+        weight_buffer,
+        output_buffer);
+}
+
+void PreviewImageGenerator::generate_albedo(
+    int          width,
+    int          height,
+    const Vec4f *value_buffer,
+    const float *weight_buffer,
+    Vec4f       *output_buffer) const
+{
+    constexpr int BLOCK_SIZE = 16;
+    const int block_cnt_x = up_align(width, BLOCK_SIZE) / BLOCK_SIZE;
+    const int block_cnt_y = up_align(height, BLOCK_SIZE) / BLOCK_SIZE;
+
+    cuda_module_.launch(
+        KERNEL_ALBEDO,
+        { block_cnt_x, block_cnt_y, 1 },
+        { BLOCK_SIZE, BLOCK_SIZE, 1 },
+        width,
+        height,
+        value_buffer,
+        weight_buffer,
+        output_buffer);
+}
+
+void PreviewImageGenerator::generate_normal(
+    int          width,
+    int          height,
+    const Vec4f *value_buffer,
+    const float *weight_buffer,
+    Vec4f       *output_buffer) const
+{
+    constexpr int BLOCK_SIZE = 16;
+    const int block_cnt_x = up_align(width, BLOCK_SIZE) / BLOCK_SIZE;
+    const int block_cnt_y = up_align(height, BLOCK_SIZE) / BLOCK_SIZE;
+
+    cuda_module_.launch(
+        KERNEL_NORMAL,
         { block_cnt_x, block_cnt_y, 1 },
         { BLOCK_SIZE, BLOCK_SIZE, 1 },
         width,
