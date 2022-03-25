@@ -2,6 +2,16 @@
 
 BTRC_BEGIN
 
+Mat4::Mat4()
+    : Mat4(
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1)
+{
+    
+}
+
 Mat4::Mat4(
     float m00, float m01, float m02, float m03,
     float m10, float m11, float m12, float m13,
@@ -74,6 +84,134 @@ Mat4 Mat4::inverse() const
         inverse.data[1] * inv_det,
         inverse.data[2] * inv_det,
         inverse.data[3] * inv_det);
+}
+
+Mat4 Mat4::transpose() const
+{
+    return Mat4(
+        at(0, 0), at(1, 0), at(2, 0), at(3, 0),
+        at(0, 1), at(1, 1), at(2, 1), at(3, 1),
+        at(0, 2), at(1, 2), at(2, 2), at(3, 2),
+        at(0, 3), at(1, 3), at(2, 3), at(3, 3));
+}
+
+float Mat4::at(int r, int c) const
+{
+    return data[c][r];
+}
+
+float &Mat4::at(int r, int c)
+{
+    return data[c][r];
+}
+
+Mat4 Mat4::translate(float x, float y, float z)
+{
+    return Mat4(
+        1, 0, 0, x,
+        0, 1, 0, y,
+        0, 0, 1, z,
+        0, 0, 0, 1);
+}
+
+Mat4 Mat4::rotate(const Vec3f &axis, float rad)
+{
+    const auto a = normalize(axis);
+    const float sinv = std::sin(rad), cosv = std::cos(rad);
+
+    Mat4 ret;
+
+    ret.data[0][0] = a.x * a.x + (1 - a.x * a.x) * cosv;
+    ret.data[0][1] = a.x * a.y * (1 - cosv) - a.z * sinv;
+    ret.data[0][2] = a.x * a.z * (1 - cosv) + a.y * sinv;
+    ret.data[0][3] = 0;
+
+    ret.data[1][0] = a.x * a.y * (1 - cosv) + a.z * sinv;
+    ret.data[1][1] = a.y * a.y + (1 - a.y * a.y) * cosv;
+    ret.data[1][2] = a.y * a.z * (1 - cosv) - a.x * sinv;
+    ret.data[1][3] = 0;
+
+    ret.data[2][0] = a.x * a.z * (1 - cosv) - a.y * sinv;
+    ret.data[2][1] = a.y * a.z * (1 - cosv) + a.x * sinv;
+    ret.data[2][2] = a.z * a.z + (1 - a.z * a.z) * cosv;
+    ret.data[2][3] = 0;
+
+    ret.data[3][0] = 0;
+    ret.data[3][1] = 0;
+    ret.data[3][2] = 0;
+    ret.data[3][3] = 1;
+
+    return ret;
+}
+
+Mat4 Mat4::rotate_x(float rad)
+{
+    const auto S = std::sin(rad), C = std::cos(rad);
+    return Mat4(
+        1, 0, 0, 0,
+        0, C, -S, 0,
+        0, S, C, 0,
+        0, 0, 0, 1);
+}
+
+Mat4 Mat4::rotate_y(float rad)
+{
+    const auto S = std::sin(rad), C = std::cos(rad);
+    return Mat4(
+        C, 0, S, 0,
+        0, 1, 0, 0,
+        -S, 0, C, 0,
+        0, 0, 0, 1);
+}
+
+Mat4 Mat4::rotate_z(float rad)
+{
+    const auto S = std::sin(rad), C = std::cos(rad);
+    return Mat4(
+        C, -S, 0, 0,
+        S, C, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1);
+}
+
+Mat4 Mat4::scale(float x, float y, float z)
+{
+    return Mat4(
+        x, 0, 0, 0,
+        0, y, 0, 0,
+        0, 0, z, 0,
+        0, 0, 0, 1);
+}
+
+Mat4 operator*(const Mat4 &a, const Mat4 &b)
+{
+    Mat4 ret;
+    for(int r = 0; r != 4; ++r)
+    {
+        for(int c = 0; c != 4; ++c)
+        {
+            ret.at(r, c) =
+                a.at(r, 0) * b.at(0, c) +
+                a.at(r, 1) * b.at(1, c) +
+                a.at(r, 2) * b.at(2, c) +
+                a.at(r, 3) * b.at(3, c);
+        }
+    }
+    return ret;
+}
+
+Vec4f operator*(const Mat4 &m, const Vec4f &v)
+{
+    Vec4f ret;
+    for(int r = 0; r < 4; ++r)
+    {
+        ret[r] =
+            m.at(r, 0) * v.x +
+            m.at(r, 1) * v.y +
+            m.at(r, 2) * v.z +
+            m.at(r, 3) * v.w;
+    }
+    return ret;
 }
 
 BTRC_END

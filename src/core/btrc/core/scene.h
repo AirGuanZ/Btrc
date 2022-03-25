@@ -12,12 +12,12 @@ BTRC_BEGIN
 
 struct InstanceInfo
 {
-    int32_t   geometry_id = 0;
-    int32_t   material_id = 0;
-    int32_t   light_id = 0;
-    Transform transform;
-    MediumID  inner_medium_id = MEDIUM_ID_VOID;
-    MediumID  outer_medium_id = MEDIUM_ID_VOID;
+    int32_t     geometry_id = 0;
+    int32_t     material_id = 0;
+    int32_t     light_id = 0;
+    Transform3D transform;
+    MediumID    inner_medium_id = MEDIUM_ID_VOID;
+    MediumID    outer_medium_id = MEDIUM_ID_VOID;
 };
 
 CUJ_PROXY_CLASS(
@@ -39,7 +39,7 @@ public:
         RC<Geometry>  geometry;
         RC<Material>  material;
         RC<AreaLight> light;
-        Transform     transform;
+        Transform3D   transform;
         RC<Medium>    inner_medium;
         RC<Medium>    outer_medium;
     };

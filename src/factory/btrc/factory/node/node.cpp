@@ -123,17 +123,54 @@ namespace
         throw BtrcException("unexpected group node");
     }
 
-    Transform parse_transform(const RC<const Node> &node)
+    Transform3D parse_transform(const RC<const Node> &node)
     {
-        auto translate = node->parse_child_or("translate", Vec3f(0));
-        auto rotate_axis = node->parse_child_or("rotate_axis", Vec3f(1, 0, 0));
-        auto rotate_rad = node->parse_child_or("rotate_angle", Radian{ 0 });
-        auto scale = node->parse_child_or("scale", Vec3f(1));
-        Transform ret;
-        ret.translate = translate;
-        ret.rotate = Quaterion(rotate_axis, rotate_rad.value);
-        ret.scale = scale;
-        return ret;
+        if(auto arr = node->as_array())
+        {
+            Transform3D ret;
+            for(size_t i = 0; i < arr->get_size(); ++i)
+                ret = parse_transform(arr->get_element(i)) * ret;
+            return ret;
+        }
+
+        if(auto translate = node->find_child_node("translate"))
+        {
+            const Vec3f t = translate->parse<Vec3f>();
+            return Transform3D::translate(t.x, t.y, t.z);
+        }
+
+        if(auto rotate = node->find_child_node("rotate"))
+        {
+            const Vec3f axis = rotate->parse_child<Vec3f>("axis");
+            const Radian rad = rotate->parse_child<Radian>("angle");
+            return Transform3D::rotate(axis, rad.value);
+        }
+
+        if(auto rotate_x = node->find_child_node("rotate_x"))
+        {
+            const float rad = rotate_x->parse<Radian>().value;
+            return Transform3D::rotate_x(rad);
+        }
+
+        if(auto rotate_y = node->find_child_node("rotate_y"))
+        {
+            const float rad = rotate_y->parse<Radian>().value;
+            return Transform3D::rotate_y(rad);
+        }
+
+        if(auto rotate_z = node->find_child_node("rotate_z"))
+        {
+            const float rad = rotate_z->parse<Radian>().value;
+            return Transform3D::rotate_z(rad);
+        }
+
+        if(auto scale = node->find_child_node("scale"))
+        {
+            const Vec3f s = scale->parse<Vec3f>();
+            return Transform3D::scale(s.x, s.y, s.z);
+        }
+
+        throw BtrcException("unknown transform type");
     }
 
 } // namespace anonymous
@@ -233,7 +270,7 @@ T Node::parse() const
     {
         return parse_spectrum(shared_from_this());
     }
-    else if constexpr(std::is_same_v<T, Transform>)
+    else if constexpr(std::is_same_v<T, Transform3D>)
     {
         return parse_transform(shared_from_this());
     }
@@ -334,6 +371,6 @@ template Vec3f       Node::parse<Vec3f>      () const;
 template Degree      Node::parse<Degree>     () const;
 template Radian      Node::parse<Radian>     () const;
 template Spectrum    Node::parse<Spectrum>   () const;
-template Transform   Node::parse<Transform>  () const;
+template Transform3D Node::parse<Transform3D>() const;
 
 BTRC_FACTORY_END

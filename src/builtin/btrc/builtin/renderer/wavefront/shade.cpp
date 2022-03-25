@@ -47,7 +47,7 @@ namespace
 
         geometry_frame.x = local_to_world.apply_to_vector(geometry_frame.x);
         geometry_frame.y = local_to_world.apply_to_vector(geometry_frame.y);
-        geometry_frame.z = local_to_world.apply_to_vector(geometry_frame.z);
+        geometry_frame.z = local_to_world.apply_to_normal(geometry_frame.z);
         geometry_frame.x = normalize(geometry_frame.x);
         geometry_frame.y = normalize(geometry_frame.y);
         geometry_frame.z = normalize(geometry_frame.z);
@@ -55,7 +55,7 @@ namespace
         // interpolated normal
 
         var interp_normal = sn_v_a.xyz() + sn_v_ba.xyz() * uv.x + sn_v_ca.xyz() * uv.y;
-        interp_normal = normalize(local_to_world.apply_to_vector(interp_normal));
+        interp_normal = normalize(local_to_world.apply_to_normal(interp_normal));
 
         // tex coord
 

@@ -30,7 +30,7 @@ CSpectrum TransformTexture2D::sample_spectrum_inline(CompileContext &cc, ref<CVe
 CSpectrum TransformTexture2D::sample_spectrum_inline(CompileContext &cc, ref<SurfacePoint> spt) const
 {
     var spt2 = spt;
-    spt2.uv = map_uv(spt2.uv);
+    spt2.tex_coord = map_uv(spt.tex_coord);
     return tex_->sample_spectrum(cc, spt2);
 }
 
@@ -42,7 +42,7 @@ f32 TransformTexture2D::sample_float_inline(CompileContext &cc, ref<CVec2f> uv) 
 f32 TransformTexture2D::sample_float_inline(CompileContext &cc, ref<SurfacePoint> spt) const
 {
     var spt2 = spt;
-    spt2.uv = map_uv(spt2.uv);
+    spt2.tex_coord = map_uv(spt.tex_coord);
     return tex_->sample_float(cc, spt2);
 }
 
@@ -50,9 +50,9 @@ CVec2f TransformTexture2D::map_uv(const CVec2f &uv) const
 {
     var ret = uv;
     if(inv_u_)
-        ret.x = 1.0f - ret.x;
+        ret.x = 1.0f - uv.x;
     if(inv_v_)
-        ret.y = 1.0f - ret.y;
+        ret.y = 1.0f - uv.y;
     if(swap_uv_)
     {
         var t = ret.x;

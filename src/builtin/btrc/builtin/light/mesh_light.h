@@ -12,7 +12,7 @@ public:
 
     void set_intensity(const Spectrum &intensity);
 
-    void set_geometry(RC<Geometry> geometry, const Transform &local_to_world) override;
+    void set_geometry(RC<Geometry> geometry, const Transform3D &local_to_world) override;
 
     CSpectrum eval_le_inline(
         CompileContext &cc,
@@ -36,7 +36,8 @@ public:
 private:
 
     BTRC_OBJECT(Geometry, geometry_);
-    Transform local_to_world_;
+    float scale_ = 1;
+    Transform3D local_to_world_;
     Spectrum  intensity_;
 };
 

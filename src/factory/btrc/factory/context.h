@@ -146,11 +146,11 @@ public:
 
     RC<Medium> create(RC<const Node> node, Context &context) override
     {
-        Transform world_to_local;
+        Transform3D world_to_local;
         if(auto tnode = node->find_child_node("world_to_local"))
-            world_to_local = tnode->parse<Transform>();
+            world_to_local = tnode->parse<Transform3D>();
         else
-            world_to_local = node->parse_child<Transform>("local_to_world").inverse();
+            world_to_local = node->parse_child<Transform3D>("local_to_world").inverse();
         auto transformed = context.create<Medium>(node->child_node("medium"));
         auto result = newRC<TransformMedium>();
         result->set_transform(world_to_local);

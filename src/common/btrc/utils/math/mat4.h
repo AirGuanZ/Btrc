@@ -8,7 +8,7 @@ struct Mat4
 {
     Vec4f data[4];
 
-    Mat4() = default;
+    Mat4();
 
     Mat4(
         float m00, float m01, float m02, float m03,
@@ -23,6 +23,28 @@ struct Mat4
         const Vec4f &c3);
 
     Mat4 inverse() const;
+
+    Mat4 transpose() const;
+
+    float at(int r, int c) const;
+
+    float &at(int r, int c);
+
+    static Mat4 translate(float x, float y, float z);
+
+    static Mat4 rotate(const Vec3f &axis, float rad);
+
+    static Mat4 rotate_x(float rad);
+
+    static Mat4 rotate_y(float rad);
+
+    static Mat4 rotate_z(float rad);
+
+    static Mat4 scale(float x, float y, float z);
 };
+
+Vec4f operator*(const Mat4 &m, const Vec4f &v);
+
+Mat4 operator*(const Mat4 &a, const Mat4 &b);
 
 BTRC_END

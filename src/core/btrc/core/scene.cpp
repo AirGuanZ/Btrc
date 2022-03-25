@@ -136,7 +136,12 @@ void Scene::postcommit()
         });
 
         blas_instances.push_back(optix::Context::Instance{
-            .local_to_world = inst.transform.to_transform_matrix(),
+            .local_to_world = std::array
+            {
+                inst.transform.mat.at(0, 0), inst.transform.mat.at(0, 1), inst.transform.mat.at(0, 2), inst.transform.mat.at(0, 3),
+                inst.transform.mat.at(1, 0), inst.transform.mat.at(1, 1), inst.transform.mat.at(1, 2), inst.transform.mat.at(1, 3),
+                inst.transform.mat.at(2, 0), inst.transform.mat.at(2, 1), inst.transform.mat.at(2, 2), inst.transform.mat.at(2, 3)
+            },
             .id             = static_cast<uint32_t>(blas_instances.size()),
             .mask           = optix::RAY_MASK_ALL,
             .handle         = inst.geometry->get_blas()

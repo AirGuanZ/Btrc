@@ -7,10 +7,13 @@ void MeshLight::set_intensity(const Spectrum &intensity)
     intensity_ = intensity;
 }
 
-void MeshLight::set_geometry(RC<Geometry> geometry, const Transform &local_to_world)
+void MeshLight::set_geometry(RC<Geometry> geometry, const Transform3D &local_to_world)
 {
     geometry_ = std::move(geometry);
     local_to_world_ = local_to_world;
+    scale_ = length(
+        local_to_world.apply_to_point({ 1, 0, 0 }) -
+        local_to_world.apply_to_point({ 0, 0, 0 }));
 }
 
 CSpectrum MeshLight::eval_le_inline(
@@ -38,14 +41,14 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
     ref<CVec3f>     ref_pos,
     ref<CVec3f>     sam) const
 {
-    CTransform ctrans = local_to_world_;
+    CTransform3D ctrans = local_to_world_;
 
     var surface_sample = geometry_->sample(cc, sam);
     var spos = ctrans.apply_to_point(surface_sample.point.position);
-    var snor = normalize(ctrans.apply_to_vector(surface_sample.point.frame.z));
+    var snor = normalize(ctrans.apply_to_normal(surface_sample.point.frame.z));
     var pos_to_ref = ref_pos - spos;
     var dist2 = length_square(pos_to_ref);
-    var pdf_sa = 1 / (local_to_world_.scale.x * local_to_world_.scale.x)
+    var pdf_sa = 1 / (scale_ * scale_)
                * surface_sample.pdf * dist2 / cstd::abs(dot(snor, normalize(pos_to_ref)));
 
     CSpectrum rad;
@@ -59,9 +62,9 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
     };
 
     SampleLiResult result;
-    result.position   = spos;
-    result.normal     = snor;
-    result.pdf        = pdf_sa;
+    result.position = spos;
+    result.normal   = snor;
+    result.pdf      = pdf_sa;
     result.radiance = rad;
     return result;
 }
@@ -83,7 +86,7 @@ f32 MeshLight::pdf_li_inline(
         var spt_to_ref = ref_pos - pos;
         var dist2 = length_square(spt_to_ref);
         var dist3 = cstd::sqrt(dist2) * dist2;
-        result = 1 / (local_to_world_.scale.x * local_to_world_.scale.x)
+        result = 1 / (scale_ * scale_)
                * pdf_area * dist3 / cstd::abs(dot(nor, spt_to_ref));
     };
     return result;

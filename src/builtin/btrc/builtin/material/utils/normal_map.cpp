@@ -16,8 +16,8 @@ CFrame NormalMap::adjust_frame(CompileContext &cc, const SurfacePoint &spt, cons
         return frame;
     var local_nor_spec = normal_tex_->sample_spectrum(cc, spt);
     var local_nor = 2.0f * CVec3f(local_nor_spec.r, local_nor_spec.g, local_nor_spec.b) - 1.0f;
-    var world_nor = frame.local_to_global(normalize(local_nor));
-    return frame.rotate_to_new_z(world_nor);
+    var world_nor = frame.local_to_global(local_nor);
+    return frame.rotate_to_new_z(normalize(world_nor));
 }
 
 std::vector<RC<Object>> NormalMap::get_dependent_objects()

@@ -79,7 +79,7 @@ public:
 
     void set_tranformed(RC<Medium> transformed);
 
-    void set_transform(const Transform &world_to_local);
+    void set_transform(const Transform3D &world_to_local);
 
     SampleResult sample(
         CompileContext &cc,
@@ -101,7 +101,7 @@ public:
 
 private:
     
-    Transform world_to_local_;
+    Transform3D world_to_local_;
     BTRC_OBJECT(Medium, transformed_);
 };
 

@@ -7,7 +7,7 @@ void TransformMedium::set_tranformed(RC<Medium> transformed)
     transformed_ = std::move(transformed);
 }
 
-void TransformMedium::set_transform(const Transform &world_to_local)
+void TransformMedium::set_transform(const Transform3D &world_to_local)
 {
     world_to_local_ = world_to_local;
 }
@@ -20,7 +20,7 @@ Medium::SampleResult TransformMedium::sample(
     ref<CVec3f>     uvw_b,
     Sampler        &sampler) const
 {
-    var world_to_local = CTransform(world_to_local_);
+    var world_to_local = CTransform3D(world_to_local_);
     var local_uvw_a = world_to_local.apply_to_point(uvw_a);
     var local_uvw_b = world_to_local.apply_to_point(uvw_b);
     return transformed_->sample(cc, a, b, local_uvw_a, local_uvw_b, sampler);
@@ -34,7 +34,7 @@ CSpectrum TransformMedium::tr(
     ref<CVec3f>     uvw_b,
     Sampler        &sampler) const
 {
-    var world_to_local = CTransform(world_to_local_);
+    var world_to_local = CTransform3D(world_to_local_);
     var local_uvw_a = world_to_local.apply_to_point(uvw_a);
     var local_uvw_b = world_to_local.apply_to_point(uvw_b);
     return transformed_->tr(cc, a, b, local_uvw_a, local_uvw_b, sampler);

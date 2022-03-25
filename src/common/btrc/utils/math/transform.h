@@ -1,25 +1,40 @@
 #pragma once
 
-#include <array>
-
 #include <btrc/utils/math/aabb.h>
-#include <btrc/utils/math/quaterion.h>
+#include <btrc/utils/math/mat4.h>
 
 BTRC_BEGIN
 
-struct Transform
+struct Transform3D
 {
-    Vec3f     translate;
-    Vec3f     scale  = Vec3f(1);
-    Quaterion rotate = Quaterion(Vec3f(1, 0, 0), 0);
+    Mat4 mat;
+    Mat4 inv;
 
-    std::array<float, 12> to_transform_matrix() const;
+    Transform3D() = default;
 
-    Transform inverse() const;
+    explicit Transform3D(const Mat4 &mat);
+
+    Transform3D(const Mat4 &mat, const Mat4 &inv);
+
+    Transform3D inverse() const;
 
     Vec3f apply_to_point(const Vec3f &p) const;
 
     AABB3f apply_to_aabb(const AABB3f &bbox) const;
+
+    static Transform3D translate(float x, float y, float z);
+
+    static Transform3D rotate(const Vec3f &axis, float rad);
+
+    static Transform3D rotate_x(float rad);
+
+    static Transform3D rotate_y(float rad);
+
+    static Transform3D rotate_z(float rad);
+
+    static Transform3D scale(float x, float y, float z);
 };
+
+Transform3D operator*(const Transform3D &a, const Transform3D &b);
 
 BTRC_END

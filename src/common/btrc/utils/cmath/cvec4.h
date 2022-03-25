@@ -14,6 +14,8 @@ CUJ_PROXY_CLASS_EX(CVec4f, Vec4f, x, y, z, w)
     CVec4f(const Vec4f &v);
     CVec4f(const CVec3f &xyz, f32 _w);
     CVec3f xyz() const;
+
+    ref<f32> operator[](i32 i) const;
 };
 
 CUJ_PROXY_CLASS_EX(CVec4u, Vec4u, x, y, z, w)
@@ -81,6 +83,11 @@ inline CVec4f::CVec4f(const CVec3f &xyz, f32 _w)
 inline CVec3f CVec4f::xyz() const
 {
     return CVec3f(x, y, z);
+}
+
+inline ref<f32> CVec4f::operator[](i32 i) const
+{
+    return *(x.address() + i);
 }
 
 inline CVec4u::CVec4u(u32 v)

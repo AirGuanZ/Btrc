@@ -65,7 +65,7 @@ void MediumPipeline::record_device_code(
             ref instance = instances[extract_instance_id(path_flag)];
             ref geometry = geometries[instance.geometry_id];
             var local_normal = load_aligned(geometry.geometry_ez_tex_coord_u_ca + prim_id).xyz();
-            var inct_nor = instance.transform.apply_to_vector(local_normal);
+            var inct_nor = instance.transform.apply_to_normal(local_normal);
 
             var inct_medium_id = cstd::select(dot(ray_d, inct_nor) < 0, instance.outer_medium_id, instance.inner_medium_id);
             var ray_medium_id = bitcast<CMediumID>(ray_o_medium_id.w);

@@ -13,7 +13,7 @@ Work in progress...
 - [ ] separate rng dimensions & low-discrepancy samplers
 - [ ] radiance cache
 - [ ] lightweight photon mapping
-- [ ] light bvh
+- [ ] many lights
 - [ ] path guiding
 
 ## Gallery
