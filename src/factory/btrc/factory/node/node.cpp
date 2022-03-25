@@ -123,13 +123,53 @@ namespace
         throw BtrcException("unexpected group node");
     }
 
-    Transform3D parse_transform(const RC<const Node> &node)
+    Transform2D parse_transform2d(const RC<const Node> &node)
+    {
+        if(auto arr = node->as_array())
+        {
+            Transform2D ret;
+            for(size_t i = 0; i < arr->get_size(); ++i)
+                ret = parse_transform2d(arr->get_element(i)) * ret;
+            return ret;
+        }
+
+        if(auto translate = node->find_child_node("translate"))
+        {
+            const Vec2f t = translate->parse<Vec2f>();
+            return Transform2D::translate(t.x, t.y);
+        }
+
+        if(auto rotate = node->find_child_node("rotate"))
+        {
+            const Radian rad = rotate->parse_child<Radian>("angle");
+            return Transform2D::rotate(rad.value);
+        }
+
+        if(auto scale = node->find_child_node("scale"))
+        {
+            const Vec2f s = scale->parse<Vec2f>();
+            return Transform2D::scale(s.x, s.y);
+        }
+
+        if(auto n = node->find_child_node("inverse_u"); n && n->parse<bool>())
+            return Transform2D(Mat3(-1, 0, 1, 0, 1, 0, 0, 0, 0));
+
+        if(auto n = node->find_child_node("inverse_v"); n && n->parse<bool>())
+            return Transform2D(Mat3(1, 0, 0, 0, -1, 1, 0, 0, 1));
+
+        if(auto n = node->find_child_node("swap_uv"); n && n->parse<bool>())
+            return Transform2D(Mat3(0, 1, 0, 1, 0, 0, 0, 0, 1));
+
+        throw BtrcException("unknown transform2d type");
+    }
+
+    Transform3D parse_transform3d(const RC<const Node> &node)
     {
         if(auto arr = node->as_array())
         {
             Transform3D ret;
             for(size_t i = 0; i < arr->get_size(); ++i)
-                ret = parse_transform(arr->get_element(i)) * ret;
+                ret = parse_transform3d(arr->get_element(i)) * ret;
             return ret;
         }
 
@@ -170,7 +210,7 @@ namespace
             return Transform3D::scale(s.x, s.y, s.z);
         }
 
-        throw BtrcException("unknown transform type");
+        throw BtrcException("unknown transform3d type");
     }
 
 } // namespace anonymous
@@ -272,7 +312,11 @@ T Node::parse() const
     }
     else if constexpr(std::is_same_v<T, Transform3D>)
     {
-        return parse_transform(shared_from_this());
+        return parse_transform3d(shared_from_this());
+    }
+    else if constexpr(std::is_same_v<T, Transform2D>)
+    {
+        return parse_transform2d(shared_from_this());
     }
     else
     {
@@ -371,6 +415,7 @@ template Vec3f       Node::parse<Vec3f>      () const;
 template Degree      Node::parse<Degree>     () const;
 template Radian      Node::parse<Radian>     () const;
 template Spectrum    Node::parse<Spectrum>   () const;
+template Transform2D Node::parse<Transform2D>() const;
 template Transform3D Node::parse<Transform3D>() const;
 
 BTRC_FACTORY_END

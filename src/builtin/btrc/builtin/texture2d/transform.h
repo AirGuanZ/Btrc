@@ -9,11 +9,7 @@ class TransformTexture2D : public Texture2D
 {
 public:
 
-    void set_inverse_u(bool inv);
-
-    void set_inverse_v(bool inv);
-
-    void set_swap_uv(bool swap);
+    void set_transform(const Transform2D &transform);
 
     void set_texture(RC<Texture2D> tex);
 
@@ -28,10 +24,7 @@ public:
 private:
 
     CVec2f map_uv(const CVec2f &uv) const;
-
-    bool inv_u_   = false;
-    bool inv_v_   = false;
-    bool swap_uv_ = false;
+    Transform2D transform_;
     BTRC_OBJECT(Texture2D, tex_);
 };
 

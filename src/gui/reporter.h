@@ -18,7 +18,7 @@ public:
 
     bool need_preview() const override;
 
-    void new_preview(const Image &preview) override;
+    void new_preview(const btrc::Vec4f *device_preview, int width, int height) override;
 
     void set_preview_interval(int ms);
 

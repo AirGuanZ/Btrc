@@ -39,7 +39,6 @@ struct WavefrontPathTracer::Impl
     RC<cuda::Buffer<wfpt::StateCounters>> state_counters;
 
     cuda::Buffer<Vec4f> device_preview_image;
-    Image<Vec4f>        preview_image;
 };
 
 WavefrontPathTracer::WavefrontPathTracer(optix::Context &optix_ctx)
@@ -399,10 +398,7 @@ void WavefrontPathTracer::new_preview_image() const
 {
     const size_t texel_count = impl_->width * impl_->height;
     if(impl_->device_preview_image.get_size() != texel_count)
-    {
         impl_->device_preview_image.initialize(texel_count);
-        impl_->preview_image = Image<Vec4f>(impl_->width, impl_->height);
-    }
 
     impl_->preview.generate(
         impl_->width, impl_->height,
@@ -410,13 +406,8 @@ void WavefrontPathTracer::new_preview_image() const
         impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
         impl_->device_preview_image.get());
 
-    throw_on_error(cudaMemcpy(
-        impl_->preview_image.data(),
-        impl_->device_preview_image.get(),
-        sizeof(Vec4f) * texel_count,
-        cudaMemcpyDeviceToHost));
-
-    impl_->reporter->new_preview(impl_->preview_image);
+    impl_->reporter->new_preview(
+        impl_->device_preview_image.get(), impl_->width, impl_->height);
 }
 
 RC<Renderer> WavefrontPathTracerCreator::create(RC<const factory::Node> node, factory::Context &context)

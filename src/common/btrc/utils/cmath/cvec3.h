@@ -18,6 +18,8 @@ CUJ_PROXY_CLASS_EX(CVec3f, Vec3f, x, y, z)
     explicit CVec3f(ref<cstd::LCG>);
 
     explicit CVec3f(ref<cstd::PCG>);
+
+    ref<f32> operator[](i32 i) const;
 };
 
 inline CVec3f load_aligned(ptr<CVec3f> addr);
@@ -88,6 +90,11 @@ inline CVec3f::CVec3f(ref<cstd::PCG> rng)
     x = rng.uniform_float();
     y = rng.uniform_float();
     z = rng.uniform_float();
+}
+
+inline ref<f32> CVec3f::operator[](i32 i) const
+{
+    return *(x.address() + i);
 }
 
 inline CVec3f load_aligned(ptr<CVec3f> addr)

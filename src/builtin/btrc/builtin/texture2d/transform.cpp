@@ -2,19 +2,9 @@
 
 BTRC_BUILTIN_BEGIN
 
-void TransformTexture2D::set_inverse_u(bool inv)
+void TransformTexture2D::set_transform(const Transform2D &transform)
 {
-    inv_u_ = inv;
-}
-
-void TransformTexture2D::set_inverse_v(bool inv)
-{
-    inv_v_ = inv;
-}
-
-void TransformTexture2D::set_swap_uv(bool swap)
-{
-    swap_uv_ = swap;
+    transform_ = transform;
 }
 
 void TransformTexture2D::set_texture(RC<Texture2D> tex)
@@ -48,30 +38,15 @@ f32 TransformTexture2D::sample_float_inline(CompileContext &cc, ref<SurfacePoint
 
 CVec2f TransformTexture2D::map_uv(const CVec2f &uv) const
 {
-    var ret = uv;
-    if(inv_u_)
-        ret.x = 1.0f - uv.x;
-    if(inv_v_)
-        ret.y = 1.0f - uv.y;
-    if(swap_uv_)
-    {
-        var t = ret.x;
-        ret.x = ret.y;
-        ret.y = t;
-    }
-    return ret;
+    return CTransform2D(transform_).apply_to_point(uv);
 }
 
 RC<Texture2D> TransformTexture2DCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
-    const bool inv_u = node->parse_child_or("inv_u", false);
-    const bool inv_v = node->parse_child_or("inv_v", false);
-    const bool swap_uv = node->parse_child_or("swap_uv", false);
+    const Transform2D trans = node->parse_child<Transform2D>("transform");
     auto tex = context.create<Texture2D>(node->child_node("tex"));
     auto ret = newRC<TransformTexture2D>();
-    ret->set_inverse_u(inv_u);
-    ret->set_inverse_v(inv_v);
-    ret->set_swap_uv(swap_uv);
+    ret->set_transform(trans);
     ret->set_texture(std::move(tex));
     return ret;
 }

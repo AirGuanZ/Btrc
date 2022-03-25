@@ -20,7 +20,7 @@ public:
 
     virtual bool need_preview() const { return false; }
 
-    virtual void new_preview(const Image<Vec4f> &preview) { }
+    virtual void new_preview(const Vec4f *device_preview, int width, int height) { }
 
     void set_fast_preview(bool enable_fast_preview) { fast_preview_ = enable_fast_preview; }
 

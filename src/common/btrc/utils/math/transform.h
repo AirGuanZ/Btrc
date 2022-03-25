@@ -1,9 +1,36 @@
 #pragma once
 
 #include <btrc/utils/math/aabb.h>
+#include <btrc/utils/math/mat3.h>
 #include <btrc/utils/math/mat4.h>
+#include <btrc/utils/math/vec2.h>
+#include <btrc/utils/math/vec3.h>
 
 BTRC_BEGIN
+
+struct Transform2D
+{
+    Mat3 mat;
+    Mat3 inv;
+
+    Transform2D() = default;
+
+    explicit Transform2D(const Mat3 &mat);
+
+    Transform2D(const Mat3 &mat, const Mat3 &inv);
+
+    Transform2D inverse() const;
+
+    Vec2f apply_to_point(const Vec2f &p) const;
+
+    static Transform2D translate(float x, float y);
+
+    static Transform2D rotate(float rad);
+
+    static Transform2D scale(float x, float y);
+};
+
+Transform2D operator*(const Transform2D &a, const Transform2D &b);
 
 struct Transform3D
 {

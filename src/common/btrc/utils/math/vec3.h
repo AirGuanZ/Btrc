@@ -18,6 +18,10 @@ public:
     BTRC_XPU explicit Vec3(T v);
 
     BTRC_XPU Vec3(T x, T y, T z);
+
+    float operator[](size_t i) const;
+
+    float &operator[](size_t i);
 };
 
 using Vec3f = Vec3<float>;
@@ -75,6 +79,18 @@ BTRC_XPU Vec3<T>::Vec3(T x, T y, T z)
     : x(x), y(y), z(z)
 {
     
+}
+
+template<typename T>
+float Vec3<T>::operator[](size_t i) const
+{
+    return *(&x + i);
+}
+
+template<typename T>
+float &Vec3<T>::operator[](size_t i)
+{
+    return *(&x + i);
 }
 
 template<typename T>

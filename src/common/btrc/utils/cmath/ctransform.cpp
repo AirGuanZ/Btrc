@@ -2,16 +2,35 @@
 
 BTRC_BEGIN
 
+CTransform2D::CTransform2D(const Transform2D &t)
+{
+    mat = CMat3(t.mat);
+    inv = CMat3(t.inv);
+}
+
+CTransform2D::CTransform2D(const CMat3 &_mat, const CMat3 &_inv)
+{
+    mat = _mat;
+    inv = _inv;
+}
+
+CVec2f CTransform2D::apply_to_point(const CVec2f &p) const
+{
+    return CVec2f(
+        mat.at(0, 0) * p.x + mat.at(0, 1) * p.y + mat.at(0, 2),
+        mat.at(1, 0) * p.x + mat.at(1, 1) * p.y + mat.at(1, 2));
+}
+
 CTransform3D::CTransform3D(const Transform3D &t)
 {
     mat = CMat4(t.mat);
     inv = CMat4(t.inv);
 }
 
-CTransform3D::CTransform3D(const CMat4 &mat, const CMat4 &inv)
+CTransform3D::CTransform3D(const CMat4 &_mat, const CMat4 &_inv)
 {
-    this->mat = mat;
-    this->inv = inv;
+    mat = _mat;
+    inv = _inv;
 }
 
 CVec3f CTransform3D::apply_to_point(const CVec3f &p) const
