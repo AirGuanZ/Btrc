@@ -26,9 +26,14 @@ public:
 
     bool need_fast_preview() const { return fast_preview_; }
 
+    void set_denoise(bool denoise) { denoise_ = denoise; }
+
+    bool need_denoise() const { return denoise_; }
+
 private:
 
     std::atomic<bool> fast_preview_ = false;
+    std::atomic<bool> denoise_ = false;
 };
 
 BTRC_END

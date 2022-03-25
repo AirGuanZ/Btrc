@@ -8,7 +8,7 @@ BTRC_BEGIN
 
 // alternative to std::bit_cast in .cu
 template<typename To, typename From>
-BTRC_XPU To bitcast(From from)
+To bitcast(From from)
 {
     static_assert(sizeof(To) == sizeof(From));
     To result;

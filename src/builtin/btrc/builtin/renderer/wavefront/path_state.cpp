@@ -53,7 +53,7 @@ void PathState::clear()
     const int state_count = static_cast<int>(shadow_sampler_state.get_size());
     std::vector<IndependentSampler::State> rng_init_data(state_count);
     for(int i = 0; i < state_count; ++i)
-        rng_init_data[i].rng = CRNG::Data(static_cast<uint32_t>(i));
+        rng_init_data[i].rng = cstd::PCG::Data(static_cast<uint32_t>(i));
 
     std::default_random_engine random_engine{ 42 };
     std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);

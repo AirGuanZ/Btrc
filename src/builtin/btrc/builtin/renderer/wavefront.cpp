@@ -1,4 +1,5 @@
 #include <btrc/builtin/film_filter/box.h>
+#include <btrc/builtin/denoise/optix_denoiser.h>
 #include <btrc/builtin/renderer/wavefront/generate.h>
 #include <btrc/builtin/renderer/wavefront/medium.h>
 #include <btrc/builtin/renderer/wavefront/path_state.h>
@@ -36,9 +37,13 @@ struct WavefrontPathTracer::Impl
     wfpt::PreviewImageGenerator preview;
     wfpt::VolumeManager         volumes;
 
+    OptixAIDenoiser denoiser;
+
     RC<cuda::Buffer<wfpt::StateCounters>> state_counters;
 
     cuda::Buffer<Vec4f> device_preview_image;
+    cuda::Buffer<Vec4f> device_preview_normal;
+    cuda::Buffer<Vec4f> device_preview_albedo;
 };
 
 WavefrontPathTracer::WavefrontPathTracer(optix::Context &optix_ctx)
@@ -178,6 +183,13 @@ void WavefrontPathTracer::recompile()
     // path state
 
     impl_->path_state.initialize(params.state_count);
+
+    // denoiser
+
+    impl_->denoiser = OptixAIDenoiser(
+        *impl_->optix_ctx,
+        impl_->params.albedo, impl_->params.normal,
+        impl_->width, impl_->height);
 }
 
 Renderer::RenderResult WavefrontPathTracer::render() const
@@ -406,8 +418,44 @@ void WavefrontPathTracer::new_preview_image() const
         impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
         impl_->device_preview_image.get());
 
+    if(!impl_->reporter->need_denoise())
+    {
+        impl_->reporter->new_preview(
+            impl_->device_preview_image.get(), impl_->width, impl_->height);
+        return;
+    }
+
+    if(impl_->params.albedo)
+    {
+        if(impl_->device_preview_albedo.get_size() != texel_count)
+            impl_->device_preview_albedo.initialize(texel_count);
+
+        impl_->preview.generate(
+            impl_->width, impl_->height,
+            impl_->film.get_float3_output(Film::OUTPUT_ALBEDO).as<Vec4f>(),
+            impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
+            impl_->device_preview_albedo.get());
+    }
+
+    if(impl_->params.normal)
+    {
+        if(impl_->device_preview_normal.get_size() != texel_count)
+            impl_->device_preview_normal.initialize(texel_count);
+
+        impl_->preview.generate(
+            impl_->width, impl_->height,
+            impl_->film.get_float3_output(Film::OUTPUT_NORMAL).as<Vec4f>(),
+            impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
+            impl_->device_preview_normal.get());
+    }
+
+    impl_->denoiser.denoise(
+        impl_->device_preview_image.get(),
+        impl_->device_preview_albedo.get(),
+        impl_->device_preview_normal.get());
+
     impl_->reporter->new_preview(
-        impl_->device_preview_image.get(), impl_->width, impl_->height);
+        impl_->denoiser.get_output_buffer(), impl_->width, impl_->height);
 }
 
 RC<Renderer> WavefrontPathTracerCreator::create(RC<const factory::Node> node, factory::Context &context)

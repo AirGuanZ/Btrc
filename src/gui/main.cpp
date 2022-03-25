@@ -35,7 +35,6 @@ struct BtrcScene
 
     RC<Scene>    scene;
     RC<Camera>   camera;
-    RC<Reporter> reporter;
     RC<Renderer> renderer;
 };
 
@@ -185,6 +184,9 @@ void run(const std::string &config_filename)
     CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
     CameraController::ControlParams controller_params;
 
+    bool denoise = true;
+    reporter->set_denoise(denoise);
+
     constexpr int MIN_UPDATED_IMAGE_COUNT = 2;
     int updated_image_count = 0;
 
@@ -257,6 +259,12 @@ void run(const std::string &config_filename)
                 ImGui::SliderFloat("Distance Speed", &controller_params.dist_adjust_speed, 0.05f, 0.3f);
                 ImGui::PopStyleColor();
                 ImGui::EndMenu();
+            }
+
+            if(ImGui::MenuItem("Denoise On/Off"))
+            {
+                denoise = !denoise;
+                reporter->set_denoise(denoise);
             }
         }
         ImGui::EndMainMenuBar();

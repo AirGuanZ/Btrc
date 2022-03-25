@@ -9,7 +9,7 @@ IndependentSampler::IndependentSampler(ref<CState> state)
 
 IndependentSampler::IndependentSampler(u64 pixel_index, u64 sample_index)
 {
-    state_.rng = CRNG(pixel_index);
+    state_.rng = cstd::PCG(pixel_index);
     state_.rng.advance(i64(sample_index) * 65536u);
 }
 

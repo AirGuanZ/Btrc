@@ -9,7 +9,7 @@ namespace independent_sampler_detail
 
     struct State
     {
-        CRNG::Data rng;
+        cstd::PCG::Data rng;
     };
 
     CUJ_PROXY_CLASS(CState, State, rng);

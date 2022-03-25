@@ -10,53 +10,53 @@ public:
 
     float w, x, y, z;
 
-    BTRC_XPU Quaterion();
+    Quaterion();
 
-    BTRC_XPU Quaterion(float w, float x, float y, float z);
+    Quaterion(float w, float x, float y, float z);
 
-    BTRC_XPU Quaterion(const Vec3f &axis, float rad);
+    Quaterion(const Vec3f &axis, float rad);
 
-    BTRC_XPU Vec3f apply_to_vector(const Vec3f &v) const;
+    Vec3f apply_to_vector(const Vec3f &v) const;
 
-    BTRC_XPU Quaterion operator*(const Quaterion &rhs) const;
+    Quaterion operator*(const Quaterion &rhs) const;
 
     // m: row-major 3x3 matrix
-    BTRC_XPU void to_rotation_matrix(float *m) const;
+    void to_rotation_matrix(float *m) const;
 };
 
-BTRC_XPU inline Quaterion normalize(const Quaterion &q);
+inline Quaterion normalize(const Quaterion &q);
 
-BTRC_XPU inline Quaterion conjugate(const Quaterion &q);
+inline Quaterion conjugate(const Quaterion &q);
 
-BTRC_XPU inline Quaterion slerp(const Quaterion &lhs, const Quaterion &rhs, float t);
+inline Quaterion slerp(const Quaterion &lhs, const Quaterion &rhs, float t);
 
 // ========================== impl ==========================
 
-BTRC_XPU inline Quaterion::Quaterion()
+inline Quaterion::Quaterion()
     : Quaterion(1, 0, 0, 0)
 {
     
 }
 
-BTRC_XPU inline Quaterion::Quaterion(float w, float x, float y, float z)
+inline Quaterion::Quaterion(float w, float x, float y, float z)
     : w(w), x(x), y(y), z(z)
 {
     
 }
 
-BTRC_XPU inline Quaterion::Quaterion(const Vec3f &axis, float rad)
+inline Quaterion::Quaterion(const Vec3f &axis, float rad)
 {
     const Vec3f naxis = normalize(axis);
     const float half_theta = 0.5f * rad;
-    const float sin_angle = btrc_sin(half_theta);
-    const float cos_angle = btrc_cos(half_theta);
+    const float sin_angle = std::sin(half_theta);
+    const float cos_angle = std::cos(half_theta);
     x = sin_angle * naxis.x;
     y = sin_angle * naxis.y;
     z = sin_angle * naxis.z;
     w = cos_angle;
 }
 
-BTRC_XPU inline Vec3f Quaterion::apply_to_vector(const Vec3f &v) const
+inline Vec3f Quaterion::apply_to_vector(const Vec3f &v) const
 {
     const Quaterion vq(0, v.x, v.y, v.z);
     const Quaterion inv_this = conjugate(*this);
@@ -64,7 +64,7 @@ BTRC_XPU inline Vec3f Quaterion::apply_to_vector(const Vec3f &v) const
     return Vec3f(result.x, result.y, result.z);
 }
 
-BTRC_XPU inline Quaterion Quaterion::operator*(const Quaterion &rhs) const
+inline Quaterion Quaterion::operator*(const Quaterion &rhs) const
 {
     return Quaterion(
         w * rhs.w - x * rhs.x - y * rhs.y - z * rhs.z,
@@ -73,7 +73,7 @@ BTRC_XPU inline Quaterion Quaterion::operator*(const Quaterion &rhs) const
         w * rhs.z + z * rhs.w + x * rhs.y - y * rhs.x);
 }
 
-BTRC_XPU inline void Quaterion::to_rotation_matrix(float *m) const
+inline void Quaterion::to_rotation_matrix(float *m) const
 {
     const auto [qr, qi, qj, qk] = normalize(*this);
     //const float qr = w, qi = x, qj = y, qk = z;
@@ -82,19 +82,19 @@ BTRC_XPU inline void Quaterion::to_rotation_matrix(float *m) const
     m[6] = 2 * (qi * qk - qj * qr);     m[7] = 2 * (qj * qk + qi * qr);     m[8] = 1 - 2 * (qi * qi + qj * qj);
 }
 
-BTRC_XPU inline Quaterion normalize(const Quaterion &q)
+inline Quaterion normalize(const Quaterion &q)
 {
-    const float len = btrc_sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+    const float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
     const float inv_len = 1 / len;
     return Quaterion(q.w * inv_len, q.x * inv_len, q.y * inv_len, q.z * inv_len);
 }
 
-BTRC_XPU inline Quaterion conjugate(const Quaterion &q)
+inline Quaterion conjugate(const Quaterion &q)
 {
     return Quaterion(q.w, -q.x, -q.y, -q.z);
 }
 
-BTRC_XPU inline Quaterion slerp(
+inline Quaterion slerp(
     const Quaterion &lhs, const Quaterion &rhs, float t)
 {
     float cos_theta = lhs.x * rhs.x
@@ -114,10 +114,10 @@ BTRC_XPU inline Quaterion slerp(
     float lhs_w, rhs_w;
     if(1 - cos_theta > 1e-4f)
     {
-        const float theta = btrc_acos(cos_theta);
-        const float sin_theta = btrc_sin(theta);
-        lhs_w = btrc_sin((1 - t) * theta) / sin_theta;
-        rhs_w = btrc_sin(t * theta) / sin_theta;
+        const float theta = std::acos(cos_theta);
+        const float sin_theta = std::sin(theta);
+        lhs_w = std::sin((1 - t) * theta) / sin_theta;
+        rhs_w = std::sin(t * theta) / sin_theta;
     }
     else
     {
