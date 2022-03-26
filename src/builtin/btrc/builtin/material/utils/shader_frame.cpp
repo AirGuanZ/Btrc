@@ -27,6 +27,7 @@ Shader::SampleResult ShaderFrame::sample_black_fringes(
     result.bsdf = albedo / btrc_pi;
     result.dir = geometry.local_to_global(local_wi);
     result.pdf = pdf_sample_hemisphere_zweighted(local_wi);
+    result.is_delta = false;
     return result;
 }
 

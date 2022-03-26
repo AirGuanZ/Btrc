@@ -20,12 +20,14 @@ public:
         CUJ_MEMBER_VARIABLE(CSpectrum, bsdf)
         CUJ_MEMBER_VARIABLE(CVec3f,    dir)
         CUJ_MEMBER_VARIABLE(f32,       pdf)
+        CUJ_MEMBER_VARIABLE(boolean,   is_delta)
 
         void clear()
         {
             bsdf = CSpectrum::zero();
             dir = CVec3f();
             pdf = 0;
+            is_delta = false;
         }
 
     CUJ_CLASS_END
@@ -53,8 +55,6 @@ public:
     virtual CSpectrum albedo(CompileContext &cc) const = 0;
 
     virtual CVec3f normal(CompileContext &cc) const = 0;
-
-    virtual boolean is_delta(CompileContext &cc) const = 0;
 };
 
 class Material : public Object

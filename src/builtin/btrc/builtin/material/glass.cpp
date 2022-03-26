@@ -58,6 +58,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
             result.dir = wi;
             result.bsdf = bsdf * norm;
             result.pdf = fr;
+            result.is_delta = true;
             $exit_scope;
         };
 
@@ -66,8 +67,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
         CVec3f nwi;
         $if(!refr(nwo, nor, eta, nwi))
         {
-            result.bsdf = CSpectrum::zero();
-            result.pdf = 0;
+            result.clear();
             $exit_scope;
         };
         var corr = mode == TransportMode::Radiance ? eta * eta : f32(1);
@@ -78,6 +78,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
         result.bsdf = f * norm;
         result.dir = wi;
         result.pdf = pdf;
+        result.is_delta = true;
         return result;
     }
 
@@ -99,11 +100,6 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
     CVec3f normal() const
     {
         return frame.shading.z;
-    }
-
-    boolean is_delta() const
-    {
-        return true;
     }
 
 CUJ_CLASS_END

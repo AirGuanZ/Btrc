@@ -70,13 +70,6 @@ public:
             material_, "normal",
             [](ref<ShaderImpl> impl) { return impl.normal(); }, ref(impl_));
     }
-
-    boolean is_delta(CompileContext &cc) const override
-    {
-        return cc.record_object_action(
-            material_, "is_delta",
-            [](ref<ShaderImpl> impl) { return impl.is_delta(); }, ref(impl_));
-    }
 };
 
 BTRC_END

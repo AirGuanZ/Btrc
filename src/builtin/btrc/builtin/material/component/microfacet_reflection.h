@@ -52,6 +52,7 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
 
         result.dir = lwi;
         this->eval_and_pdf(lwi, lwo, mode, result.bsdf, result.pdf);
+        result.is_delta = false;
         return result;
     }
 

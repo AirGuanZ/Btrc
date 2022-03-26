@@ -38,6 +38,7 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
         result.bsdf = bsdf * norm_factor;
         result.dir = wi;
         result.pdf = 1;
+        result.is_delta = true;
         return result;
     }
 

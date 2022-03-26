@@ -15,6 +15,7 @@ public:
         result.bsdf = CSpectrum::one() / cstd::abs(dot(normal_, normalize(wo)));
         result.dir = -wo;
         result.pdf = 1;
+        result.is_delta = true;
         return result;
     }
 
@@ -36,11 +37,6 @@ public:
     CVec3f normal(CompileContext &cc) const override
     {
         return normal_;
-    }
-
-    boolean is_delta(CompileContext &cc) const override
-    {
-        return true;
     }
 };
 

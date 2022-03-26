@@ -68,7 +68,7 @@ class BSDFAggregate : public Shader
 {
 public:
 
-    BSDFAggregate(RC<const Object> material, boolean is_delta, ShaderFrame frame);
+    BSDFAggregate(CompileContext &cc, RC<const Object> material, ShaderFrame frame);
 
     void add_component(f32 sample_weight, Box<const BSDFComponent> comp);
 
@@ -96,11 +96,7 @@ public:
 
     CVec3f normal(CompileContext &cc) const override;
 
-    boolean is_delta(CompileContext &cc) const override;
-
 private:
-
-    void preprocess(CompileContext &cc) const;
 
     struct Component
     {
@@ -108,11 +104,10 @@ private:
         Box<const BSDFComponent> component;
     };
 
-    mutable bool           is_dirty_;
+    CompileContext        &cc_;
     mutable CSpectrum      albedo_;
     mutable f32            sum_weight_;
     RC<const Object>       material_;
-    boolean                is_delta_;
     ShaderFrame            frame_;
     std::vector<Component> components_;
 };

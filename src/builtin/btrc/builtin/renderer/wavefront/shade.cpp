@@ -317,12 +317,11 @@ void ShadePipeline::record_device_code(
 
         Shader::SampleResult bsdf_sample;
 
-        var is_bsdf_delta = false;
         CVec3f gbuffer_albedo;
         CVec3f gbuffer_normal;
 
-        CSpectrum shadow_bsdf_val;
-        f32 shadow_bsdf_pdf = 0;
+        var shadow_bsdf_val = CSpectrum::zero();
+        var shadow_bsdf_pdf = 0.0f;
         var emit_shadow_ray = false;
 
         auto handle_material = [&](const Material *mat)
@@ -337,25 +336,21 @@ void ShadePipeline::record_device_code(
                 gbuffer_normal = shader->normal(cc);
             };
 
-            // shadow ray
-
-            $if(!shader->is_delta(cc))
-            {
-                $if(light_id >= 0 & shadow_t1 > EPS & !li.is_zero())
-                {
-                    shadow_bsdf_val = shader->eval(cc, shadow_d, -ray_d, TransportMode::Radiance);
-                    emit_shadow_ray = !shadow_bsdf_val.is_zero();
-                    $if(emit_shadow_ray)
-                    {
-                        shadow_bsdf_pdf = shader->pdf(cc, shadow_d, -ray_d, TransportMode::Radiance);
-                    };
-                };
-            };
-
             // sample bsdf
 
             bsdf_sample = shader->sample(cc, -ray_d, sampler.get3d(), TransportMode::Radiance);
-            is_bsdf_delta = shader->is_delta(cc);
+
+            // shadow ray
+
+            $if(!bsdf_sample.is_delta & light_id >= 0 & shadow_t1 > EPS & !li.is_zero())
+            {
+                shadow_bsdf_val = shader->eval(cc, shadow_d, -ray_d, TransportMode::Radiance);
+                emit_shadow_ray = !shadow_bsdf_val.is_zero();
+                $if(emit_shadow_ray)
+                {
+                    shadow_bsdf_pdf = shader->pdf(cc, shadow_d, -ray_d, TransportMode::Radiance);
+                };
+            };
         };
 
         var mat_id = instance.material_id;
@@ -458,7 +453,7 @@ void ShadePipeline::record_device_code(
                 CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
                 soa_params.output_new_ray_time_mask + output_index);
 
-            var stored_pdf = cstd::select(is_bsdf_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
+            var stored_pdf = cstd::select(bsdf_sample.is_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
             beta_le.additional_data = stored_pdf;
             save_aligned(beta_le, soa_params.output_beta_le_bsdf_pdf + output_index);
         }

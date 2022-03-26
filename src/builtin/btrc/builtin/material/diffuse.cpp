@@ -23,7 +23,7 @@ RC<Shader> Diffuse::create_shader(CompileContext &cc, const SurfacePoint &inct) 
     DiffuseComponentImpl diffuse_closure;
     diffuse_closure.albedo_value = albedo_->sample_spectrum(cc, inct);
 
-    auto shader = newRC<BSDFAggregate>(as_shared(), false, frame);
+    auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame);
     shader->add_closure(1, "diffuse", diffuse_closure);
     return shader;
 }

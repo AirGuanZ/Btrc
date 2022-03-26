@@ -37,7 +37,7 @@ RC<Shader> Metal::create_shader(CompileContext &cc, const SurfacePoint &inct) co
     var anisotropic = anisotropic_->sample_float(cc, inct);
     MicrofacetReflectionComponentImpl closure(fresnel, roughness, anisotropic);
 
-    auto shader = newRC<BSDFAggregate>(as_shared(), false, frame);
+    auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame);
     shader->add_closure(1, "specular", closure);
     return shader;
 }

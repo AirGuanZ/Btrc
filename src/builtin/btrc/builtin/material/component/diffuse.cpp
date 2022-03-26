@@ -15,6 +15,7 @@ Shader::SampleResult DiffuseComponentImpl::sample(ref<CVec3f> lwo, ref<CVec3f> s
         result.bsdf = albedo_value / btrc_pi;
         result.dir = lwi;
         result.pdf = pdf_sample_hemisphere_zweighted(lwi);
+        result.is_delta = false;
     };
     return result;
 }

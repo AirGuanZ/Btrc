@@ -601,6 +601,7 @@ public:
             result.dir = lwi;
             result.bsdf = eval(cc, lwi, lwo, mode);
             result.pdf = pdf(cc, lwi, lwo, mode);
+            result.is_delta = false;
             handle_bad_sample();
             $exit_scope;
         };
@@ -646,6 +647,7 @@ public:
         result.dir = lwi;
         result.bsdf = eval(cc, lwi, lwo, mode);
         result.pdf = pdf(cc, lwi, lwo, mode);
+        result.is_delta = false;
         handle_bad_sample();
         return result;
     }
@@ -801,7 +803,7 @@ RC<Shader> DisneyMaterial::create_shader(CompileContext &cc, const SurfacePoint 
         anisotropic, sheen, sheen_tint, clearcoat, clearcoat_gloss,
         transmission, transmission_roughness, ior);
 
-    auto shader = newRC<BSDFAggregate>(as_shared(), false, frame);
+    auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame);
     shader->add_component(1, std::move(comp));
     return shader;
 }

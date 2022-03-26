@@ -2,23 +2,23 @@
 
 BTRC_BUILTIN_BEGIN
 
-BSDFAggregate::BSDFAggregate(RC<const Object> material, boolean is_delta, ShaderFrame frame)
-    : is_dirty_(false), material_(std::move(material)), is_delta_(is_delta), frame_(frame)
+BSDFAggregate::BSDFAggregate(CompileContext &cc, RC<const Object> material, ShaderFrame frame)
+    : cc_(cc), material_(std::move(material)), frame_(frame)
 {
-
+    sum_weight_ = 0.0f;
+    albedo_ = CSpectrum::zero();
 }
 
 void BSDFAggregate::add_component(f32 sample_weight, Box<const BSDFComponent> comp)
 {
+    sum_weight_ = sum_weight_ + sample_weight;
+    albedo_ = albedo_ + comp->albedo(cc_);
     components_.push_back({ sample_weight, std::move(comp) });
-    is_dirty_ = true;
 }
 
 Shader::SampleResult BSDFAggregate::sample(
     CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
 {
-    preprocess(cc);
-
     $declare_scope;
     SampleResult result;
 
@@ -64,6 +64,15 @@ Shader::SampleResult BSDFAggregate::sample(
         $exit_scope;
     };
 
+    $if(result.is_delta)
+    {
+        result.dir = frame_.shading.local_to_global(result.dir);
+        result.pdf = selected_comp_weight * result.pdf / sum_weight_;
+        var corr_factor = frame_.correct_shading_energy(result.dir);
+        result.bsdf = result.bsdf * corr_factor;
+        $exit_scope;
+    };
+
     var bsdf = result.bsdf;
     var lwi = result.dir;
     var pdf = selected_comp_weight * result.pdf;
@@ -89,7 +98,6 @@ Shader::SampleResult BSDFAggregate::sample(
 CSpectrum BSDFAggregate::eval(
     CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
 {
-    preprocess(cc);
     $declare_scope;
     CSpectrum result;
 
@@ -111,53 +119,30 @@ CSpectrum BSDFAggregate::eval(
 f32 BSDFAggregate::pdf(
     CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
 {
-    preprocess(cc);
     $declare_scope;
     f32 result;
-
     $if(frame_.is_black_fringes(wi, wo))
     {
         result = frame_.pdf_black_fringes(wi, wo);
         $exit_scope;
     };
-
     var lwi = normalize(frame_.shading.global_to_local(wi));
     var lwo = normalize(frame_.shading.global_to_local(wo));
     result = 0;
     for(auto &c : components_)
         result = result + c.sample_weight * c.component->pdf(cc, lwi, lwo, mode);
-    return result / sum_weight_;
+    result = result / sum_weight_;
+    return result;
 }
 
 CSpectrum BSDFAggregate::albedo(CompileContext &cc) const
 {
-    preprocess(cc);
     return albedo_;
 }
 
 CVec3f BSDFAggregate::normal(CompileContext &cc) const
 {
     return frame_.shading.z;
-}
-
-boolean BSDFAggregate::is_delta(CompileContext &cc) const
-{
-    return is_delta_;
-}
-
-void BSDFAggregate::preprocess(CompileContext &cc) const
-{
-    if(!is_dirty_)
-        return;
-    is_dirty_ = false;
-    
-    sum_weight_ = 0;
-    for(auto &c : components_)
-        sum_weight_ = sum_weight_ + c.sample_weight;
-
-    albedo_ = CSpectrum::zero();
-    for(auto &c : components_)
-        albedo_ = albedo_ + c.component->albedo(cc);
 }
 
 BTRC_BUILTIN_END

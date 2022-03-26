@@ -20,7 +20,7 @@ public:
         TransportMode   mode) const override
     {
         SampleResult result;
-        result.bsdf = CSpectrum::zero();
+        result.clear();
         return result;
     }
 
@@ -50,11 +50,6 @@ public:
     CVec3f normal(CompileContext &cc) const override
     {
         return normal_;
-    }
-
-    boolean is_delta(CompileContext &cc) const override
-    {
-        return false;
     }
 };
 
