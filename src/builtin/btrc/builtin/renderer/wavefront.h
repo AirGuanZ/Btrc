@@ -45,11 +45,13 @@ public:
 
     void recompile() override;
 
-    RenderResult render() const override;
+    RenderResult render() override;
 
 private:
 
-    void new_preview_image() const;
+    void update_device_preview_data();
+
+    void new_preview_image();
 
     struct Impl;
 

@@ -9,8 +9,7 @@ BTRC_WFPT_BEGIN
 namespace
 {
 
-    const char *KERNEL_COLOR  = "generate_preview_color";
-    const char *KERNEL_ALBEDO = "generate_preview_albedo";
+    const char *KERNEL_COLOR_ALBEDO  = "generate_preview_color_albedo";
     const char *KERNEL_NORMAL = "generate_preview_normal";
     const char *CACHE  = "./.btrc_cache/wfpt_preview.ptx";
 
@@ -26,33 +25,7 @@ namespace
 
         ScopedModule cuj_module;
 
-        kernel(KERNEL_COLOR, [&](
-            i32         width,
-            i32         height,
-            ptr<CVec4f> value_buffer,
-            ptr<f32>    weight_buffer,
-            ptr<CVec4f> output_buffer)
-        {
-            i32 xi = cstd::thread_idx_x() + cstd::block_idx_x() * cstd::block_dim_x();
-            i32 yi = cstd::thread_idx_y() + cstd::block_idx_y() * cstd::block_dim_y();
-            $if(xi < width & yi < height)
-            {
-                i32 i = yi * width + xi;
-                CVec4f value = load_aligned(value_buffer + i);
-                f32 weight = weight_buffer[i];
-                CVec3f output;
-                $if(weight > 0)
-                {
-                    output = value.xyz() / weight;
-                };
-                output.x = cstd::pow(output.x, 1 / 2.2f);
-                output.y = cstd::pow(output.y, 1 / 2.2f);
-                output.z = cstd::pow(output.z, 1 / 2.2f);
-                save_aligned(CVec4f(output, 1), output_buffer + i);
-            };
-        });
-        
-        kernel(KERNEL_ALBEDO, [&](
+        kernel(KERNEL_COLOR_ALBEDO, [&](
             i32         width,
             i32         height,
             ptr<CVec4f> value_buffer,
@@ -108,10 +81,10 @@ namespace
 
         PTXGenerator gen;
         gen.set_options(Options{
-            .opt_level        = OptimizationLevel::O3,
-            .fast_math        = true,
+            .opt_level = OptimizationLevel::O3,
+            .fast_math = true,
             .approx_math_func = true
-        });
+            });
         gen.generate(cuj_module);
         
         create_kernel_cache(cache_filename, gen.get_ptx());
@@ -139,7 +112,7 @@ void PreviewImageGenerator::generate(
     const int block_cnt_y = up_align(height, BLOCK_SIZE) / BLOCK_SIZE;
 
     cuda_module_.launch(
-        KERNEL_COLOR,
+        KERNEL_COLOR_ALBEDO,
         { block_cnt_x, block_cnt_y, 1 },
         { BLOCK_SIZE, BLOCK_SIZE, 1 },
         width,
@@ -161,7 +134,7 @@ void PreviewImageGenerator::generate_albedo(
     const int block_cnt_y = up_align(height, BLOCK_SIZE) / BLOCK_SIZE;
 
     cuda_module_.launch(
-        KERNEL_ALBEDO,
+        KERNEL_COLOR_ALBEDO,
         { block_cnt_x, block_cnt_y, 1 },
         { BLOCK_SIZE, BLOCK_SIZE, 1 },
         width,

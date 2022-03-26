@@ -7,7 +7,6 @@
 #include <btrc/core/context.h>
 #include <btrc/core/reporter.h>
 #include <btrc/core/scene.h>
-#include <btrc/utils/image.h>
 
 BTRC_BEGIN
 
@@ -17,9 +16,9 @@ public:
 
     struct RenderResult
     {
-        Image<Vec3f> value;
-        Image<Vec3f> albedo;
-        Image<Vec3f> normal;
+        cuda::Buffer<Vec4f> color;
+        cuda::Buffer<Vec4f> albedo;
+        cuda::Buffer<Vec4f> normal;
     };
 
     virtual ~Renderer() = default;
@@ -36,7 +35,7 @@ public:
 
     virtual void recompile() = 0;
 
-    virtual RenderResult render() const = 0;
+    virtual RenderResult render() = 0;
 
     void render_async();
 

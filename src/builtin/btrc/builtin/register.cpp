@@ -14,6 +14,9 @@
 #include <btrc/builtin/material/mirror.h>
 #include <btrc/builtin/medium/homogeneous.h>
 #include <btrc/builtin/medium/hetergeneous.h>
+#include <btrc/builtin/postprocess/optix_denoiser.h>
+#include <btrc/builtin/postprocess/save_to_image.h>
+#include <btrc/builtin/postprocess/tonemap.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
 #include <btrc/builtin/texture2d/transform.h>
@@ -63,6 +66,13 @@ void register_builtin_creators(factory::Factory<Medium> &factory)
     factory.add_creator(newBox<HetergeneousMediumCreator>());
 }
 
+void register_builtin_creators(factory::Factory<PostProcessor> &factory)
+{
+    factory.add_creator(newBox<OptixAIDenoiserCreator>());
+    factory.add_creator(newBox<SaveToImageCreator>());
+    factory.add_creator(newBox<ACESToneMapCreator>());
+}
+
 void register_builtin_creators(factory::Factory<Renderer> &factory)
 {
     factory.add_creator(newBox<WavefrontPathTracerCreator>());
@@ -89,6 +99,7 @@ void register_builtin_creators(factory::Context &context)
     register_builtin_creators(context.get_factory<Light>());
     register_builtin_creators(context.get_factory<Material>());
     register_builtin_creators(context.get_factory<Medium>());
+    register_builtin_creators(context.get_factory<PostProcessor>());
     register_builtin_creators(context.get_factory<Renderer>());
     register_builtin_creators(context.get_factory<Texture2D>());
     register_builtin_creators(context.get_factory<Texture3D>());

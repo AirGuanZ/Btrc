@@ -6,5 +6,8 @@ build-release/
 build-release-clangcl/
 output.png
 output.exr
+output_denoised.exr
 output_albedo.png
 output_normal.png
+output_albedo.exr
+output_normal.exr

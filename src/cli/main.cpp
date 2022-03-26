@@ -7,6 +7,7 @@
 #include <btrc/core/scene.h>
 #include <btrc/factory/context.h>
 #include <btrc/factory/node/parser.h>
+#include <btrc/factory/post_processor.h>
 #include <btrc/factory/scene.h>
 #include <btrc/utils/cuda/context.h>
 #include <btrc/utils/optix/context.h>
@@ -60,6 +61,10 @@ void run(const std::string &scene_filename)
     renderer->set_scene(scene);
     renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
+    std::cout << "create post processots" << std::endl;
+
+    auto post_processors = parse_post_processors(root_node, btrc_context);
+
     std::cout << "commit objects" << std::endl;
 
     ObjectDAG dag(renderer);
@@ -75,57 +80,11 @@ void run(const std::string &scene_filename)
     std::cout << "render image" << std::endl;
 
     auto result = renderer->render();
+    
+    std::cout << "execute post processors" << std::endl;
 
-    std::cout << "apply tone mapping" << std::endl;
-
-    if(auto tm = root_node->find_child_node("tone_mapping"))
-    {
-        if(auto exposure_node = tm->find_child_node("aces_exposure"))
-        {
-            const float exposure = exposure_node->parse<float>();
-
-            auto aces = [](float x)
-            {
-                constexpr float tA = 2.51f;
-                constexpr float tB = 0.03f;
-                constexpr float tC = 2.43f;
-                constexpr float tD = 0.59f;
-                constexpr float tE = 0.14f;
-                return std::clamp(x * (tA * x + tB) / (x * (tC * x + tD) + tE), 0.0f, 1.0f);
-            };
-
-            for(int y = 0; y < result.value.height(); ++y)
-            {
-                for(int x = 0; x < result.value.width(); ++x)
-                {
-                    auto &v = result.value(x, y);
-                    v.x = aces(v.x * exposure);
-                    v.y = aces(v.y * exposure);
-                    v.z = aces(v.z * exposure);
-                }
-            }
-        }
-
-        const float gamma = 1.0f / tm->parse_child_or("gamma", 1.0f);
-        result.value.pow_(gamma);
-    }
-
-    const auto value_filename = root_node->parse_child_or<std::string>("value_filename", "output.exr");
-    std::cout << "write value to " << value_filename << std::endl;
-    result.value.save(value_filename);
-
-    if(result.albedo)
-    {
-        const auto albedo_filename = root_node->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
-        std::cout << "write albedo to " << albedo_filename << std::endl;
-        result.albedo.save(albedo_filename);
-    }
-    if(result.normal)
-    {
-        const auto normal_filename = root_node->parse_child_or<std::string>("normal_filename", "output_normal.png");
-        std::cout << "write normal to " << normal_filename << std::endl;
-        result.normal.save(normal_filename);
-    }
+    for(auto &p : post_processors)
+        p->process(result.color, result.albedo, result.normal, width, height);
 }
 
 int main(int argc, char *argv[])

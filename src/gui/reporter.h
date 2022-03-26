@@ -2,7 +2,10 @@
 
 #include <mutex>
 
+#include <btrc/core/post_processor.h>
 #include <btrc/core/reporter.h>
+
+#include "./gamma.h"
 
 class GUIPreviewer : public btrc::Reporter
 {
@@ -18,9 +21,15 @@ public:
 
     bool need_preview() const override;
 
-    void new_preview(const btrc::Vec4f *device_preview, int width, int height) override;
+    void new_preview(
+        btrc::Vec4f *device_preview,
+        btrc::Vec4f *device_albedo,
+        btrc::Vec4f *device_normal,
+        int width, int height) override;
 
     void set_preview_interval(int ms);
+
+    void set_post_processors(std::vector<btrc::RC<btrc::PostProcessor>> post_processors);
 
     template<typename F>
     void access_image(const F &f);
@@ -33,6 +42,11 @@ public:
 private:
 
     using PreviewClock = std::chrono::steady_clock;
+
+    std::vector<btrc::RC<btrc::PostProcessor>> post_processors_;
+    btrc::RC<Gamma> gamma_;
+
+    // update image
 
     std::mutex image_lock_;
     Image      image_;

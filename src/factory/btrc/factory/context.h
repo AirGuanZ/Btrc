@@ -6,6 +6,7 @@
 #include <btrc/core/light.h>
 #include <btrc/core/material.h>
 #include <btrc/core/medium.h>
+#include <btrc/core/post_processor.h>
 #include <btrc/core/renderer.h>
 #include <btrc/core/texture2d.h>
 #include <btrc/core/texture3d.h>
@@ -25,15 +26,18 @@ const char *get_object_typename();
     template<>                               \
     inline const char *get_object_typename<TYPE>() { return #NAME; }
 
-REGISTER_OBJECT_TYPENAME(Camera,       camera)
-REGISTER_OBJECT_TYPENAME(FilmFilter,   film_filter)
-REGISTER_OBJECT_TYPENAME(Geometry,     geometry)
-REGISTER_OBJECT_TYPENAME(Light,        light)
-REGISTER_OBJECT_TYPENAME(Material,     material)
-REGISTER_OBJECT_TYPENAME(Medium,       medium)
-REGISTER_OBJECT_TYPENAME(Renderer,     renderer)
-REGISTER_OBJECT_TYPENAME(Texture2D,    texture2d)
-REGISTER_OBJECT_TYPENAME(Texture3D,    texture3d)
+REGISTER_OBJECT_TYPENAME(Camera,        camera)
+REGISTER_OBJECT_TYPENAME(FilmFilter,    film_filter)
+REGISTER_OBJECT_TYPENAME(Geometry,      geometry)
+REGISTER_OBJECT_TYPENAME(Light,         light)
+REGISTER_OBJECT_TYPENAME(Material,      material)
+REGISTER_OBJECT_TYPENAME(Medium,        medium)
+REGISTER_OBJECT_TYPENAME(PostProcessor, post_processor)
+REGISTER_OBJECT_TYPENAME(Renderer,      renderer)
+REGISTER_OBJECT_TYPENAME(Texture2D,     texture2d)
+REGISTER_OBJECT_TYPENAME(Texture3D,     texture3d)
+
+#undef REGISTER_OBJECT_TYPENAME
 
 template<typename T> requires std::is_base_of_v<Object, T>
 class Creator
@@ -95,6 +99,7 @@ private:
         Light,
         Material,
         Medium,
+        PostProcessor,
         Renderer,
         Texture2D,
         Texture3D

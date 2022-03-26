@@ -1,5 +1,4 @@
 #include <btrc/builtin/film_filter/box.h>
-#include <btrc/builtin/denoise/optix_denoiser.h>
 #include <btrc/builtin/renderer/wavefront/generate.h>
 #include <btrc/builtin/renderer/wavefront/medium.h>
 #include <btrc/builtin/renderer/wavefront/path_state.h>
@@ -36,8 +35,6 @@ struct WavefrontPathTracer::Impl
     wfpt::ShadowPipeline        shadow;
     wfpt::PreviewImageGenerator preview;
     wfpt::VolumeManager         volumes;
-
-    OptixAIDenoiser denoiser;
 
     RC<cuda::Buffer<wfpt::StateCounters>> state_counters;
 
@@ -183,16 +180,9 @@ void WavefrontPathTracer::recompile()
     // path state
 
     impl_->path_state.initialize(params.state_count);
-
-    // denoiser
-
-    impl_->denoiser = OptixAIDenoiser(
-        *impl_->optix_ctx,
-        impl_->params.albedo, impl_->params.normal,
-        impl_->width, impl_->height);
 }
 
-Renderer::RenderResult WavefrontPathTracer::render() const
+Renderer::RenderResult WavefrontPathTracer::render()
 {
     impl_->generate.clear();
     impl_->path_state.clear();
@@ -354,59 +344,15 @@ Renderer::RenderResult WavefrontPathTracer::render() const
 
     new_preview_image();
 
-    auto value = Image<Vec4f>(impl_->width, impl_->height);
-    auto weight = Image<float>(impl_->width, impl_->height);
-    auto albedo = params.albedo ? Image<Vec4f>(impl_->width, impl_->height) : Image<Vec4f>();
-    auto normal = params.normal ? Image<Vec4f>(impl_->width, impl_->height) : Image<Vec4f>();
-
-    impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).to_cpu(&value(0, 0).x);
-    impl_->film.get_float_output(Film::OUTPUT_WEIGHT).to_cpu(&weight(0, 0));
-    if(params.albedo)
-        impl_->film.get_float3_output(Film::OUTPUT_ALBEDO).to_cpu(&albedo(0, 0).x);
-    if(params.normal)
-        impl_->film.get_float3_output(Film::OUTPUT_NORMAL).to_cpu(&normal(0, 0).x);
-
-    for(int i = 0; i < impl_->width * impl_->height; ++i)
-    {
-        float &f = weight.data()[i];
-        if(f > 0)
-            f = 1.0f / f;
-    }
-
+    update_device_preview_data();
     RenderResult result;
-    result.value = Image<Vec3f>(impl_->width, impl_->height);
-    for(int i = 0; i < impl_->width * impl_->height; ++i)
-    {
-        const Vec4f &sum = value.data()[i];
-        const float ratio = weight.data()[i];
-        result.value.data()[i] = ratio * sum.xyz();
-    }
-
-    if(params.albedo)
-    {
-        result.albedo = Image<Vec3f>(impl_->width, impl_->height);
-        for(int i = 0; i < impl_->width * impl_->height; ++i)
-        {
-            const Vec4f &sum = albedo.data()[i];
-            const float ratio = weight.data()[i];
-            result.albedo.data()[i] = ratio * sum.xyz();
-        }
-    }
-    if(params.normal)
-    {
-        result.normal = Image<Vec3f>(impl_->width, impl_->height);
-        for(int i = 0; i < impl_->width * impl_->height; ++i)
-        {
-            const Vec4f &sum = normal.data()[i];
-            const float ratio = weight.data()[i];
-            result.normal.data()[i] = 0.5f + 0.5f * ratio * sum.xyz();
-        }
-    }
-
+    result.color.swap(impl_->device_preview_image);
+    result.albedo.swap(impl_->device_preview_albedo);
+    result.normal.swap(impl_->device_preview_normal);
     return result;
 }
 
-void WavefrontPathTracer::new_preview_image() const
+void WavefrontPathTracer::update_device_preview_data()
 {
     const size_t texel_count = impl_->width * impl_->height;
     if(impl_->device_preview_image.get_size() != texel_count)
@@ -417,13 +363,6 @@ void WavefrontPathTracer::new_preview_image() const
         impl_->film.get_float3_output(Film::OUTPUT_RADIANCE).as<Vec4f>(),
         impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
         impl_->device_preview_image.get());
-
-    if(!impl_->reporter->need_denoise())
-    {
-        impl_->reporter->new_preview(
-            impl_->device_preview_image.get(), impl_->width, impl_->height);
-        return;
-    }
 
     if(impl_->params.albedo)
     {
@@ -448,14 +387,17 @@ void WavefrontPathTracer::new_preview_image() const
             impl_->film.get_float_output(Film::OUTPUT_WEIGHT).get(),
             impl_->device_preview_normal.get());
     }
+}
 
-    impl_->denoiser.denoise(
+void WavefrontPathTracer::new_preview_image()
+{
+    update_device_preview_data();
+    impl_->reporter->new_preview(
         impl_->device_preview_image.get(),
         impl_->device_preview_albedo.get(),
-        impl_->device_preview_normal.get());
-
-    impl_->reporter->new_preview(
-        impl_->denoiser.get_output_buffer(), impl_->width, impl_->height);
+        impl_->device_preview_normal.get(),
+        impl_->width,
+        impl_->height);
 }
 
 RC<Renderer> WavefrontPathTracerCreator::create(RC<const factory::Node> node, factory::Context &context)

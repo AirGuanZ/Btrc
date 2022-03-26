@@ -20,20 +20,19 @@ public:
 
     virtual bool need_preview() const { return false; }
 
-    virtual void new_preview(const Vec4f *device_preview, int width, int height) { }
+    virtual void new_preview(
+        Vec4f *device_preview,
+        Vec4f *device_albedo,
+        Vec4f *device_normal,
+        int width, int height) { }
 
     void set_fast_preview(bool enable_fast_preview) { fast_preview_ = enable_fast_preview; }
 
     bool need_fast_preview() const { return fast_preview_; }
 
-    void set_denoise(bool denoise) { denoise_ = denoise; }
-
-    bool need_denoise() const { return denoise_; }
-
 private:
 
     std::atomic<bool> fast_preview_ = false;
-    std::atomic<bool> denoise_ = false;
 };
 
 BTRC_END

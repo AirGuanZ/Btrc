@@ -11,6 +11,7 @@
 #include <btrc/core/scene.h>
 #include <btrc/factory/context.h>
 #include <btrc/factory/node/parser.h>
+#include <btrc/factory/post_processor.h>
 #include <btrc/factory/scene.h>
 #include <btrc/utils/cuda/context.h>
 #include <btrc/utils/optix/context.h>
@@ -33,9 +34,10 @@ struct BtrcScene
 
     RC<factory::Node> root;
 
-    RC<Scene>    scene;
-    RC<Camera>   camera;
-    RC<Renderer> renderer;
+    RC<Scene>                      scene;
+    RC<Camera>                     camera;
+    RC<Renderer>                   renderer;
+    std::vector<RC<PostProcessor>> post_processors;
 };
 
 struct Rect2D
@@ -94,6 +96,11 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
     result.renderer->set_film(result.width, result.height);
     result.renderer->set_scene(result.scene);
 
+    std::cout << "create post processors" << std::endl;
+
+    result.post_processors = parse_post_processors(
+        result.root->find_child_node("post_processors"), *result.object_context);
+
     std::cout << "compile kernel" << std::endl;
 
     prepare_scene(result.renderer, result.scene);
@@ -135,31 +142,20 @@ Rect2D compute_preview_image_rect(const Vec2f &window_size, const Vec2f &scene_s
 
 void display_image(GLuint tex_handle, const Rect2D &rect)
 {
-    if(rect.lower.x == rect.upper.x)
+    if(rect.lower.x == rect.upper.x || rect.lower.y == rect.upper.y)
         return;
     const auto im_tex = reinterpret_cast<ImTextureID>(static_cast<size_t>(tex_handle));
     ImGui::SetCursorPos({ rect.lower.x, rect.lower.y });
     ImGui::Image(im_tex, ImVec2({ rect.upper.x - rect.lower.x, rect.upper.y - rect.lower.y }));
 }
 
-void save_images(const Renderer::RenderResult &result, const RC<factory::Node> &root)
+void execute_post_processors(
+    Renderer::RenderResult &result,
+    const std::vector<RC<PostProcessor>> &post_processors,
+    int width, int height)
 {
-    const auto value_filename = root->parse_child_or<std::string>("value_filename", "output.exr");
-    std::cout << "write value to " << value_filename << std::endl;
-    result.value.save(value_filename);
-
-    if(result.albedo)
-    {
-        const auto albedo_filename = root->parse_child_or<std::string>("albedo_filename", "output_albedo.png");
-        std::cout << "write albedo to " << albedo_filename << std::endl;
-        result.albedo.save(albedo_filename);
-    }
-    if(result.normal)
-    {
-        const auto normal_filename = root->parse_child_or<std::string>("normal_filename", "output_normal.png");
-        std::cout << "write normal to " << normal_filename << std::endl;
-        result.normal.save(normal_filename);
-    }
+    for(auto &p : post_processors)
+        p->process(result.color, result.albedo, result.normal, width, height);
 }
 
 void run(const std::string &config_filename)
@@ -174,6 +170,7 @@ void run(const std::string &config_filename)
     auto reporter = newRC<GUIPreviewer>();
     reporter->set_preview_interval(0);
     reporter->set_fast_preview(true);
+    reporter->set_post_processors(scene.post_processors);
 
     GLuint tex_handle = 0;
     glCreateTextures(GL_TEXTURE_2D, 1, &tex_handle);
@@ -183,9 +180,6 @@ void run(const std::string &config_filename)
 
     CameraController camera_controller(std::dynamic_pointer_cast<builtin::PinholeCamera>(scene.camera));
     CameraController::ControlParams controller_params;
-
-    bool denoise = true;
-    reporter->set_denoise(denoise);
 
     constexpr int MIN_UPDATED_IMAGE_COUNT = 2;
     int updated_image_count = 0;
@@ -237,14 +231,15 @@ void run(const std::string &config_filename)
         bool open_still_rendering_window = false;
         if(ImGui::BeginMainMenuBar())
         {
-            if(ImGui::MenuItem("Save"))
+            if(ImGui::MenuItem("Execute Post Processors"))
             {
                 if(!scene.renderer->is_rendering())
                 {
                     if(scene.renderer->is_waitable())
                     {
                         auto result = scene.renderer->wait_async();
-                        save_images(result, scene.root);
+                        execute_post_processors(
+                            result, scene.post_processors, scene.width, scene.height);
                     }
                 }
                 else
@@ -259,17 +254,6 @@ void run(const std::string &config_filename)
                 ImGui::SliderFloat("Distance Speed", &controller_params.dist_adjust_speed, 0.05f, 0.3f);
                 ImGui::PopStyleColor();
                 ImGui::EndMenu();
-            }
-
-            const char *denoise_button = denoise ? "Disable Denoise###DenoiseButton"
-                                                 : "Enable Denoise###DenoiseButton";
-            if(ImGui::MenuItem(denoise_button))
-            {
-                denoise = !denoise;
-                reporter->set_denoise(denoise);
-                if(scene.renderer->is_waitable())
-                    scene.renderer->stop_async();
-                restart_render();
             }
         }
         ImGui::EndMainMenuBar();
@@ -316,7 +300,7 @@ void run(const std::string &config_filename)
             }
         }
 
-        if(reporter->get_percentage() > 3)
+        if(reporter->get_percentage() > 2)
             reporter->set_preview_interval(1000);
 
         {
