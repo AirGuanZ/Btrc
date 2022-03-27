@@ -707,6 +707,11 @@ public:
     }
 };
 
+void DisneyMaterial::set_shadow_terminator_term(bool enable)
+{
+    shadow_terminator_term_ = enable;
+}
+
 void DisneyMaterial::set_base_color(RC<Texture2D> tex)
 {
     base_color_ = std::move(tex);
@@ -803,7 +808,7 @@ RC<Shader> DisneyMaterial::create_shader(CompileContext &cc, const SurfacePoint 
         anisotropic, sheen, sheen_tint, clearcoat, clearcoat_gloss,
         transmission, transmission_roughness, ior);
 
-    auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame);
+    auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame, shadow_terminator_term_);
     shader->add_component(1, std::move(comp));
     return shader;
 }
@@ -818,6 +823,8 @@ RC<Material> DisneyMaterialCreator::create(RC<const factory::Node> node, factory
         result->set_value(default_value);
         return result;
     };
+
+    const bool shadow_terminator_term = node->parse_child_or("shadow_terminator_term", true);
 
     auto base_color      = context.create<Texture2D>(node->child_node("color"));
     auto metallic        = context.create<Texture2D>(node->child_node("metallic"));
@@ -840,6 +847,7 @@ RC<Material> DisneyMaterialCreator::create(RC<const factory::Node> node, factory
     normal->load(node, context);
 
     auto result = newRC<DisneyMaterial>();
+    result->set_shadow_terminator_term(shadow_terminator_term);
     result->set_base_color(std::move(base_color));
     result->set_metallic(std::move(metallic));
     result->set_roughness(std::move(roughness));

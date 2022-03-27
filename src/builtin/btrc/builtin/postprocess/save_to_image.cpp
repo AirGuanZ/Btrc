@@ -54,7 +54,7 @@ void SaveToImage::process(Vec4f *color, Vec4f *albedo, Vec4f *normal, int width,
     if(normal && !normal_filename_.empty())
     {
         throw_on_error(cudaMemcpy(
-            image.data(), albedo,
+            image.data(), normal,
             sizeof(Vec4f) * texel_count,
             cudaMemcpyDeviceToHost));
         image.save(normal_filename_);

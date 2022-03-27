@@ -68,7 +68,11 @@ class BSDFAggregate : public Shader
 {
 public:
 
-    BSDFAggregate(CompileContext &cc, RC<const Object> material, ShaderFrame frame);
+    BSDFAggregate(
+        CompileContext  &cc,
+        RC<const Object> material,
+        ShaderFrame      frame,
+        bool             shadow_terminator_term);
 
     void add_component(f32 sample_weight, Box<const BSDFComponent> comp);
 
@@ -98,6 +102,8 @@ public:
 
 private:
 
+    f32 eval_shadow_terminator_term(ref<CVec3f> wi) const;
+
     struct Component
     {
         f32 sample_weight;
@@ -110,6 +116,7 @@ private:
     RC<const Object>       material_;
     ShaderFrame            frame_;
     std::vector<Component> components_;
+    bool                   shadow_terminator_term_;
 };
 
 // ========================== impl ==========================

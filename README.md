@@ -10,9 +10,9 @@ Work in progress...
 - [x] filter importance sampling
 - [x] disney bsdf
 - [x] halton sampler
+- [x] shadow terminator
 - [ ] separable bssrdf
 - [ ] multi-scatter ggx
-- [ ] shadow terminator
 - [ ] radiance cache
 - [ ] displacement map
 - [ ] lightweight photon mapping

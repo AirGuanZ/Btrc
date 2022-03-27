@@ -3,6 +3,11 @@
 
 BTRC_BUILTIN_BEGIN
 
+void Metal::set_shadow_terminator_term(bool enable)
+{
+    shadow_terminator_term_ = enable;
+}
+
 void Metal::set_r0(RC<Texture2D> R0)
 {
     R0_ = std::move(R0);
@@ -37,13 +42,15 @@ RC<Shader> Metal::create_shader(CompileContext &cc, const SurfacePoint &inct) co
     var anisotropic = anisotropic_->sample_float(cc, inct);
     MicrofacetReflectionComponentImpl closure(fresnel, roughness, anisotropic);
 
-    auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame);
+    auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame, shadow_terminator_term_);
     shader->add_closure(1, "specular", closure);
     return shader;
 }
 
 RC<Material> MetalCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
+    const bool shadow_terminator_term = node->parse_child_or("shadow_terminator_term", true);
+
     auto r0 = context.create<Texture2D>(node->child_node("color"));
     auto roughness = context.create<Texture2D>(node->child_node("roughness"));
 
@@ -61,6 +68,7 @@ RC<Material> MetalCreator::create(RC<const factory::Node> node, factory::Context
     normal->load(node, context);
 
     auto result = newRC<Metal>();
+    result->set_shadow_terminator_term(shadow_terminator_term);
     result->set_r0(std::move(r0));
     result->set_roughness(std::move(roughness));
     result->set_anisotropic(std::move(anisotropic));

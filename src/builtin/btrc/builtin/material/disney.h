@@ -10,6 +10,8 @@ class DisneyMaterial : public Material
 {
 public:
 
+    void set_shadow_terminator_term(bool enable);
+
     void set_base_color(RC<Texture2D> tex);
 
     void set_metallic(RC<Texture2D> tex);
@@ -42,6 +44,7 @@ public:
 
 private:
 
+    bool shadow_terminator_term_ = true;
     BTRC_OBJECT(Texture2D, base_color_);
     BTRC_OBJECT(Texture2D, metallic_);
     BTRC_OBJECT(Texture2D, roughness_);

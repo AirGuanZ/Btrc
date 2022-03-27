@@ -11,6 +11,8 @@ class Diffuse : public Material
 {
 public:
 
+    void set_shadow_terminator_term(bool enable);
+
     void set_albedo(RC<Texture2D> albedo);
 
     void set_normal(RC<NormalMap> normal);
@@ -19,6 +21,7 @@ public:
 
 private:
 
+    bool shadow_terminator_term_ = true;
     BTRC_OBJECT(Texture2D, albedo_);
     BTRC_OBJECT(NormalMap, normal_);
 };

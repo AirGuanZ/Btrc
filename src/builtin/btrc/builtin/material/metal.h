@@ -11,6 +11,8 @@ class Metal : public Material
 {
 public:
 
+    void set_shadow_terminator_term(bool enable);
+
     void set_r0(RC<Texture2D> R0);
 
     void set_roughness(RC<Texture2D> roughness);
@@ -23,6 +25,7 @@ public:
 
 private:
 
+    bool shadow_terminator_term_ = true;
     BTRC_OBJECT(Texture2D, R0_);
     BTRC_OBJECT(Texture2D, roughness_);
     BTRC_OBJECT(Texture2D, anisotropic_);

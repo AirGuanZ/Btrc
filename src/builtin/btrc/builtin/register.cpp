@@ -19,6 +19,7 @@
 #include <btrc/builtin/postprocess/tonemap.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
+#include <btrc/builtin/texture2d/math.h>
 #include <btrc/builtin/texture2d/transform.h>
 #include <btrc/builtin/texture3d/array3d.h>
 #include <btrc/builtin/texture3d/binary.h>
@@ -81,6 +82,10 @@ void register_builtin_creators(factory::Factory<Renderer> &factory)
 void register_builtin_creators(factory::Factory<Texture2D> &factory)
 {
     factory.add_creator(newBox<Array2DCreator>());
+    factory.add_creator(newBox<Texture2DBinaryOperatorCreator>("add", Texture2DBinaryOperator::Type::Add));
+    factory.add_creator(newBox<Texture2DBinaryOperatorCreator>("sub", Texture2DBinaryOperator::Type::Sub));
+    factory.add_creator(newBox<Texture2DBinaryOperatorCreator>("mul", Texture2DBinaryOperator::Type::Mul));
+    factory.add_creator(newBox<Texture2DBinaryOperatorCreator>("div", Texture2DBinaryOperator::Type::Div));
     factory.add_creator(newBox<TransformTexture2DCreator>());
 }
 

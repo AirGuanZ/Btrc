@@ -2,8 +2,12 @@
 
 BTRC_BUILTIN_BEGIN
 
-BSDFAggregate::BSDFAggregate(CompileContext &cc, RC<const Object> material, ShaderFrame frame)
-    : cc_(cc), material_(std::move(material)), frame_(frame)
+BSDFAggregate::BSDFAggregate(
+    CompileContext  &cc,
+    RC<const Object> material,
+    ShaderFrame      frame,
+    bool             shadow_terminator_term)
+    : cc_(cc), material_(std::move(material)), frame_(frame), shadow_terminator_term_(shadow_terminator_term)
 {
     sum_weight_ = 0.0f;
     albedo_ = CSpectrum::zero();
@@ -68,7 +72,9 @@ Shader::SampleResult BSDFAggregate::sample(
     {
         result.dir = frame_.shading.local_to_global(result.dir);
         result.pdf = selected_comp_weight * result.pdf / sum_weight_;
-        result.bsdf = result.bsdf * frame_.correct_shading_energy(result.dir);
+        var corr_factor = frame_.correct_shading_energy(result.dir);
+        var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
+        result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
         $exit_scope;
     };
 
@@ -90,7 +96,8 @@ Shader::SampleResult BSDFAggregate::sample(
     result.dir = frame_.shading.local_to_global(lwi);
     result.pdf = pdf / sum_weight_;
     var corr_factor = frame_.correct_shading_energy(result.dir);
-    result.bsdf = result.bsdf * corr_factor;
+    var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
+    result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
     return result;
 }
 
@@ -111,7 +118,8 @@ CSpectrum BSDFAggregate::eval(
     for(auto &c : components_)
         result = result + c.component->eval(cc, lwi, lwo, mode);
     var corr_factor = frame_.correct_shading_energy(wi);
-    result = result * corr_factor;
+    var shadow_terminator_term = eval_shadow_terminator_term(wi);
+    result = result * corr_factor * shadow_terminator_term;
     return result;
 }
 
@@ -142,6 +150,17 @@ CSpectrum BSDFAggregate::albedo(CompileContext &cc) const
 CVec3f BSDFAggregate::normal(CompileContext &cc) const
 {
     return frame_.shading.z;
+}
+
+f32 BSDFAggregate::eval_shadow_terminator_term(ref<CVec3f> wi) const
+{
+    if(!shadow_terminator_term_)
+        return 1.0f;
+    var wgwi = dot(frame_.geometry.z, wi);
+    var wswi = dot(frame_.shading.z, wi);
+    var wgws = dot(frame_.geometry.z, frame_.shading.z);
+    var g = cstd::saturate(wgwi / (wswi * wgws));
+    return -g * g * g + g * g + g;
 }
 
 BTRC_BUILTIN_END
