@@ -61,6 +61,8 @@ HaltonSampler::HaltonSampler(const Vec2i &res, const CVec2u &pixel, i32 sample_i
         state_.halton_index = state_.halton_index % sample_stride;
     }
     state_.halton_index = state_.halton_index + u64(sample_index * sample_stride);
+
+    // skip the first 2 dimensions due to filter importance sampling
     state_.dimension = 2;
 }
 

@@ -68,8 +68,7 @@ Shader::SampleResult BSDFAggregate::sample(
     {
         result.dir = frame_.shading.local_to_global(result.dir);
         result.pdf = selected_comp_weight * result.pdf / sum_weight_;
-        var corr_factor = frame_.correct_shading_energy(result.dir);
-        result.bsdf = result.bsdf * corr_factor;
+        result.bsdf = result.bsdf * frame_.correct_shading_energy(result.dir);
         $exit_scope;
     };
 

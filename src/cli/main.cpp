@@ -61,9 +61,9 @@ void run(const std::string &scene_filename)
     renderer->set_scene(scene);
     renderer->set_reporter(newRC<builtin::ConsoleReporter>());
 
-    std::cout << "create post processots" << std::endl;
+    std::cout << "create post processors" << std::endl;
 
-    auto post_processors = parse_post_processors(root_node, btrc_context);
+    auto post_processors = parse_post_processors(root_node->find_child_node("post_processors"), btrc_context);
 
     std::cout << "commit objects" << std::endl;
 
