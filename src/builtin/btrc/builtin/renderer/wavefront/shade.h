@@ -14,7 +14,7 @@ namespace shade_pipeline_detail
 
     struct SOAParams
     {
-        IndependentSampler::State *sampler_state;
+        GlobalSampler::State *sampler_state;
 
         // per path
 
@@ -40,7 +40,7 @@ namespace shade_pipeline_detail
 
         int32_t *next_state_index;
 
-        IndependentSampler::State  *output_sampler_state;
+        GlobalSampler::State  *output_sampler_state;
 
         // ouput when active
 

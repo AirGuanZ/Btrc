@@ -18,6 +18,10 @@ public:
     explicit Vec2(T v);
 
     Vec2(T x, T y);
+
+    T operator[](size_t i) const;
+
+    T &operator[](size_t i);
 };
 
 using Vec2f = Vec2<float>;
@@ -72,6 +76,18 @@ Vec2<T>::Vec2(T x, T y)
     : x(x), y(y)
 {
     
+}
+
+template<typename T>
+T Vec2<T>::operator[](size_t i) const
+{
+    return *(&x + i);
+}
+
+template<typename T>
+T &Vec2<T>::operator[](size_t i)
+{
+    return *(&x + i);
 }
 
 template<typename T>

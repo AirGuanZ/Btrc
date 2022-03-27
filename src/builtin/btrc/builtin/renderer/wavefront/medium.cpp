@@ -47,8 +47,9 @@ void MediumPipeline::record_device_code(
         var ray_d_t1 = load_aligned(soa.ray_d_t1 + soa_index);
         var ray_d = ray_d_t1.xyz();
 
-        IndependentSampler sampler(soa.sampler_state[soa_index]);
-        
+        //IndependentSampler sampler(soa.sampler_state[soa_index]);
+        GlobalSampler sampler({ film.width(), film.height() }, soa.sampler_state[soa_index]);
+
         // resolve medium id
 
         CMediumID medium_id;

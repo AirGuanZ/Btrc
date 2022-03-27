@@ -83,7 +83,7 @@ namespace hash
     template<typename T, typename...Args>
     void hash_recursive_copy(ptr<u8> buf, T v, Args...args)
     {
-        constexpr size_t size = sizeof(cuj::dsl::cuj_to_cxx_t<T>);
+        constexpr size_t size = sizeof(cuj::dsl::cuj_to_cxx_t<cuj::dsl::remove_reference_t<T>>);
         cstd::memcpy(buf, v.address(), size);
         hash_recursive_copy(buf + size, args...);
     }
@@ -91,7 +91,7 @@ namespace hash
     template<typename...Args>
     u64 hash(Args...args)
     {
-        constexpr size_t sz = (sizeof(cuj::dsl::cuj_to_cxx_t<Args>) + ... + 0);
+        constexpr size_t sz = (sizeof(cuj::dsl::cuj_to_cxx_t<cuj::dsl::remove_reference_t<Args>>) + ... + 0);
         constexpr size_t n = (sz + 7) / 8;
         cuj::arr<u64, n> buf;
         hash_recursive_copy(cuj::bitcast<ptr<u8>>(buf[0].address()), args...);

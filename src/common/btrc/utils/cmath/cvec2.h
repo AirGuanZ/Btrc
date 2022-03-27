@@ -20,6 +20,7 @@ CUJ_PROXY_CLASS_EX(CVec2u, Vec2u, x, y)
     explicit CVec2u(u32 v = 0);
     CVec2u(u32 _x, u32 _y);
     CVec2u(const Vec2u &v);
+    ref<u32> operator[](i32 i) const;
 };
 
 inline CVec2f load_aligned(ptr<CVec2f> addr);
@@ -90,6 +91,11 @@ inline CVec2u::CVec2u(const Vec2u &v)
     : CVec2u(v.x, v.y)
 {
     
+}
+
+inline ref<u32> CVec2u::operator[](i32 i) const
+{
+    return *(x.address() + i);
 }
 
 inline CVec2f load_aligned(ptr<CVec2f> addr)

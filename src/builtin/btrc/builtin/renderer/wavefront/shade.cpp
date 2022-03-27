@@ -114,7 +114,8 @@ void ShadePipeline::record_device_code(
 
         var scattered = is_path_scattered(path_flag);
 
-        IndependentSampler sampler(soa_params.sampler_state[soa_index]);
+        //IndependentSampler sampler(soa_params.sampler_state[soa_index]);
+        GlobalSampler sampler({ film.width(), film.height() }, soa_params.sampler_state[soa_index]);
 
         i32 next_state_index;
         $if(scattered)

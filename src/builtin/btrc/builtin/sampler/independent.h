@@ -23,9 +23,9 @@ public:
     using State = independent_sampler_detail::State;
     using CState = independent_sampler_detail::CState;
 
-    explicit IndependentSampler(ref<CState> state);
+    IndependentSampler(const Vec2i &res, ref<CState> state);
 
-    IndependentSampler(u64 pixel_index, u64 sample_index);
+    IndependentSampler(const Vec2i &res, const CVec2u &pixel, i32 sample_index);
 
     void save(ptr<CState> p_state) const;
 

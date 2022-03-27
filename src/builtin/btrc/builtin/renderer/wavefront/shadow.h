@@ -1,5 +1,6 @@
 #pragma once
 
+#include <btrc/builtin/sampler/independent.h>
 #include <btrc/core/film.h>
 #include <btrc/core/scene.h>
 #include <btrc/core/spectrum.h>

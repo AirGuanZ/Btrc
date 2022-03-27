@@ -15,7 +15,7 @@ namespace medium_pipeline_detail
     {
         // rng is updated if not scattered
 
-        IndependentSampler::State *sampler_state;
+        GlobalSampler::State *sampler_state;
 
         // per path
 
@@ -45,11 +45,11 @@ namespace medium_pipeline_detail
 
         int32_t *next_state_index;
 
-        IndependentSampler::State *output_sampler_state;
-        Spectrum                  *output_path_radiance;
-        Vec2u                     *output_pixel_coord;
-        int32_t                   *output_depth;
-        Spectrum                  *output_beta;
+        GlobalSampler::State *output_sampler_state;
+        Spectrum             *output_path_radiance;
+        Vec2u                *output_pixel_coord;
+        int32_t              *output_depth;
+        Spectrum             *output_beta;
         
         Vec2u    *output_shadow_pixel_coord;
         Vec4f    *output_shadow_ray_o_medium_id;

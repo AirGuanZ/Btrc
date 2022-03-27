@@ -14,15 +14,15 @@ namespace generate_pipeline_detail
 
     struct SOAParams
     {
-        IndependentSampler::State *output_sampler_state;
-        Vec2u                     *output_pixel_coord;
-        Vec4f                     *output_ray_o_medium_id;
-        Vec4f                     *output_ray_d_t1;
-        Vec2u                     *output_ray_time_mask;
-        Spectrum                  *output_beta;
-        Spectrum                  *output_beta_le_bsdf_pdf;
-        int                       *output_depth;
-        Spectrum                  *output_path_radiance;
+        GlobalSampler::State *output_sampler_state;
+        Vec2u                *output_pixel_coord;
+        Vec4f                *output_ray_o_medium_id;
+        Vec4f                *output_ray_d_t1;
+        Vec2u                *output_ray_time_mask;
+        Spectrum             *output_beta;
+        Spectrum             *output_beta_le_bsdf_pdf;
+        int                  *output_depth;
+        Spectrum             *output_path_radiance;
     };
 
     CUJ_PROXY_CLASS(

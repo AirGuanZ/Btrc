@@ -2,6 +2,7 @@
 
 #include <cuj.h>
 
+#include <btrc/builtin/sampler/halton.h>
 #include <btrc/builtin/sampler/independent.h>
 
 #define BTRC_WFPT_BEGIN BTRC_BUILTIN_BEGIN namespace wfpt {
@@ -36,5 +37,8 @@ struct ShadeParams
     float rr_threshold = 0.2f;
     float rr_cont_prob = 0.6f;
 };
+
+//using GlobalSampler = IndependentSampler;
+using GlobalSampler = HaltonSampler;
 
 BTRC_WFPT_END

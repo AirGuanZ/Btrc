@@ -58,7 +58,7 @@ namespace
             var pixel_coord = load_aligned(launch_params.pixel_coord + launch_idx);
             var beta = load_aligned(launch_params.beta_li + launch_idx);
 
-            IndependentSampler sampler(launch_params.sampler_state[launch_idx]);
+            IndependentSampler sampler({ film.width(), film.height() }, launch_params.sampler_state[launch_idx]);
 
             var ray_o = optix::get_ray_o();
             var ray_d = optix::get_ray_d();

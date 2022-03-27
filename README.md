@@ -9,9 +9,12 @@ Work in progress...
 - [x] volume primitive
 - [x] filter importance sampling
 - [x] disney bsdf
+- [x] halton sampler
 - [ ] separable bssrdf
-- [ ] separate rng dimensions & low-discrepancy samplers
+- [ ] multi-scatter ggx
+- [ ] shadow terminator
 - [ ] radiance cache
+- [ ] displacement map
 - [ ] lightweight photon mapping
 - [ ] many lights
 - [ ] path guiding

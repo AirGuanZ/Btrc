@@ -16,7 +16,7 @@ struct PathState
 
     void next_iteration();
 
-    cuda::Buffer<IndependentSampler::State> sampler_state;
+    cuda::Buffer<GlobalSampler::State> sampler_state;
 
     // ==== generate output ====
 
@@ -48,7 +48,7 @@ struct PathState
 
     // sampler state
 
-    cuda::Buffer<IndependentSampler::State> next_sampler_state;
+    cuda::Buffer<GlobalSampler::State> next_sampler_state;
 
     // path state
 

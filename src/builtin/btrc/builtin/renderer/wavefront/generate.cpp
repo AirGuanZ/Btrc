@@ -1,7 +1,6 @@
 #include <btrc/builtin/renderer/wavefront/generate.h>
 #include <btrc/core/medium.h>
 #include <btrc/utils/cmath/cmath.h>
-#include <btrc/utils/hash.h>
 
 BTRC_WFPT_BEGIN
 
@@ -41,12 +40,13 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
 
         i32 state_index = active_state_count + thread_idx;
         i32 pixel_index = i32((initial_pixel_index + i64(thread_idx)) % (film_res.x * film_res.y));
-        i64 sample_index = ((initial_pixel_index + i64(thread_idx)) / (film_res.x * film_res.y));
+        i32 sample_index = i32((initial_pixel_index + i64(thread_idx)) / (film_res.x * film_res.y));
 
-        IndependentSampler sampler(hash::hash(pixel_index), u64(sample_index * i64(65536)));
-        
         i32 pixel_x = pixel_index % film_res.x;
         i32 pixel_y = pixel_index / film_res.x;
+
+        //IndependentSampler sampler(hash::hash(pixel_index), u64(sample_index * i64(65536)));
+        GlobalSampler sampler(film_res, CVec2u(u32(pixel_x), u32(pixel_y)), i32(sample_index));
 
         var filter_sample = filter.sample(sampler);
 
