@@ -7,7 +7,7 @@ BTRC_BUILTIN_BEGIN
 
 CUJ_CLASS_BEGIN(MirrorShaderImpl)
 
-    CUJ_MEMBER_VARIABLE(ShaderFrame, frame)
+    CUJ_MEMBER_VARIABLE(ShaderFrame, raw_frame)
     CUJ_MEMBER_VARIABLE(CSpectrum,   color)
 
     Shader::SampleResult sample(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
@@ -15,12 +15,7 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
         $declare_scope;
         Shader::SampleResult result;
 
-        $if(frame.is_black_fringes(wo))
-        {
-            result = frame.sample_black_fringes(wo, sam, color);
-            $exit_scope;
-        };
-
+        var frame = raw_frame.flip_for_black_fringes(wo);
         var lwo = frame.shading.global_to_local(wo);
         $if(lwo.z <= 0)
         {
@@ -31,6 +26,12 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
 
         var lwi = CVec3f(-lwo.x, -lwo.y, lwo.z);
         var wi = frame.shading.local_to_global(lwi);
+        $if(frame.is_black_fringes(wi))
+        {
+            result.clear();
+            $exit_scope;
+        };
+
         var fr = schlick_approx(color, lwo.z);
         var bsdf = fr / lwo.z;
         var norm_factor = frame.correct_shading_energy(wi);
@@ -59,7 +60,7 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
 
     CVec3f normal() const
     {
-        return frame.shading.z;
+        return raw_frame.shading.z;
     }
 
     boolean is_delta() const
@@ -82,9 +83,9 @@ void Mirror::set_normal(RC<NormalMap> normal)
 RC<Shader> Mirror::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     MirrorShaderImpl impl;
-    impl.frame.geometry = inct.frame;
-    impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
-    impl.frame.shading = normal_->adjust_frame(cc, inct, impl.frame.shading);
+    impl.raw_frame.geometry = inct.frame;
+    impl.raw_frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
+    impl.raw_frame.shading = normal_->adjust_frame(cc, inct, impl.raw_frame.shading);
     impl.color = color_->sample_spectrum(cc, inct);
     return newRC<ShaderClosure<MirrorShaderImpl>>(as_shared(), impl);
 }

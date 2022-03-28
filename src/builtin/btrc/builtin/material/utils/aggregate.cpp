@@ -26,13 +26,8 @@ Shader::SampleResult BSDFAggregate::sample(
     $declare_scope;
     SampleResult result;
 
-    $if(frame_.is_black_fringes(wo))
-    {
-        result = frame_.sample_black_fringes(wo, sam, albedo(cc));
-        $exit_scope;
-    };
-
-    var lwo = normalize(frame_.shading.global_to_local(wo));
+    var frame = frame_.flip_for_black_fringes(wo);
+    var lwo = normalize(frame.shading.global_to_local(wo));
     var comp_selector = sum_weight_ * sam.x;
     var selected_comp = -1;
     var selected_comp_weight = 0.0f;
@@ -70,11 +65,18 @@ Shader::SampleResult BSDFAggregate::sample(
 
     $if(result.is_delta)
     {
-        result.dir = frame_.shading.local_to_global(result.dir);
-        result.pdf = selected_comp_weight * result.pdf / sum_weight_;
-        var corr_factor = frame_.correct_shading_energy(result.dir);
-        var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
-        result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
+        result.dir = frame.shading.local_to_global(result.dir);
+        $if(frame.is_black_fringes(result.dir))
+        {
+            result.clear();
+        }
+        $else
+        {
+            result.pdf = selected_comp_weight * result.pdf / sum_weight_;
+            var corr_factor = frame.correct_shading_energy(result.dir);
+            var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
+            result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
+        };
         $exit_scope;
     };
 
@@ -92,12 +94,19 @@ Shader::SampleResult BSDFAggregate::sample(
         };
     }
 
-    result.bsdf = bsdf;
-    result.dir = frame_.shading.local_to_global(lwi);
-    result.pdf = pdf / sum_weight_;
-    var corr_factor = frame_.correct_shading_energy(result.dir);
-    var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
-    result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
+    result.dir = frame.shading.local_to_global(lwi);
+    $if(frame.is_black_fringes(result.dir))
+    {
+        result.clear();
+    }
+    $else
+    {
+        result.bsdf = bsdf;
+        result.pdf = pdf / sum_weight_;
+        var corr_factor = frame.correct_shading_energy(result.dir);
+        var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
+        result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
+    };
     return result;
 }
 
@@ -107,17 +116,12 @@ CSpectrum BSDFAggregate::eval(
     $declare_scope;
     CSpectrum result;
 
-    $if(frame_.is_black_fringes(wi, wo))
-    {
-        result = frame_.eval_black_fringes(wi, wo, albedo(cc));
-        $exit_scope;
-    };
-
-    var lwi = normalize(frame_.shading.global_to_local(wi));
-    var lwo = normalize(frame_.shading.global_to_local(wo));
+    var frame = frame_.flip_for_black_fringes(wo);
+    var lwi = normalize(frame.shading.global_to_local(wi));
+    var lwo = normalize(frame.shading.global_to_local(wo));
     for(auto &c : components_)
         result = result + c.component->eval(cc, lwi, lwo, mode);
-    var corr_factor = frame_.correct_shading_energy(wi);
+    var corr_factor = frame.correct_shading_energy(wi);
     var shadow_terminator_term = eval_shadow_terminator_term(wi);
     result = result * corr_factor * shadow_terminator_term;
     return result;
@@ -128,13 +132,10 @@ f32 BSDFAggregate::pdf(
 {
     $declare_scope;
     f32 result;
-    $if(frame_.is_black_fringes(wi, wo))
-    {
-        result = frame_.pdf_black_fringes(wi, wo);
-        $exit_scope;
-    };
-    var lwi = normalize(frame_.shading.global_to_local(wi));
-    var lwo = normalize(frame_.shading.global_to_local(wo));
+
+    var frame = frame_.flip_for_black_fringes(wo);
+    var lwi = normalize(frame.shading.global_to_local(wi));
+    var lwo = normalize(frame.shading.global_to_local(wo));
     result = 0;
     for(auto &c : components_)
         result = result + c.sample_weight * c.component->pdf(cc, lwi, lwo, mode);

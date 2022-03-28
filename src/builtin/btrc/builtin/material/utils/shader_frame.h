@@ -23,6 +23,8 @@ CUJ_CLASS_BEGIN(ShaderFrame)
 
     f32 correct_shading_energy(ref<CVec3f> wi) const;
 
+    ShaderFrame flip_for_black_fringes(ref<CVec3f> wo) const;
+
 CUJ_CLASS_END
 
 BTRC_END

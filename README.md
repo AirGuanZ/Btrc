@@ -12,7 +12,7 @@ Work in progress...
 - [x] halton sampler
 - [x] shadow terminator
 - [ ] separable bssrdf
-- [ ] multi-scatter ggx
+- [ ] multi-scatter ggx, microfacet normalmap
 - [ ] radiance cache
 - [ ] displacement map
 - [ ] lightweight photon mapping

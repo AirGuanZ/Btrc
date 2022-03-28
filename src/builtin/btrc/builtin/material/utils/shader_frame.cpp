@@ -77,4 +77,20 @@ f32 ShaderFrame::correct_shading_energy(ref<CVec3f> wi) const
     return ret;
 }
 
+ShaderFrame ShaderFrame::flip_for_black_fringes(ref<CVec3f> wo) const
+{
+    ShaderFrame frame;
+    frame.geometry = geometry;
+    $if(is_black_fringes(wo))
+    {
+        var new_z = 2.0f * dot(shading.z, geometry.z) * geometry.z - shading.z;
+        frame.shading = shading.rotate_to_new_z(new_z);
+    }
+    $else
+    {
+        frame.shading = shading;
+    };
+    return frame;
+}
+
 BTRC_END

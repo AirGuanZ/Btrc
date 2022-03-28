@@ -31,7 +31,7 @@ namespace
 
 CUJ_CLASS_BEGIN(GlassShaderImpl)
 
-    CUJ_MEMBER_VARIABLE(ShaderFrame, frame)
+    CUJ_MEMBER_VARIABLE(ShaderFrame, raw_frame)
     CUJ_MEMBER_VARIABLE(CSpectrum,   color)
     CUJ_MEMBER_VARIABLE(f32,         ior)
 
@@ -40,12 +40,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
         $declare_scope;
         Shader::SampleResult result;
 
-        $if(frame.is_black_fringes(wo))
-        {
-            result = frame.sample_black_fringes(wo, sam, albedo());
-            $exit_scope;
-        };
-
+        var frame = raw_frame.flip_for_black_fringes(wo);
         var nwo = normalize(frame.shading.global_to_local(wo));
         var fr = dielectric_fresnel(ior, 1, nwo.z);
 
@@ -53,6 +48,11 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
         {
             var lwi = CVec3f(-nwo.x, -nwo.y, nwo.z);
             var wi = frame.shading.local_to_global(lwi);
+            $if(frame.is_black_fringes(wi))
+            {
+                result.clear();
+                $exit_scope;
+            };
             var bsdf = color * fr / cstd::abs(lwi.z);
             var norm = frame.correct_shading_energy(wi);
             result.dir = wi;
@@ -70,8 +70,13 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
             result.clear();
             $exit_scope;
         };
-        var corr = mode == TransportMode::Radiance ? eta * eta : f32(1);
         var wi = frame.shading.local_to_global(nwi);
+        $if(frame.is_black_fringes(wi))
+        {
+            result.clear();
+            $exit_scope;
+        };
+        var corr = mode == TransportMode::Radiance ? eta * eta : f32(1);
         var f = corr * color * (1.0f - fr) / cstd::abs(nwi.z);
         var pdf = 1.0f - fr;
         var norm = frame.correct_shading_energy(wi);
@@ -99,7 +104,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
 
     CVec3f normal() const
     {
-        return frame.shading.z;
+        return raw_frame.shading.z;
     }
 
 CUJ_CLASS_END
@@ -122,9 +127,9 @@ void Glass::set_normal(RC<NormalMap> normal)
 RC<Shader> Glass::create_shader(CompileContext &cc, const SurfacePoint &inct) const
 {
     GlassShaderImpl impl;
-    impl.frame.geometry = inct.frame;
-    impl.frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
-    impl.frame.shading = normal_->adjust_frame(cc, inct, impl.frame.shading);
+    impl.raw_frame.geometry = inct.frame;
+    impl.raw_frame.shading = inct.frame.rotate_to_new_z(inct.interp_z);
+    impl.raw_frame.shading = normal_->adjust_frame(cc, inct, impl.raw_frame.shading);
     impl.color = color_->sample_spectrum(cc, inct);
     impl.ior = ior_->sample_float(cc, inct);
     return newRC<ShaderClosure<GlassShaderImpl>>(as_shared(), impl);
