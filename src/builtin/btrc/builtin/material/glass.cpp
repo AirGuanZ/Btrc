@@ -48,7 +48,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
         {
             var lwi = CVec3f(-nwo.x, -nwo.y, nwo.z);
             var wi = frame.shading.local_to_global(lwi);
-            $if(frame.is_black_fringes(wi))
+            $if(raw_frame.is_black_fringes(wi))
             {
                 result.clear();
                 $exit_scope;
@@ -71,7 +71,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
             $exit_scope;
         };
         var wi = frame.shading.local_to_global(nwi);
-        $if(frame.is_black_fringes(wi))
+        $if(raw_frame.is_black_fringes(wi))
         {
             result.clear();
             $exit_scope;

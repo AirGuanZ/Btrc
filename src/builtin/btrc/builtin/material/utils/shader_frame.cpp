@@ -83,8 +83,9 @@ ShaderFrame ShaderFrame::flip_for_black_fringes(ref<CVec3f> wo) const
     frame.geometry = geometry;
     $if(is_black_fringes(wo))
     {
-        var new_z = 2.0f * dot(shading.z, geometry.z) * geometry.z - shading.z;
-        frame.shading = shading.rotate_to_new_z(new_z);
+        //var new_z = 2.0f * dot(shading.z, geometry.z) * geometry.z - shading.z;
+        //frame.shading = shading.rotate_to_new_z(new_z);
+        frame.shading = geometry;
     }
     $else
     {

@@ -26,7 +26,7 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
 
         var lwi = CVec3f(-lwo.x, -lwo.y, lwo.z);
         var wi = frame.shading.local_to_global(lwi);
-        $if(frame.is_black_fringes(wi))
+        $if(raw_frame.is_black_fringes(wi))
         {
             result.clear();
             $exit_scope;

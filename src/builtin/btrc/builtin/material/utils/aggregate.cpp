@@ -66,7 +66,7 @@ Shader::SampleResult BSDFAggregate::sample(
     $if(result.is_delta)
     {
         result.dir = frame.shading.local_to_global(result.dir);
-        $if(frame.is_black_fringes(result.dir))
+        $if(frame_.is_black_fringes(result.dir))
         {
             result.clear();
         }
@@ -95,7 +95,7 @@ Shader::SampleResult BSDFAggregate::sample(
     }
 
     result.dir = frame.shading.local_to_global(lwi);
-    $if(frame.is_black_fringes(result.dir))
+    $if(frame_.is_black_fringes(result.dir))
     {
         result.clear();
     }

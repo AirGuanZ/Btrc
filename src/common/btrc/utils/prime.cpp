@@ -2,7 +2,7 @@
 
 BTRC_BEGIN
 
-const std::array PRIME_TABLE =
+const std::array<int, PRIME_TABLE_SIZE> PRIME_TABLE =
 {
     2, 3, 5, 7, 11,
     // Subsequent prime numbers

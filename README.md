@@ -11,11 +11,11 @@ Work in progress...
 - [x] disney bsdf
 - [x] halton sampler
 - [x] shadow terminator
+- [ ] lightweight photon mapping
 - [ ] separable bssrdf
 - [ ] multi-scatter ggx, microfacet normalmap
 - [ ] radiance cache
 - [ ] displacement map
-- [ ] lightweight photon mapping
 - [ ] many lights
 - [ ] path guiding
 

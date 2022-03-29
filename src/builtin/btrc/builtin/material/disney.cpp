@@ -558,7 +558,7 @@ public:
         auto handle_bad_sample = [&]
         {
             var v = result.bsdf * cstd::abs(result.dir.z) / result.pdf;
-            $if(cstd::abs(cstd::max(cstd::max(v.r, v.g), v.b)) > 10)
+            $if(cstd::max(cstd::max(v.r, v.g), v.b) > 10)
             {
                 result.clear();
             };
@@ -581,8 +581,7 @@ public:
             };
 
             CVec3f lwi;
-            f32 macro_F = dielectric_fresnel(ior_, 1, lwo.z);
-            macro_F = cstd::clamp(macro_F, 0.1f, 0.9f);
+            var macro_F = cstd::clamp(dielectric_fresnel(ior_, 1, lwo.z), 0.1f, 0.9f);
             $if(sam.x >= macro_F)
             {
                 lwi = sample_transmission(lwo, CVec2f(sam.y, sam.z));
@@ -612,7 +611,6 @@ public:
         var new_sam = CVec2f(sam.y, sam.z);
 
         CVec3f lwi;
-
         $if(sam_selector < diffuse_weight_)
         {
             lwi = sample_diffuse(new_sam);
@@ -672,8 +670,8 @@ public:
                 result = 0;
                 $exit_scope;
             };
-            var macro_F = dielectric_fresnel(ior_, 1, lwo.z);
-            macro_F = cstd::clamp(macro_F, 0.1f, 0.9f);
+
+            var macro_F = cstd::clamp(dielectric_fresnel(ior_, 1, lwo.z), 0.1f, 0.9f);
             $if(lwi.z > 0)
             {
                 result = (1.0f - macro_F) * pdf_transmission(lwi, lwo);
