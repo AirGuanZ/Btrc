@@ -24,6 +24,7 @@
 #include "window.h"
 
 using namespace btrc;
+using namespace gui;
 
 struct BtrcScene
 {

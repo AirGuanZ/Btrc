@@ -2,7 +2,10 @@
 
 #include <btrc/core/post_processor.h>
 #include <btrc/factory/context.h>
+#include <btrc/gui/common.h>
 #include <btrc/utils/cuda/module.h>
+
+BTRC_GUI_BEGIN
 
 class Gamma : public btrc::PostProcessor
 {
@@ -23,3 +26,5 @@ private:
 
     btrc::cuda::Module module_;
 };
+
+BTRC_GUI_END

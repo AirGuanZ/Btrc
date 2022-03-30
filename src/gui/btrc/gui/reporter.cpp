@@ -4,6 +4,8 @@
 
 #include "reporter.h"
 
+BTRC_GUI_BEGIN
+
 void GUIPreviewer::new_stage(std::string_view name)
 {
     progress_ = 0.0f;
@@ -26,9 +28,9 @@ bool GUIPreviewer::need_preview() const
 }
 
 void GUIPreviewer::new_preview(
-    btrc::Vec4f *device_preview,
-    btrc::Vec4f *device_albedo,
-    btrc::Vec4f *device_normal,
+    Vec4f *device_preview,
+    Vec4f *device_albedo,
+    Vec4f *device_normal,
     int width, int height)
 {
     if(!device_preview)
@@ -36,21 +38,21 @@ void GUIPreviewer::new_preview(
 
     for(auto &p : post_processors_)
     {
-        if(p->get_execution_policy() == btrc::PostProcessor::ExecutionPolicy::Always)
+        if(p->get_execution_policy() == PostProcessor::ExecutionPolicy::Always)
             p->process(device_preview, device_albedo, device_normal, width, height);
     }
 
     if(!gamma_)
-        gamma_ = btrc::newRC<Gamma>();
+        gamma_ = newRC<Gamma>();
     gamma_->process(device_preview, device_albedo, device_normal, width, height);
 
     {
         std::lock_guard lock(image_lock_);
         if(image_.width() != width || image_.height() != height)
             image_ = Image(width, height);
-        btrc::throw_on_error(cudaMemcpy(
+        throw_on_error(cudaMemcpy(
             image_.data(), device_preview,
-            sizeof(btrc::Vec4f) * width * height,
+            sizeof(Vec4f) * width * height,
             cudaMemcpyDeviceToHost));
         dirty_flag_ = true;
     }
@@ -63,7 +65,7 @@ void GUIPreviewer::set_preview_interval(int ms)
     preview_interval_ms_ = ms;
 }
 
-void GUIPreviewer::set_post_processors(std::vector<btrc::RC<btrc::PostProcessor>> post_processors)
+void GUIPreviewer::set_post_processors(std::vector<RC<PostProcessor>> post_processors)
 {
     post_processors_ = std::move(post_processors);
 }
@@ -72,3 +74,5 @@ float GUIPreviewer::get_percentage() const
 {
     return progress_;
 }
+
+BTRC_GUI_END

@@ -1,6 +1,7 @@
+#include <btrc/gui/camera_controller.h>
 #include <btrc/utils/local_angle.h>
 
-#include "camera_controller.h"
+BTRC_GUI_BEGIN
 
 CameraController::CameraController(RC<builtin::PinholeCamera> camera)
     : camera_(std::move(camera))
@@ -116,3 +117,5 @@ void CameraController::rotate(const Vec2f &old_cursor, const Vec2f &new_cursor, 
 
     camera_->set_eye(dst - dist * new_dir);
 }
+
+BTRC_GUI_END

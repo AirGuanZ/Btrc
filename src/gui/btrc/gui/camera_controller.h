@@ -1,8 +1,9 @@
 #pragma once
 
 #include <btrc/builtin/camera/pinhole.h>
+#include <btrc/gui/common.h>
 
-#include "common.h"
+BTRC_GUI_BEGIN
 
 class CameraController
 {
@@ -38,3 +39,5 @@ private:
 
     Vec2f last_cursor_pos_;
 };
+
+BTRC_GUI_END

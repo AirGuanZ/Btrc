@@ -7,11 +7,13 @@
 
 #include "./gamma.h"
 
-class GUIPreviewer : public btrc::Reporter
+BTRC_GUI_BEGIN
+
+class GUIPreviewer : public Reporter
 {
 public:
 
-    using Image = btrc::Image<btrc::Vec4f>;
+    using Image = Image<Vec4f>;
 
     void new_stage(std::string_view name) override;
 
@@ -22,14 +24,14 @@ public:
     bool need_preview() const override;
 
     void new_preview(
-        btrc::Vec4f *device_preview,
-        btrc::Vec4f *device_albedo,
-        btrc::Vec4f *device_normal,
+        Vec4f *device_preview,
+        Vec4f *device_albedo,
+        Vec4f *device_normal,
         int width, int height) override;
 
     void set_preview_interval(int ms);
 
-    void set_post_processors(std::vector<btrc::RC<btrc::PostProcessor>> post_processors);
+    void set_post_processors(std::vector<RC<PostProcessor>> post_processors);
 
     template<typename F>
     void access_image(const F &f);
@@ -43,8 +45,8 @@ private:
 
     using PreviewClock = std::chrono::steady_clock;
 
-    std::vector<btrc::RC<btrc::PostProcessor>> post_processors_;
-    btrc::RC<Gamma> gamma_;
+    std::vector<RC<PostProcessor>> post_processors_;
+    RC<Gamma> gamma_;
 
     // update image
 
@@ -76,3 +78,5 @@ void GUIPreviewer::access_dirty_image(const F &f)
         dirty_flag_ = false;
     }
 }
+
+BTRC_GUI_END

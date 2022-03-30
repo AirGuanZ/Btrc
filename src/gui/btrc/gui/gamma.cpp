@@ -1,8 +1,9 @@
+#include <btrc/gui/gamma.h>
 #include <btrc/utils/cmath/cmath.h>
 #include <btrc/utils/file.h>
 #include <btrc/utils/ptx_cache.h>
 
-#include "./gamma.h"
+BTRC_GUI_BEGIN
 
 using namespace btrc;
 
@@ -33,8 +34,8 @@ namespace
             i32         width,
             i32         height)
         {
-            i32 xi = cuj::cstd::thread_idx_x() + cuj::cstd::block_idx_x() * cuj::cstd::block_dim_x();
-            i32 yi = cuj::cstd::thread_idx_y() + cuj::cstd::block_idx_y() * cuj::cstd::block_dim_y();
+            i32 xi = cstd::thread_idx_x() + cstd::block_idx_x() * cstd::block_dim_x();
+            i32 yi = cstd::thread_idx_y() + cstd::block_idx_y() * cstd::block_dim_y();
             $if(xi < width & yi < height)
             {
                 var i = yi * width + xi;
@@ -85,3 +86,5 @@ void Gamma::process(Vec4f *color, Vec4f *albedo, Vec4f *normal, int width, int h
         width,
         height);
 }
+
+BTRC_GUI_END

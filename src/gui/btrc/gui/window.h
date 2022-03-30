@@ -4,6 +4,8 @@
 
 #include "common.h"
 
+BTRC_GUI_BEGIN
+
 class Window : public Uncopyable
 {
 public:
@@ -26,3 +28,5 @@ private:
 
     Box<Impl> impl_;
 };
+
+BTRC_GUI_END

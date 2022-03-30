@@ -3,20 +3,21 @@
 #include <map>
 #include <string>
 
-#include <cuda_runtime.h>
 #include <cuj.h>
 #include <fmt/format.h>
 #include <mem_fn_traits.h>
 
+#include <btrc/core/object_proxy.h>
 #include <btrc/utils/any.h>
 #include <btrc/utils/bind.h>
 #include <btrc/utils/cuda/error.h>
-#include <btrc/utils/scope_guard.h>
 
 BTRC_BEGIN
 
 class CompileContext;
-class Object; class ObjectReferenceCommon
+class Object;
+
+class ObjectReferenceCommon
 {
 public:
 
@@ -68,6 +69,8 @@ public:
     virtual void commit() { }
 
     virtual std::vector<RC<Object>> get_dependent_objects();
+
+    virtual void create_proxy(ObjectProxy &proxy) { }
 
 protected:
 

@@ -12,6 +12,8 @@
 
 #include "window.h"
 
+BTRC_GUI_BEGIN
+
 struct Window::Impl
 {
     GLFWwindow *glfw_window;
@@ -98,3 +100,5 @@ bool Window::should_close() const
 {
     return glfwWindowShouldClose(impl_->glfw_window);
 }
+
+BTRC_GUI_END
