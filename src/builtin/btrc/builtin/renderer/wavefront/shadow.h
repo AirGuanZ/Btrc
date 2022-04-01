@@ -21,7 +21,6 @@ namespace shadow_pipeline_detail
         Vec2u                     *pixel_coord;
         Vec4f                     *ray_o_medium_id;
         Vec4f                     *ray_d_t1;
-        Vec2u                     *ray_time_mask;
         Spectrum                  *beta_li;
         IndependentSampler::State *sampler_state;
     };
@@ -33,7 +32,6 @@ namespace shadow_pipeline_detail
         pixel_coord,
         ray_o_medium_id,
         ray_d_t1,
-        ray_time_mask,
         beta_li,
         sampler_state);
 
@@ -48,7 +46,6 @@ public:
         Vec2u                     *pixel_coord;
         Vec4f                     *ray_o_medium_id;
         Vec4f                     *ray_d_t1;
-        Vec2u                     *ray_time_mask;
         Spectrum                  *beta_li;
         IndependentSampler::State *sampler_state;
     };

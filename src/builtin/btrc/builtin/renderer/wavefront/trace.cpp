@@ -46,13 +46,12 @@ namespace
 
             var o_medium_id = load_aligned(launch_params.ray_o_medium_id + launch_idx);
             var d_t1 = load_aligned(launch_params.ray_d_t1 + launch_idx);
-            var time_mask = load_aligned(launch_params.ray_time_mask + launch_idx);
 
             var o = o_medium_id.xyz();
             var d = d_t1.xyz();
             var t1 = d_t1.w;
-            var time = bitcast<f32>(time_mask.x);
-            var mask = time_mask.y;
+            var time = 0.0f;
+            var mask = u32(optix::RAY_MASK_ALL);
 
             optix::trace(
                 launch_params.handle,
@@ -143,7 +142,6 @@ void TracePipeline::trace(
         .handle          = handle,
         .ray_o_medium_id = soa_params.ray_o_medium_id,
         .ray_d_t1        = soa_params.ray_d_t1,
-        .ray_time_mask   = soa_params.ray_time_mask,
         .path_flag       = soa_params.path_flag,
         .inct_t_prim_uv  = soa_params.inct_t_prim_uv
     };

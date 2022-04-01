@@ -1,6 +1,5 @@
 #include <btrc/builtin/renderer/wavefront/medium.h>
 #include <btrc/utils/intersection.h>
-#include <btrc/utils/optix/device_funcs.h>
 
 BTRC_WFPT_BEGIN
 
@@ -91,7 +90,6 @@ void MediumPipeline::record_device_code(
         f32 shadow_light_pdf;
         CSpectrum shadow_beta;
 
-        f32 scatter_ray_time;
         CSpectrum scatter_beta, scatter_path_radiance;
         i32 scatter_depth;
 
@@ -156,10 +154,9 @@ void MediumPipeline::record_device_code(
 
                 shadow_o = sample_medium.position;
 
-                var ray_time = bitcast<f32>(soa.ray_time_mask[soa_index].x);
                 CSpectrum shadow_li;
                 sample_light(
-                    cc, scene, sample_medium.position, sampler, ray_time,
+                    cc, scene, sample_medium.position, sampler,
                     shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
                 
                 $if(shadow_t1 > 1e-4f & !shadow_li.is_zero())
@@ -220,9 +217,6 @@ void MediumPipeline::record_device_code(
                 save_aligned(
                     CVec4f(shadow_d, shadow_t1),
                     soa.output_shadow_ray_d_t1 + shadow_soa_index);
-                save_aligned(
-                    CVec2u(bitcast<u32>(scatter_ray_time), optix::RAY_MASK_ALL),
-                    soa.output_shadow_ray_time_mask + shadow_soa_index);
             };
 
             $if(!phase_sample.phase.is_zero())
@@ -235,12 +229,9 @@ void MediumPipeline::record_device_code(
                 var next_ray_o = scatter_position;
                 var next_ray_d = phase_sample.dir;
                 var next_ray_t1 = btrc_max_float;
-                var next_ray_time = scatter_ray_time;
-                var next_ray_mask = optix::RAY_MASK_ALL;
                 var next_ray_medium = medium_id;
 
                 var output_index = cstd::atomic_add(active_state_counter, 1);
-
 
                 save_aligned(scatter_path_radiance, soa.output_path_radiance + output_index);
                 save_aligned(pixel_coord, soa.output_pixel_coord + output_index);
@@ -254,9 +245,6 @@ void MediumPipeline::record_device_code(
                 save_aligned(
                     CVec4f(next_ray_d, next_ray_t1),
                     soa.output_new_ray_d_t1 + output_index);
-                save_aligned(
-                    CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
-                    soa.output_new_ray_time_mask + output_index);
 
                 beta_le.additional_data = phase_sample.pdf;
                 save_aligned(beta_le, soa.output_beta_le_bsdf_pdf + output_index);
@@ -343,14 +331,14 @@ void MediumPipeline::sample_light(
     const Scene    &scene,
     ref<CVec3f>     scatter_pos,
     Sampler        &sampler,
-    f32             time,
     ref<CVec3f>     shadow_d,
     ref<f32>        shadow_t1,
     ref<f32>        shadow_light_pdf,
     ref<CSpectrum>  shadow_li) const
 {
     var sam = sampler.get3d();
-    auto select_light = scene.get_light_sampler()->sample(scatter_pos, time, sampler.get1d());
+    auto select_light = scene.get_light_sampler()
+        ->sample(scatter_pos, sampler.get1d());
     $if(select_light.light_idx >= 0)
     {
         $switch(select_light.light_idx)

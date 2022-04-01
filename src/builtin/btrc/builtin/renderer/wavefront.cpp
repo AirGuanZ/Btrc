@@ -218,7 +218,6 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 .output_pixel_coord      = soa.pixel_coord,
                 .output_ray_o_medium_id  = soa.o_medium_id,
                 .output_ray_d_t1         = soa.d_t1,
-                .output_ray_time_mask    = soa.time_mask,
                 .output_beta             = soa.beta,
                 .output_beta_le_bsdf_pdf = soa.beta_le_bsdf_pdf,
                 .output_depth            = soa.depth,
@@ -234,7 +233,6 @@ Renderer::RenderResult WavefrontPathTracer::render()
             wfpt::TracePipeline::SOAParams{
                 .ray_o_medium_id = soa.o_medium_id,
                 .ray_d_t1        = soa.d_t1,
-                .ray_time_mask   = soa.time_mask,
                 .path_flag       = soa.path_flag,
                 .inct_t_prim_uv  = soa.inct_t_prim_uv
             });
@@ -254,7 +252,6 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 .inct_t_prim_uv                = soa.inct_t_prim_uv,
                 .ray_o_medium_id               = soa.o_medium_id,
                 .ray_d_t1                      = soa.d_t1,
-                .ray_time_mask                 = soa.time_mask,
                 .next_state_index              = soa.next_state_index,
                 .output_sampler_state          = soa.next_sampler_state,
                 .output_path_radiance          = soa.next_path_radiance,
@@ -264,11 +261,9 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 .output_shadow_pixel_coord     = soa.shadow_pixel_coord,
                 .output_shadow_ray_o_medium_id = soa.shadow_o_medium_id,
                 .output_shadow_ray_d_t1        = soa.shadow_d_t1,
-                .output_shadow_ray_time_mask   = soa.shadow_time_mask,
                 .output_shadow_beta_li         = soa.shadow_beta_li,
                 .output_new_ray_o_medium_id    = soa.next_o_medium_id,
                 .output_new_ray_d_t1           = soa.next_d_t1,
-                .output_new_ray_time_mask      = soa.next_time_mask,
                 .output_beta_le_bsdf_pdf       = soa.next_beta_le_bsdf_pdf
             });
 
@@ -287,7 +282,6 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 .inct_t_prim_uv                = soa.inct_t_prim_uv,
                 .ray_o_medium_id               = soa.o_medium_id,
                 .ray_d_t1                      = soa.d_t1,
-                .ray_time_mask                 = soa.time_mask,
                 .next_state_index              = soa.next_state_index,
                 .output_sampler_state          = soa.next_sampler_state,
                 .output_path_radiance          = soa.next_path_radiance,
@@ -297,11 +291,9 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 .output_shadow_pixel_coord     = soa.shadow_pixel_coord,
                 .output_shadow_ray_o_medium_id = soa.shadow_o_medium_id,
                 .output_shadow_ray_d_t1        = soa.shadow_d_t1,
-                .output_shadow_ray_time_mask   = soa.shadow_time_mask,
                 .output_shadow_beta_li         = soa.shadow_beta_li,
                 .output_new_ray_o_medium_id    = soa.next_o_medium_id,
                 .output_new_ray_d_t1           = soa.next_d_t1,
-                .output_new_ray_time_mask      = soa.next_time_mask,
                 .output_beta_le_bsdf_pdf       = soa.next_beta_le_bsdf_pdf
             });
 
@@ -321,7 +313,6 @@ Renderer::RenderResult WavefrontPathTracer::render()
                     .pixel_coord     = soa.shadow_pixel_coord,
                     .ray_o_medium_id = soa.shadow_o_medium_id,
                     .ray_d_t1        = soa.shadow_d_t1,
-                    .ray_time_mask   = soa.shadow_time_mask,
                     .beta_li         = soa.shadow_beta_li,
                     .sampler_state   = soa.shadow_sampler_state
                 });

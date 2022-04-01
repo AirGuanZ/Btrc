@@ -13,7 +13,6 @@ public:
         CUJ_MEMBER_VARIABLE(CVec3f,    pos)
         CUJ_MEMBER_VARIABLE(CVec3f,    dir)
         CUJ_MEMBER_VARIABLE(CSpectrum, throughput)
-        CUJ_MEMBER_VARIABLE(f32,       time)
     CUJ_CLASS_END
 
     virtual ~Camera() = default;

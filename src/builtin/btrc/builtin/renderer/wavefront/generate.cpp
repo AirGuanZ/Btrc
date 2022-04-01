@@ -79,9 +79,6 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
             btrc_max_float);
         save_aligned(d_t1, soa_params.output_ray_d_t1 + state_index);
 
-        var time_mask = CVec2u(bitcast<u32>(sample_we_result.time), 0xff);
-        save_aligned(time_mask, soa_params.output_ray_time_mask + state_index);
-
         soa_params.output_depth[state_index] = 0;
 
         save_aligned(

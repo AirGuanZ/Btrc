@@ -34,9 +34,8 @@ namespace shade_pipeline_detail
 
         // last ray
 
-        Vec4f    *ray_o_medium_id;
-        Vec4f    *ray_d_t1;
-        Vec2u    *ray_time_mask;
+        Vec4f *ray_o_medium_id;
+        Vec4f *ray_d_t1;
 
         int32_t *next_state_index;
 
@@ -54,14 +53,12 @@ namespace shade_pipeline_detail
         Vec2u    *output_shadow_pixel_coord;
         Vec4f    *output_shadow_ray_o_medium_id;
         Vec4f    *output_shadow_ray_d_t1;
-        Vec2u    *output_shadow_ray_time_mask;
         Spectrum *output_shadow_beta_li;
 
         // for next ray
 
         Vec4f    *output_new_ray_o_medium_id;
         Vec4f    *output_new_ray_d_t1;
-        Vec2u    *output_new_ray_time_mask;
 
         Spectrum *output_beta_le_bsdf_pdf;
     };
@@ -78,7 +75,6 @@ namespace shade_pipeline_detail
         inct_t_prim_uv,
         ray_o_medium_id,
         ray_d_t1,
-        ray_time_mask,
         next_state_index,
         output_sampler_state,
         output_path_radiance,
@@ -88,11 +84,9 @@ namespace shade_pipeline_detail
         output_shadow_pixel_coord,
         output_shadow_ray_o_medium_id,
         output_shadow_ray_d_t1,
-        output_shadow_ray_time_mask,
         output_shadow_beta_li,
         output_new_ray_o_medium_id,
         output_new_ray_d_t1,
-        output_new_ray_time_mask,
         output_beta_le_bsdf_pdf);
 
 } // namespace shade_pipeline_detail

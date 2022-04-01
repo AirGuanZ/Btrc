@@ -1,10 +1,10 @@
 #include <array>
 
+#include <btrc/builtin/renderer/wavefront/helper.h>
+#include <btrc/builtin/renderer/wavefront/shade.h>
 #include <btrc/core/film.h>
 #include <btrc/utils/intersection.h>
 #include <btrc/utils/optix/device_funcs.h>
-
-#include "./shade.h"
 
 BTRC_WFPT_BEGIN
 
@@ -128,6 +128,7 @@ void ShadePipeline::record_device_code(
             handle_miss(
                 cc, world_diagonal, vols, light_sampler, soa_params,
                 soa_index, path_radiance, sampler, scattered);
+
             $if(scattered)
             {
                 sampler.save(soa_params.output_sampler_state + next_state_index);
@@ -145,7 +146,6 @@ void ShadePipeline::record_device_code(
         var ray_o = ray_o_medium_id.xyz();
         var medium_id = bitcast<CMediumID>(ray_o_medium_id.w);
         var ray_d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
-        var ray_time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
 
         var inct_t_prim_uv = load_aligned(soa_params.inct_t_prim_uv + soa_index);
         var inct_t = bitcast<f32>(inct_t_prim_uv.x);
@@ -176,25 +176,7 @@ void ShadePipeline::record_device_code(
 
             $if(scattered)
             {
-                var tr = CSpectrum::one();
-                $switch(medium_id)
-                {
-                    for(int i = 0; i < scene.get_medium_count(); ++i)
-                    {
-                        $case(i)
-                        {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, inct.position, ray_o, inct.position, sampler);
-                        };
-                    }
-                    $case(MEDIUM_ID_VOID)
-                    {
-                        tr = vols.tr(cc, ray_o, inct.position, sampler);
-                    };
-                    $default
-                    {
-                        cstd::unreachable();
-                    };
-                };
+                var tr = estimate_medium_tr(cc, scene, vols, medium_id, ray_o, inct.position, sampler);
                 beta_le = beta_le * tr;
             };
 
@@ -204,7 +186,7 @@ void ShadePipeline::record_device_code(
             }
             $else
             {
-                var select_light_pdf = light_sampler->pdf(ray_o, ray_time, light_id);
+                var select_light_pdf = light_sampler->pdf(ray_o, light_id);
                 var light_dir_pdf = area->pdf_li(cc, ray_o, inct.position, inct.frame.z);
                 var light_pdf = select_light_pdf * light_dir_pdf;
                 path_radiance = path_radiance + beta_le * le / (bsdf_pdf + light_pdf);
@@ -235,31 +217,13 @@ void ShadePipeline::record_device_code(
 
         // rr
 
-        var rr_exit = false;
-        $if(depth >= shade_params.min_depth)
-        {
-            $if(depth >= shade_params.max_depth)
-            {
-                rr_exit = true;
-            }
-            $else
-            {
-                var sam = sampler.get1d();
-                var lum = beta.get_lum();
-                $if(lum < shade_params.rr_threshold)
-                {
-                    $if(sam > shade_params.rr_cont_prob)
-                    {
-                        rr_exit = true;
-                    }
-                    $else
-                    {
-                        beta = beta / shade_params.rr_cont_prob;
-                    };
-                };
-            };
-        };
-
+        var rr_exit = simple_russian_roulette(
+            beta, depth, sampler, SimpleRussianRouletteParams{
+                .min_depth      = shade_params.min_depth,
+                .max_depth      = shade_params.max_depth,
+                .beta_threshold = shade_params.rr_threshold,
+                .cont_prob      = shade_params.rr_cont_prob
+            });
         $if(rr_exit)
         {
             film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
@@ -268,7 +232,7 @@ void ShadePipeline::record_device_code(
 
         // sample light
 
-        auto select_light = light_sampler->sample(inct.position, ray_time, sampler.get1d());
+        auto select_light = light_sampler->sample(inct.position, sampler.get1d());
         var light_id = select_light.light_idx;
         
         CVec3f shadow_o, shadow_d;
@@ -395,9 +359,6 @@ void ShadePipeline::record_device_code(
             save_aligned(
                 CVec4f(shadow_d, shadow_t1),
                 soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
-            save_aligned(
-                CVec2u(bitcast<u32>(ray_time), optix::RAY_MASK_ALL),
-                soa_params.output_shadow_ray_time_mask + shadow_soa_index);
 
             var cos = cstd::abs(dot(normalize(shadow_d), inct.frame.z));
             var light_pdf = select_light.pdf * light_dir_pdf;
@@ -428,8 +389,6 @@ void ShadePipeline::record_device_code(
             var next_ray_o    = intersection_offset(inct.position, inct.frame.z, bsdf_sample.dir);
             var next_ray_d    = bsdf_sample.dir;
             var next_ray_t1   = btrc_max_float;
-            var next_ray_time = ray_time;
-            var next_ray_mask = optix::RAY_MASK_ALL;
 
             var output_index = cstd::atomic_add(active_state_counter, 1);
 
@@ -450,9 +409,6 @@ void ShadePipeline::record_device_code(
             save_aligned(
                 CVec4f(next_ray_d, next_ray_t1),
                 soa_params.output_new_ray_d_t1 + output_index);
-            save_aligned(
-                CVec2u(bitcast<u32>(next_ray_time), u32(next_ray_mask)),
-                soa_params.output_new_ray_time_mask + output_index);
 
             var stored_pdf = cstd::select(bsdf_sample.is_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
             beta_le.additional_data = stored_pdf;
@@ -522,7 +478,6 @@ void ShadePipeline::handle_miss(
     Sampler            &sampler,
     boolean             scattered)
 {
-    var time = bitcast<f32>(soa_params.ray_time_mask[soa_index].x);
     auto envir_light = light_sampler->get_envir_light();
     if(envir_light)
     {
@@ -549,7 +504,7 @@ void ShadePipeline::handle_miss(
             var d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
 
             var select_light_pdf = light_sampler->pdf(
-                o, time, light_sampler->get_envir_light_index());
+                o, light_sampler->get_envir_light_index());
             var envir_light_pdf = envir_light->pdf_li(cc, d);
             var light_pdf = select_light_pdf * envir_light_pdf;
 

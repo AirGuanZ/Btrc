@@ -24,7 +24,6 @@ struct PathState
 
     cuda::Buffer<Vec4f> o_medium_id;
     cuda::Buffer<Vec4f> d_t1;
-    cuda::Buffer<Vec2u> time_mask;
 
     // for direct illum with bsdf sampling
 
@@ -62,14 +61,12 @@ struct PathState
     cuda::Buffer<Vec2u>    shadow_pixel_coord;
     cuda::Buffer<Vec4f>    shadow_o_medium_id;
     cuda::Buffer<Vec4f>    shadow_d_t1;
-    cuda::Buffer<Vec2u>    shadow_time_mask;
     cuda::Buffer<Spectrum> shadow_beta_li;
 
     // next ray
 
     cuda::Buffer<Vec4f>    next_o_medium_id;
     cuda::Buffer<Vec4f>    next_d_t1;
-    cuda::Buffer<Vec2u>    next_time_mask;
 
     // next direct illum with bsdf sampling
 

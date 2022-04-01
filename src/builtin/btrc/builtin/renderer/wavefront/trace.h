@@ -16,7 +16,6 @@ namespace trace_pipeline_detail
     {
         Vec4f *ray_o_medium_id;
         Vec4f *ray_d_t1;
-        Vec2u *ray_time_mask;
 
         uint32_t *path_flag;
         Vec4u    *inct_t_prim_uv;
@@ -30,7 +29,6 @@ namespace trace_pipeline_detail
 
         Vec4f *ray_o_medium_id;
         Vec4f *ray_d_t1;
-        Vec2u *ray_time_mask;
 
         // incts
 
@@ -40,7 +38,7 @@ namespace trace_pipeline_detail
 
     CUJ_PROXY_CLASS(
         CLaunchParams, LaunchParams,
-        handle, ray_o_medium_id, ray_d_t1, ray_time_mask, path_flag, inct_t_prim_uv);
+        handle, ray_o_medium_id, ray_d_t1, path_flag, inct_t_prim_uv);
 
 } // namespace trace_pipeline_detail
 

@@ -19,9 +19,9 @@ public:
 
     virtual void add_light(RC<Light> light) = 0;
 
-    virtual SampleResult sample(const CVec3f &ref, f32 time, f32 sam) const = 0;
+    virtual SampleResult sample(const CVec3f &ref, f32 sam) const = 0;
 
-    virtual f32 pdf(const CVec3f &ref, f32 time, i32 light_index) const = 0;
+    virtual f32 pdf(const CVec3f &ref, i32 light_index) const = 0;
 
     virtual int get_light_count() const = 0;
 
@@ -40,9 +40,9 @@ public:
 
     void add_light(RC<Light> light) override;
 
-    SampleResult sample(const CVec3f &ref, f32 time, f32 sam) const override;
+    SampleResult sample(const CVec3f &ref, f32 sam) const override;
 
-    f32 pdf(const CVec3f &ref, f32 time, i32 light_index) const override;
+    f32 pdf(const CVec3f &ref, i32 light_index) const override;
 
     int get_light_count() const override;
 

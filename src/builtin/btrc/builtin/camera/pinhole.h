@@ -11,8 +11,6 @@ namespace pinhole_detail
     struct DeviceProperties
     {
         Vec3f eye;
-        float beg_time;
-        float end_time;
         Vec3f left_bottom_corner;
         Vec3f film_x;
         Vec3f film_y;
@@ -20,7 +18,7 @@ namespace pinhole_detail
 
     CUJ_PROXY_CLASS(
         CDeviceProperties, DeviceProperties,
-        eye, beg_time, end_time, left_bottom_corner, film_x, film_y);
+        eye, left_bottom_corner, film_x, film_y);
 
 } // namespace pinhole_detail
 
@@ -37,8 +35,6 @@ public:
     void set_fov_y_deg(float deg);
 
     void set_w_over_h(float ratio) override;
-
-    void set_duration(float beg, float end);
 
     const Vec3f &get_eye() const;
 
@@ -67,9 +63,6 @@ private:
     Vec3f eye_;
     Vec3f dst_;
     Vec3f up_;
-
-    float beg_time_ = 0.0f;
-    float end_time_ = 0.0f;
 
     float fov_y_deg_ = 60.0f;
     float w_over_h_ = 1.0f;

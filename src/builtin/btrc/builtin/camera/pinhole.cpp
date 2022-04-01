@@ -32,14 +32,6 @@ void PinholeCamera::set_w_over_h(float ratio)
     set_need_commit();
 }
 
-void PinholeCamera::set_duration(float beg, float end)
-{
-    assert(beg <= end);
-    beg_time_ = beg;
-    end_time_ = end;
-    set_need_commit();
-}
-
 const Vec3f &PinholeCamera::get_eye() const
 {
     return eye_;
@@ -80,8 +72,6 @@ void PinholeCamera::commit()
 
     const DeviceProperties device_properties = {
         .eye = eye_,
-        .beg_time = beg_time_,
-        .end_time = end_time_,
         .left_bottom_corner = left_bottom_corner,
         .film_x = film_x,
         .film_y = film_y
@@ -106,13 +96,10 @@ Camera::SampleWeResult PinholeCamera::generate_ray_inline(
     var dst = device_properties.left_bottom_corner + x + y;
     var dir = normalize(dst - device_properties.eye);
 
-    var time = lerp(device_properties.beg_time, device_properties.end_time, time_sample);
-
     SampleWeResult result;
     result.throughput = CSpectrum::one();
     result.pos = device_properties.eye;
     result.dir = dir;
-    result.time = time;
     return result;
 }
 
@@ -121,18 +108,13 @@ RC<Camera> PinholeCameraCreator::create(RC<const factory::Node> node, factory::C
     const Vec3f eye = node->parse_child<Vec3f>("eye");
     const Vec3f dst = node->parse_child<Vec3f>("dst");
     const Vec3f up  = node->parse_child<Vec3f>("up");
-
     const float fov_y_deg = node->parse_child<factory::Degree>("fov_y").value;
-    const float beg_time = node->parse_child_or<float>("beg_time", 0);
-    const float end_time = node->parse_child_or<float>("end_time", 0);
 
     auto camera = newRC<PinholeCamera>();
     camera->set_eye(eye);
     camera->set_dst(dst);
     camera->set_up(up);
     camera->set_fov_y_deg(fov_y_deg);
-    camera->set_duration(beg_time, end_time);
-
     return camera;
 }
 

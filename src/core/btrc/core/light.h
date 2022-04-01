@@ -60,11 +60,11 @@ public:
 
     CSpectrum eval_le(
         CompileContext &cc,
-        ref<CVec3f> pos,
-        ref<CVec3f> nor,
-        ref<CVec2f> uv,
-        ref<CVec2f> tex_coord,
-        ref<CVec3f> wr) const
+        ref<CVec3f>     pos,
+        ref<CVec3f>     nor,
+        ref<CVec2f>     uv,
+        ref<CVec2f>     tex_coord,
+        ref<CVec3f>     wr) const
     {
         return record(
             cc, &AreaLight::eval_le_inline, "eval_le",

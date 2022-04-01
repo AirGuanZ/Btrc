@@ -20,8 +20,7 @@ void UniformLightSampler::add_light(RC<Light> light)
     lights_.push_back(std::move(light));
 }
 
-UniformLightSampler::SampleResult UniformLightSampler::sample(
-    const CVec3f &ref, f32 time, f32 sam) const
+UniformLightSampler::SampleResult UniformLightSampler::sample(const CVec3f &ref, f32 sam) const
 {
     if(lights_.empty())
     {
@@ -42,7 +41,7 @@ UniformLightSampler::SampleResult UniformLightSampler::sample(
     return result;
 }
 
-f32 UniformLightSampler::pdf(const CVec3f &ref, f32 time, i32 light_index) const
+f32 UniformLightSampler::pdf(const CVec3f &ref, i32 light_index) const
 {
     return 1.0f / f32(lights_.size());
 }

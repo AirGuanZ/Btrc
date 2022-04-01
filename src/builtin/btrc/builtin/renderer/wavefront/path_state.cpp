@@ -22,7 +22,6 @@ void PathState::initialize(int state_count)
         sampler_state,
         o_medium_id,
         d_t1,
-        time_mask,
         beta_le_bsdf_pdf,
         beta,
         depth,
@@ -39,11 +38,9 @@ void PathState::initialize(int state_count)
         shadow_pixel_coord,
         shadow_o_medium_id,
         shadow_d_t1,
-        shadow_time_mask,
         shadow_beta_li,
         next_o_medium_id, 
         next_d_t1,
-        next_time_mask,
         next_beta_le_bsdf_pdf,
         shadow_sampler_state);
 }
@@ -66,7 +63,6 @@ void PathState::next_iteration()
 
     o_medium_id.swap(next_o_medium_id);
     d_t1.swap(next_d_t1);
-    time_mask.swap(next_time_mask);
     pixel_coord.swap(next_pixel_coord);
 
     beta.swap(next_beta);
