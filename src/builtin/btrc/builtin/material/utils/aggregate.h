@@ -9,9 +9,41 @@ class BSDFComponent
 {
 public:
 
+    CUJ_CLASS_BEGIN(SampleResult)
+        CUJ_MEMBER_VARIABLE(CSpectrum, bsdf)
+        CUJ_MEMBER_VARIABLE(CVec3f,    dir)
+        CUJ_MEMBER_VARIABLE(f32,       pdf)
+        void clear()
+        {
+            bsdf = CSpectrum::zero();
+            dir = CVec3f(0);
+            pdf = 0;
+        }
+    CUJ_CLASS_END
+    
+    CUJ_CLASS_BEGIN(SampleBidirResult)
+        CUJ_MEMBER_VARIABLE(CSpectrum, bsdf)
+        CUJ_MEMBER_VARIABLE(CVec3f,    dir)
+        CUJ_MEMBER_VARIABLE(f32,       pdf)
+        CUJ_MEMBER_VARIABLE(f32,       pdf_rev)
+        void clear()
+        {
+            bsdf = CSpectrum::zero();
+            dir = CVec3f(0);
+            pdf = 0;
+            pdf_rev = 0;
+        }
+    CUJ_CLASS_END
+
     virtual ~BSDFComponent() = default;
 
-    virtual Shader::SampleResult sample(
+    virtual SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     lwo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const = 0;
+
+    virtual SampleBidirResult sample_bidir(
         CompileContext &cc,
         ref<CVec3f>     lwo,
         ref<CVec3f>     sam,
@@ -30,6 +62,8 @@ public:
         TransportMode   mode) const = 0;
 
     virtual CSpectrum albedo(CompileContext &cc) const = 0;
+
+    static SampleResult discard_pdf_rev(const SampleBidirResult &result);
 };
 
 template<typename Impl>
@@ -43,7 +77,13 @@ public:
 
     BSDFComponentClosure(RC<const Object> material, std::string name, ref<Impl> impl);
 
-    Shader::SampleResult sample(
+    SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     lwo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const override;
+
+    SampleBidirResult sample_bidir(
         CompileContext &cc,
         ref<CVec3f>     lwo,
         ref<CVec3f>     sam,
@@ -80,6 +120,12 @@ public:
     void add_closure(f32 sample_weight, std::string name, const Impl &impl);
 
     SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     wo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const override;
+
+    SampleBidirResult sample_bidir(
         CompileContext &cc,
         ref<CVec3f>     wo,
         ref<CVec3f>     sam,
@@ -130,7 +176,7 @@ BSDFComponentClosure<Impl>::BSDFComponentClosure(
 }
 
 template<typename Impl>
-Shader::SampleResult BSDFComponentClosure<Impl>::sample(
+BSDFComponent::SampleResult BSDFComponentClosure<Impl>::sample(
     CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
 {
     const std::string name = fmt::format(
@@ -138,8 +184,22 @@ Shader::SampleResult BSDFComponentClosure<Impl>::sample(
         mode == TransportMode::Radiance ? "radiance" : "importance");
     auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<CVec3f> _sam)
     { return impl.sample(_lwo, _sam, mode); };
-    return cc.record_object_action(
-        material_, name, action, ref(impl_), lwo, sam);
+    return cc.record_object_action(material_, name, action, ref(impl_), lwo, sam);
+}
+
+template<typename Impl>
+BSDFComponent::SampleBidirResult BSDFComponentClosure<Impl>::sample_bidir(
+    CompileContext &cc,
+    ref<CVec3f>     lwo,
+    ref<CVec3f>     sam,
+    TransportMode   mode) const
+{
+    const std::string name = fmt::format(
+        "sample_bidir_component_{}_{}", name_,
+        mode == TransportMode::Radiance ? "radiance" : "importance");
+    auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<CVec3f> _sam)
+    { return impl.sample_bidir(_lwo, _sam, mode); };
+    return cc.record_object_action(material_, name, action, ref(impl_), lwo, sam);
 }
 
 template<typename Impl>

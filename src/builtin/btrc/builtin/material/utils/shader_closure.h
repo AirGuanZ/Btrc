@@ -30,6 +30,19 @@ public:
             [mode](ref<ShaderImpl> impl, ref<CVec3f> _wo, ref<CVec3f> _sam)
             { return impl.sample(_wo, _sam, mode); }, ref(impl_), wo, sam);
     }
+    
+    SampleBidirResult sample_bidir(
+        CompileContext &cc,
+        ref<CVec3f>     wo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const override
+    {
+        return cc.record_object_action(
+            material_, mode == TransportMode::Radiance ?
+            "sample_bidir_radiance" : "sample_bidir_importance",
+            [mode](ref<ShaderImpl> impl, ref<CVec3f> _wo, ref<CVec3f> _sam)
+            { return impl.sample_bidir(_wo, _sam, mode); }, ref(impl_), wo, sam);
+    }
 
     CSpectrum eval(
         CompileContext &cc,

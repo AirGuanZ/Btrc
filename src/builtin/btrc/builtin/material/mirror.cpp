@@ -12,8 +12,13 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
 
     Shader::SampleResult sample(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
     {
+        return Shader::discard_pdf_rev(sample_bidir(wo, sam, mode));
+    }
+
+    Shader::SampleBidirResult sample_bidir(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    {
         $declare_scope;
-        Shader::SampleResult result;
+        Shader::SampleBidirResult result;
 
         var frame = raw_frame.flip_for_black_fringes(wo);
         var lwo = frame.shading.global_to_local(wo);
@@ -39,6 +44,7 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
         result.bsdf = bsdf * norm_factor;
         result.dir = wi;
         result.pdf = 1;
+        result.pdf_rev = 1;
         result.is_delta = true;
         return result;
     }

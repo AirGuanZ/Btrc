@@ -24,6 +24,17 @@ public:
         return result;
     }
 
+    SampleBidirResult sample_bidir(
+        CompileContext &cc,
+        ref<CVec3f>     wo,
+        ref<CVec3f>     sam,
+        TransportMode   mode) const override
+    {
+        SampleBidirResult result;
+        result.clear();
+        return result;
+    }
+
     CSpectrum eval(
         CompileContext &cc,
         ref<CVec3f>     wi,

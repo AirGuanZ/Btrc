@@ -11,10 +11,16 @@ public:
 
     SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const override
     {
-        SampleResult result;
+        return discard_pdf_rev(sample_bidir(cc, wo, sam, mode));
+    }
+    
+    SampleBidirResult sample_bidir(CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const override
+    {
+        SampleBidirResult result;
         result.bsdf = CSpectrum::one() / cstd::abs(dot(normal_, normalize(wo)));
         result.dir = -wo;
         result.pdf = 1;
+        result.pdf_rev = 1;
         result.is_delta = true;
         return result;
     }

@@ -35,10 +35,17 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
     CUJ_MEMBER_VARIABLE(CSpectrum,   color)
     CUJ_MEMBER_VARIABLE(f32,         ior)
 
-    Shader::SampleResult sample(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    Shader::SampleResult sample(
+        ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    {
+        return Shader::discard_pdf_rev(sample_bidir(wo, sam, mode));
+    }
+
+    Shader::SampleBidirResult sample_bidir(
+        ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
     {
         $declare_scope;
-        Shader::SampleResult result;
+        Shader::SampleBidirResult result;
 
         var frame = raw_frame.flip_for_black_fringes(wo);
         var nwo = normalize(frame.shading.global_to_local(wo));
@@ -58,6 +65,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
             result.dir = wi;
             result.bsdf = bsdf * norm;
             result.pdf = fr;
+            result.pdf_rev = fr;
             result.is_delta = true;
             $exit_scope;
         };
@@ -83,6 +91,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
         result.bsdf = f * norm;
         result.dir = wi;
         result.pdf = pdf;
+        result.pdf = 1.0f - dielectric_fresnel(ior, 1, nwi.z);
         result.is_delta = true;
         return result;
     }

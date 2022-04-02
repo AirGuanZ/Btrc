@@ -550,10 +550,11 @@ public:
         return result;
     }
 
-    Shader::SampleResult sample(CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const override
+    SampleResult sample(
+        CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const override
     {
         $declare_scope;
-        Shader::SampleResult result;
+        SampleResult result;
 
         auto handle_bad_sample = [&]
         {
@@ -600,7 +601,6 @@ public:
             result.dir = lwi;
             result.bsdf = eval(cc, lwi, lwo, mode);
             result.pdf = pdf(cc, lwi, lwo, mode);
-            result.is_delta = false;
             handle_bad_sample();
             $exit_scope;
         };
@@ -645,8 +645,23 @@ public:
         result.dir = lwi;
         result.bsdf = eval(cc, lwi, lwo, mode);
         result.pdf = pdf(cc, lwi, lwo, mode);
-        result.is_delta = false;
         handle_bad_sample();
+        return result;
+    }
+
+    SampleBidirResult sample_bidir(
+        CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const override
+    {
+        var t_result = sample(cc, lwo, sam, mode);
+        SampleBidirResult result;
+        $if(t_result.pdf > 0)
+        {
+            result.pdf_rev = pdf(cc, lwo, t_result.dir, mode);
+        }
+        $else
+        {
+            result.clear();
+        };
         return result;
     }
 

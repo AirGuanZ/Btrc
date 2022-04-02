@@ -13,7 +13,8 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
     CUJ_MEMBER_VARIABLE(f32, ax)
     CUJ_MEMBER_VARIABLE(f32, ay)
 
-    MicrofacetReflectionComponentImpl(FresnelPoint _fresnel, f32 roughness, f32 anisotropic)
+    MicrofacetReflectionComponentImpl(
+        FresnelPoint _fresnel, f32 roughness, f32 anisotropic)
     {
         fresnel = _fresnel;
         f32 aspect = 1.0f;
@@ -25,10 +26,17 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
         ay = (cstd::max)(f32(0.001f), roughness * roughness * aspect);
     }
 
-    Shader::SampleResult sample(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    BSDFComponent::SampleResult sample(
+        ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    {
+        return BSDFComponent::discard_pdf_rev(sample_bidir(lwo, sam, mode));
+    }
+
+    BSDFComponent::SampleBidirResult sample_bidir(
+        ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
     {
         $declare_scope;
-        Shader::SampleResult result;
+        BSDFComponent::SampleBidirResult result;
 
         $if(lwo.z <= 0)
         {
@@ -36,7 +44,8 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
             $exit_scope;
         };
 
-        var lwh = normalize(microfacet::sample_anisotropic_gtr2_vnor(lwo, ax, ay, CVec2f(sam.y, sam.z)));
+        var lwh = normalize(microfacet::sample_anisotropic_gtr2_vnor(
+            lwo, ax, ay, CVec2f(sam.y, sam.z)));
         $if(lwh.z <= 0)
         {
             result.clear();
@@ -51,22 +60,23 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
         };
 
         result.dir = lwi;
-        this->eval_and_pdf(lwi, lwo, mode, result.bsdf, result.pdf);
-        result.is_delta = false;
+        this->eval_and_pdf(lwi, lwo, result.bsdf, result.pdf, result.pdf_rev);
         return result;
     }
 
-    CSpectrum eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+    CSpectrum eval(
+        ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
     {
-        CSpectrum result; f32 pdf;
-        eval_and_pdf(lwi, lwo, mode, result, pdf);
+        CSpectrum result; f32 pdf, pdf_rev;
+        eval_and_pdf(lwi, lwo, result, pdf, pdf_rev);
         return result;
     }
 
-    f32 pdf(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+    f32 pdf(
+        ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
     {
-        CSpectrum bsdf; f32 pdf;
-        eval_and_pdf(lwi, lwo, mode, bsdf, pdf);
+        CSpectrum bsdf; f32 pdf, pdf_rev;
+        eval_and_pdf(lwi, lwo, bsdf, pdf, pdf_rev);
         return pdf;
     }
 
@@ -76,8 +86,11 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
     }
 
     void eval_and_pdf(
-        ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode,
-        ref<CSpectrum> eval_output, ref<f32> pdf_output) const
+        ref<CVec3f>    lwi,
+        ref<CVec3f>    lwo,
+        ref<CSpectrum> eval_output,
+        ref<f32>       pdf_output,
+        ref<f32>       pdf_rev_output) const
     {
         $declare_scope;
         $if(lwi.z <= 0 | lwo.z <= 0)
@@ -109,7 +122,6 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
 
         var Go = microfacet::smith_anisotropic_gtr2(
             cos_phi_o, sin_phi_o, ax, ay, tan_theta_o);
-
         var Gi = microfacet::smith_anisotropic_gtr2(
             cos_phi_i, sin_phi_i, ax, ay, tan_theta_i);
         var G = Gi * Go;
@@ -118,6 +130,7 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
 
         eval_output = F * D * G / cstd::abs(4.0f * cos_theta_i * cos_theta_o);
         pdf_output = Go * D / (4.0f * lwo.z);
+        pdf_rev_output = Gi * D / (4.0f * lwi.z);
     }
 
 CUJ_CLASS_END
