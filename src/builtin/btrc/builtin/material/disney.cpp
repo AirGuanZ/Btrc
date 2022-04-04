@@ -656,6 +656,9 @@ public:
         SampleBidirResult result;
         $if(t_result.pdf > 0)
         {
+            result.bsdf = t_result.bsdf;
+            result.dir = t_result.dir;
+            result.pdf = t_result.pdf;
             result.pdf_rev = pdf(cc, lwo, t_result.dir, mode);
         }
         $else

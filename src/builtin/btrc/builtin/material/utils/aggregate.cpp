@@ -98,6 +98,7 @@ Shader::SampleResult BSDFAggregate::sample(
     var corr_factor = frame.correct_shading_energy(result.dir);
     var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
     result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
+    result.is_delta = false;
 
     return result;
 }
@@ -175,6 +176,7 @@ Shader::SampleBidirResult BSDFAggregate::sample_bidir(
     var corr_factor = frame.correct_shading_energy(result.dir);
     var shadow_terminator_term = eval_shadow_terminator_term(result.dir);
     result.bsdf = result.bsdf * corr_factor * shadow_terminator_term;
+    result.is_delta = false;
 
     return result;
 }

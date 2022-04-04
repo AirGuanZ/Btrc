@@ -15,6 +15,9 @@ BSDFComponent::SampleBidirResult DiffuseComponentImpl::sample_bidir(
     $if(lwo.z <= 0)
     {
         result.clear();
+    }
+    $else
+    {
         var lwi = sample_hemisphere_zweighted(sam.x, sam.y);
         result.bsdf     = albedo_value / btrc_pi;
         result.dir      = lwi;
