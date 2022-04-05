@@ -1,4 +1,5 @@
 #include <btrc/builtin/renderer/wavefront/medium.h>
+#include <btrc/builtin/renderer/wavefront/helper.h>
 #include <btrc/utils/intersection.h>
 
 BTRC_WFPT_BEGIN
@@ -16,22 +17,22 @@ namespace
 } // namespace anonymous
 
 void MediumPipeline::record_device_code(
-    CompileContext      &cc,
-    Film                &film,
-    const VolumeManager &vols,
-    const Scene         &scene,
-    const ShadeParams   &shade_params,
-    float                world_diagonal)
+    CompileContext    &cc,
+    Film              &film,
+    const Scene       &scene,
+    const ShadeParams &shade_params,
+    float              world_diagonal)
 {
     using namespace cuj;
 
-    kernel(KERNEL, [&cc, &film, &vols, &shade_params, &scene, world_diagonal, this](
+    kernel(KERNEL, [&cc, &film, &shade_params, &scene, world_diagonal](
         i32        total_state_count,
         ptr<i32>   active_state_counter,
-        ptr<i32>   inactive_state_counter,
         ptr<i32>   shadow_ray_counter,
         CSOAParams soa)
     {
+        const WFPTScene wfpt_scene = { cc, scene, world_diagonal };
+
         var soa_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
         $if(soa_index >= total_state_count)
         {
@@ -76,7 +77,7 @@ void MediumPipeline::record_device_code(
         }
         $else
         {
-            medium_id = MEDIUM_ID_VOID;
+            medium_id = scene.get_volume_primitive_medium_id();
             medium_end = ray_o + normalize(ray_d) * world_diagonal;
         };
         soa.ray_o_medium_id[soa_index].w = bitcast<f32>(medium_id);
@@ -144,9 +145,6 @@ void MediumPipeline::record_device_code(
                 {
                     var pixel_coord = load_aligned(soa.pixel_coord + soa_index);
                     film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
-                    sampler.save(soa.sampler_state + soa_index);
-                    var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-                    soa.next_state_index[soa_index] = output_index;
                     $return();
                 };
 
@@ -155,25 +153,19 @@ void MediumPipeline::record_device_code(
                 shadow_o = sample_medium.position;
 
                 CSpectrum shadow_li;
-                sample_light(
-                    cc, scene, sample_medium.position, sampler,
-                    shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
+                emit_shadow = sample_light_li(
+                    wfpt_scene, sample_medium.position, sampler, shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
                 
-                $if(shadow_t1 > 1e-4f & !shadow_li.is_zero())
+                $if(emit_shadow)
                 {
                     var shadow_phase_val = sample_medium.shader->eval(cc, shadow_d, -ray_d);
                     var shadow_phase_pdf = sample_medium.shader->pdf(cc, shadow_d, -ray_d);
                     shadow_beta = shadow_li * scatter_beta * shadow_phase_val / (shadow_phase_pdf + shadow_light_pdf);
-                    emit_shadow = true;
                 };
 
                 // generate next ray
 
                 phase_sample = sample_medium.shader->sample(cc, -ray_d, sampler.get3d());
-            }
-            $else
-            {
-                unscatter_tr = sample_medium.throughput;
             };
         };
 
@@ -184,15 +176,27 @@ void MediumPipeline::record_device_code(
                 $case(MediumID(i))
                 {
                     auto medium = scene.get_medium(i);
-                    auto sample_medium = medium->sample(cc, ray_o, medium_end, ray_o, medium_end, sampler);
+                    auto sample_medium = medium->sample(cc, ray_o, medium_end, sampler);
+                    $if(sample_medium.scattered)
+                    {
+                        unscatter_tr = medium->tr(cc, ray_o, medium_end, sampler);
+                    }
+                    $else
+                    {
+                        unscatter_tr = sample_medium.throughput;
+                    };
+                    {
+                        var beta_le = load_aligned(soa.beta_le_bsdf_pdf + soa_index);
+                        var bsdf_pdf = beta_le.additional_data;
+                        
+                        beta_le = beta_le * unscatter_tr;
+                        beta_le.additional_data = bsdf_pdf;
+
+                        save_aligned(beta_le, soa.beta_le_bsdf_pdf + soa_index);
+                    }
                     handle_medium(sample_medium);
                 };
             }
-            $case(MEDIUM_ID_VOID)
-            {
-                auto sample_medium = vols.sample_scattering(cc, ray_o, medium_end, sampler);
-                handle_medium(sample_medium);
-            };
             $default
             {
                 cstd::unreachable();
@@ -206,7 +210,8 @@ void MediumPipeline::record_device_code(
             $if(emit_shadow)
             {
                 var shadow_soa_index = cstd::atomic_add(shadow_ray_counter, 1);
-                var shadow_medium_id = cstd::select(shadow_t1 > 1, CMediumID(MEDIUM_ID_VOID), CMediumID(medium_id));
+                var shadow_medium_id = cstd::select(
+                    shadow_t1 > 1, CMediumID(scene.get_volume_primitive_medium_id()), CMediumID(medium_id));
 
                 save_aligned(pixel_coord, soa.output_shadow_pixel_coord + shadow_soa_index);
                 save_aligned(shadow_beta, soa.output_shadow_beta_li + shadow_soa_index);
@@ -249,30 +254,15 @@ void MediumPipeline::record_device_code(
                 beta_le.additional_data = phase_sample.pdf;
                 save_aligned(beta_le, soa.output_beta_le_bsdf_pdf + output_index);
 
-                sampler.save(soa.sampler_state + soa_index);
-                soa.next_state_index[soa_index] = output_index;
+                sampler.save(soa.output_sampler_state + output_index);
             }
             $else
             {
                 film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, scatter_path_radiance.to_rgb());
-                sampler.save(soa.sampler_state + soa_index);
-                var output_index = total_state_count - 1 - cstd::atomic_add(inactive_state_counter, 1);
-                soa.next_state_index[soa_index] = output_index;
             };
         }
         $else
         {
-            var beta = load_aligned(soa.beta + soa_index);
-            var beta_le = load_aligned(soa.beta_le_bsdf_pdf + soa_index);
-            var bsdf_pdf = beta_le.additional_data;
-
-            beta = beta * unscatter_tr;
-            beta_le = beta_le * unscatter_tr;
-            beta_le.additional_data = bsdf_pdf;
-
-            save_aligned(beta, soa.beta + soa_index);
-            save_aligned(beta_le, soa.beta_le_bsdf_pdf + soa_index);
-
             sampler.save(soa.sampler_state + soa_index);
         };
     });
@@ -308,7 +298,6 @@ void MediumPipeline::sample_scattering(int total_state_count, const SOAParams &s
 
     StateCounters *device_counters = state_counters_->get();
     int32_t *active_state_counter = reinterpret_cast<int32_t *>(device_counters);
-    int32_t *inactive_state_counter = active_state_counter + 1;
     int32_t *shadow_ray_counter = active_state_counter + 2;
 
     constexpr int BLOCK_DIM = 256;
@@ -321,56 +310,8 @@ void MediumPipeline::sample_scattering(int total_state_count, const SOAParams &s
         { BLOCK_DIM, 1, 1 },
         total_state_count,
         active_state_counter,
-        inactive_state_counter,
         shadow_ray_counter,
         soa);
-}
-
-void MediumPipeline::sample_light(
-    CompileContext &cc,
-    const Scene    &scene,
-    ref<CVec3f>     scatter_pos,
-    Sampler        &sampler,
-    ref<CVec3f>     shadow_d,
-    ref<f32>        shadow_t1,
-    ref<f32>        shadow_light_pdf,
-    ref<CSpectrum>  shadow_li) const
-{
-    var sam = sampler.get3d();
-    auto select_light = scene.get_light_sampler()
-        ->sample(scatter_pos, sampler.get1d());
-    $if(select_light.light_idx >= 0)
-    {
-        $switch(select_light.light_idx)
-        {
-            for(int i = 0; i < scene.get_light_sampler()->get_light_count(); ++i)
-            {
-                $case(i)
-                {
-                    auto light = scene.get_light_sampler()->get_light(i);
-                    if(auto area = light->as_area())
-                    {
-                        auto sample = area->sample_li(cc, scatter_pos, sam);
-                        var diff = sample.position - scatter_pos;
-                        var shadow_dst = intersection_offset(sample.position, sample.normal, -diff);
-                        shadow_d = shadow_dst - scatter_pos;
-                        shadow_t1 = 1;
-                        shadow_li = sample.radiance;
-                        shadow_light_pdf = select_light.pdf * sample.pdf;
-                    }
-                    else
-                    {
-                        assert(!light->is_area());
-                        auto sample = light->as_envir()->sample_li(cc, sam);
-                        shadow_d = sample.direction_to_light;
-                        shadow_t1 = btrc_max_float;
-                        shadow_li = sample.radiance;
-                        shadow_light_pdf = select_light.pdf * sample.pdf;
-                    }
-                };
-            }
-        };
-    };
 }
 
 BTRC_WFPT_END

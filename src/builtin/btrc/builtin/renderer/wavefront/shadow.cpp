@@ -1,7 +1,6 @@
 #include <btrc/utils/optix/device_funcs.h>
 
 #include "./shadow.h"
-#include "./volume.h"
 
 BTRC_WFPT_BEGIN
 
@@ -13,7 +12,7 @@ namespace
     const char *MISS_SHADOW_NAME       = "__miss__shadow";
     const char *CLOSESTHIT_SHADOW_NAME = "__closesthit__shadow";
 
-    std::string generate_shadow_kernel(CompileContext &cc, const Scene &scene, const VolumeManager &vols, Film &film, float world_diagonal)
+    std::string generate_shadow_kernel(CompileContext &cc, const Scene &scene, Film &film, float world_diagonal)
     {
         using namespace cuj;
 
@@ -49,7 +48,7 @@ namespace
 
         kernel(
             MISS_SHADOW_NAME,
-            [&cc, &scene, &vols, &film, world_diagonal, global_launch_params]
+            [&cc, &scene, &film, world_diagonal, global_launch_params]
         {
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
@@ -65,12 +64,13 @@ namespace
 
             var tr = CSpectrum::one();
             CMediumID medium_id = optix::get_payload(1);
-            
-            $if(medium_id == MEDIUM_ID_VOID)
+
+            $if(ray_t1 > 1)
             {
-                tr = vols.tr(cc, ray_o, ray_o + normalize(ray_d) * world_diagonal, sampler);
+                tr = scene.get_volume_primitive_medium()->tr(
+                    cc, ray_o, ray_o + normalize(ray_d) * world_diagonal, sampler);
             }
-            $elif(ray_t1 != btrc_max_float)
+            $else
             {
                 var end_pnt = ray_o + ray_d * ray_t1;
                 $switch(medium_id)
@@ -112,7 +112,6 @@ namespace
 ShadowPipeline::ShadowPipeline(
     const Scene         &scene,
     Film                &film,
-    const VolumeManager &vols,
     OptixDeviceContext   context,
     bool                 motion_blur,
     bool                 triangle_only,
@@ -124,7 +123,7 @@ ShadowPipeline::ShadowPipeline(
     pipeline_ = optix::SimpleOptixPipeline(
         context,
         optix::SimpleOptixPipeline::Program{
-            .ptx                = generate_shadow_kernel(cc, scene, vols, film, world_diagonal),
+            .ptx                = generate_shadow_kernel(cc, scene, film, world_diagonal),
             .launch_params_name = LAUNCH_PARAMS_NAME,
             .raygen_name        = RAYGEN_SHADOW_NAME,
             .miss_name          = MISS_SHADOW_NAME,

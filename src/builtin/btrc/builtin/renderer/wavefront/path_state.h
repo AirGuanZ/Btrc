@@ -75,6 +75,10 @@ struct PathState
     // ==== shadow ====
 
     cuda::Buffer<IndependentSampler::State> shadow_sampler_state;
+
+    // ==== path-independent sampler ====
+
+    cuda::Buffer<IndependentSampler::State> path_independent_sampler_state;
 };
 
 BTRC_WFPT_END

@@ -7,6 +7,7 @@
 #include <btrc/utils/math/mat3.h>
 #include <btrc/utils/math/mat4.h>
 #include <btrc/utils/math/quaterion.h>
+#include <btrc/utils/math/ray.h>
 #include <btrc/utils/math/scalar.h>
 #include <btrc/utils/math/transform.h>
 #include <btrc/utils/math/triangle.h>

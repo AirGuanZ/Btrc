@@ -1,8 +1,8 @@
 #include <algorithm>
 
-#include <btrc/builtin/volume/indexing.h>
+#include <btrc/core/volume/indexing.h>
 
-BTRC_BUILTIN_BEGIN
+BTRC_BEGIN
 
 namespace
 {
@@ -70,4 +70,4 @@ const std::vector<int32_t> &volume::OverlapIndexer::get_indices() const
     return indices_;
 }
 
-BTRC_BUILTIN_END
+BTRC_END

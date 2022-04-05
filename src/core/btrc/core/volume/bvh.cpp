@@ -3,10 +3,10 @@
 #include <bvh/locally_ordered_clustering_builder.hpp>
 #include <bvh/parallel_reinsertion_optimizer.hpp>
 
-#include <btrc/builtin/volume/bvh.h>
+#include <btrc/core/volume/bvh.h>
 #include <btrc/utils/enumerate.h>
 
-BTRC_BUILTIN_BEGIN
+BTRC_BEGIN
 
 namespace
 {
@@ -340,4 +340,4 @@ f32 volume::BVH::find_closest_intersection(ref<CVec3f> p, ref<CVec3f> d, f32 t_m
     return result;
 }
 
-BTRC_BUILTIN_END
+BTRC_END

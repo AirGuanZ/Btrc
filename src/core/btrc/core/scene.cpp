@@ -8,7 +8,7 @@ BTRC_BEGIN
 Scene::Scene(optix::Context &optix_ctx)
     : optix_ctx_(&optix_ctx)
 {
-
+    vol_prim_medium_ = newRC<VolumePrimitiveMedium>();
 }
 
 void Scene::add_instance(const Instance &inst)
@@ -41,6 +41,8 @@ void Scene::precommit()
     }
     if(env_light_)
         light_sampler_->add_light(env_light_);
+
+    vol_prim_medium_->set_volumes(volumes_);
 }
 
 void Scene::postcommit()
@@ -82,10 +84,10 @@ void Scene::postcommit()
     {
         for(auto &inst : instances_)
         {
-            medium_indices[inst.inner_medium] = MEDIUM_ID_VOID;
-            medium_indices[inst.outer_medium] = MEDIUM_ID_VOID;
+            medium_indices[inst.inner_medium] = 0;
+            medium_indices[inst.outer_medium] = 0;
         }
-        std::vector<RC<Medium>> ids;
+        std::vector<RC<Medium>> ids = { vol_prim_medium_ };
         for(auto &p : medium_indices)
         {
             if(p.first)
@@ -93,14 +95,16 @@ void Scene::postcommit()
         }
         std::sort(ids.begin(), ids.end(), [](const auto &a, const auto &b)
         {
-            return a->get_priority() < b->get_priority();
+            return a->get_priority() > b->get_priority();
         });
         int i = 0;
         for(auto &med : ids)
         {
-            medium_indices.at(med) = i++;
+            medium_indices[med] = i++;
             mediums_.push_back(med);
         }
+        assert(ids.back() == vol_prim_medium_);
+        medium_indices[nullptr] = static_cast<MediumID>(medium_indices.size() - 1);
     }
 
     int next_light_idx = 0;
@@ -142,9 +146,9 @@ void Scene::postcommit()
                 inst.transform.mat.at(1, 0), inst.transform.mat.at(1, 1), inst.transform.mat.at(1, 2), inst.transform.mat.at(1, 3),
                 inst.transform.mat.at(2, 0), inst.transform.mat.at(2, 1), inst.transform.mat.at(2, 2), inst.transform.mat.at(2, 3)
             },
-            .id             = static_cast<uint32_t>(blas_instances.size()),
-            .mask           = optix::RAY_MASK_ALL,
-            .handle         = inst.geometry->get_blas()
+            .id     = static_cast<uint32_t>(blas_instances.size()),
+            .mask   = optix::RAY_MASK_ALL,
+            .handle = inst.geometry->get_blas()
         });
     }
 
@@ -199,6 +203,7 @@ void Scene::collect_objects(std::set<RC<Object>> &output) const
     }
     if(env_light_)
         output.insert(env_light_);
+    output.insert(vol_prim_medium_);
 }
 
 int Scene::get_instance_count() const
@@ -256,9 +261,15 @@ const Medium *Scene::get_medium(int id) const
     return mediums_[id].get();
 }
 
-const std::vector<RC<VolumePrimitive>> &Scene::get_volumes() const
+MediumID Scene::get_volume_primitive_medium_id() const
 {
-    return volumes_;
+    assert(mediums_.back() == vol_prim_medium_);
+    return static_cast<MediumID>(mediums_.size() - 1);
+}
+
+const Medium *Scene::get_volume_primitive_medium() const
+{
+    return vol_prim_medium_.get();
 }
 
 bool Scene::has_motion_blur() const

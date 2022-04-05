@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/builtin/renderer/wavefront/volume.h>
+#include <btrc/builtin/renderer/wavefront/common.h>
 #include <btrc/core/film.h>
 #include <btrc/core/scene.h>
 #include <btrc/utils/cuda/module.h>
@@ -42,7 +42,7 @@ namespace medium_pipeline_detail
         // output only when scattered
         // and mark original inst_id with INST_ID_MEDIUM_MASK
 
-        int32_t *next_state_index;
+        //int32_t *next_state_index;
 
         GlobalSampler::State *output_sampler_state;
         Spectrum             *output_path_radiance;
@@ -75,7 +75,7 @@ namespace medium_pipeline_detail
         inct_t_prim_uv,
         ray_o_medium_id,
         ray_d_t1,
-        next_state_index,
+        //next_state_index,
         output_sampler_state,
         output_path_radiance,
         output_pixel_coord,
@@ -114,12 +114,11 @@ public:
     MediumPipeline() = default;
 
     void record_device_code(
-        CompileContext      &cc,
-        Film                &film,
-        const VolumeManager &vols,
-        const Scene         &scene,
-        const ShadeParams   &shade_params,
-        float                world_diagonal);
+        CompileContext    &cc,
+        Film              &film,
+        const Scene       &scene,
+        const ShadeParams &shade_params,
+        float              world_diagonal);
 
     void initialize(
         RC<cuda::Module>                cuda_module,
@@ -135,16 +134,6 @@ public:
     void sample_scattering(int total_state_count, const SOAParams &soa);
 
 private:
-
-    void sample_light(
-        CompileContext &cc,
-        const Scene    &scene,
-        ref<CVec3f>     scatter_pos,
-        Sampler        &sampler,
-        ref<CVec3f>     shadow_d,
-        ref<f32>        shadow_t1,
-        ref<f32>        shadow_light_pdf,
-        ref<CSpectrum>  shadow_li) const;
 
     RC<cuda::Module>                cuda_module_;
     RC<cuda::Buffer<StateCounters>> state_counters_;

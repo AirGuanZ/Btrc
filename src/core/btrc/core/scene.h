@@ -16,8 +16,8 @@ struct InstanceInfo
     int32_t     material_id = 0;
     int32_t     light_id = 0;
     Transform3D transform;
-    MediumID    inner_medium_id = MEDIUM_ID_VOID;
-    MediumID    outer_medium_id = MEDIUM_ID_VOID;
+    MediumID    inner_medium_id = 0;
+    MediumID    outer_medium_id = 0;
 };
 
 CUJ_PROXY_CLASS(
@@ -65,7 +65,7 @@ public:
     void precommit();
 
     void postcommit();
-    
+
     OptixTraversableHandle get_tlas() const;
 
     void collect_objects(std::set<RC<Object>> &output) const;
@@ -92,7 +92,9 @@ public:
 
     const Medium *get_medium(int id) const;
 
-    const std::vector<RC<VolumePrimitive>> &get_volumes() const;
+    MediumID get_volume_primitive_medium_id() const;
+
+    const Medium *get_volume_primitive_medium() const;
 
     bool has_motion_blur() const;
 
@@ -107,6 +109,8 @@ private:
     std::vector<Instance>            instances_;
     std::vector<RC<VolumePrimitive>> volumes_;
     RC<EnvirLight>                   env_light_;
+
+    RC<VolumePrimitiveMedium> vol_prim_medium_;
 
     optix::InstanceAS          tlas_;
     std::vector<RC<Material>>  materials_;

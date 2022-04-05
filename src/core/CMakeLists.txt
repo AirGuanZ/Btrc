@@ -24,7 +24,7 @@ TARGET_INCLUDE_DIRECTORIES(BtrcCore PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 TARGET_LINK_LIBRARIES(
     BtrcCore PUBLIC
-    BtrcCommon MemberFunctionTrait CUDA::cudart_static CUDA::cuda_driver)
+    BtrcCommon MemberFunctionTrait bvh CUDA::cudart_static CUDA::cuda_driver)
 
 #BTRC_EMBED_PTX(BtrcCore trace "${CMAKE_CURRENT_SOURCE_DIR}/src/wavefront/trace.cu")
 #TARGET_INCLUDE_DIRECTORIES(

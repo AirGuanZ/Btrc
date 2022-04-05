@@ -1,13 +1,12 @@
 #pragma once
 
+#include <btrc/builtin/renderer/wavefront/common.h>
 #include <btrc/builtin/sampler/independent.h>
 #include <btrc/core/film.h>
 #include <btrc/core/scene.h>
 #include <btrc/core/spectrum.h>
 #include <btrc/utils/optix/pipeline.h>
 #include <btrc/utils/uncopyable.h>
-
-#include "./volume.h"
 
 BTRC_WFPT_BEGIN
 
@@ -58,7 +57,6 @@ public:
     ShadowPipeline(
         const Scene         &scene,
         Film                &film,
-        const VolumeManager &vols,
         OptixDeviceContext   context,
         bool                 motion_blur,
         bool                 triangle_only,

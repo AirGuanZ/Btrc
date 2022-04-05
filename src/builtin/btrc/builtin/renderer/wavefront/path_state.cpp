@@ -42,7 +42,8 @@ void PathState::initialize(int state_count)
         next_o_medium_id, 
         next_d_t1,
         next_beta_le_bsdf_pdf,
-        shadow_sampler_state);
+        shadow_sampler_state,
+        path_independent_sampler_state);
 }
 
 void PathState::clear()
@@ -53,8 +54,12 @@ void PathState::clear()
         rng_init_data[i].rng = cstd::PCG::Data(static_cast<uint32_t>(i));
 
     std::default_random_engine random_engine{ 42 };
+
     std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
     shadow_sampler_state.from_cpu(rng_init_data.data());
+
+    std::shuffle(rng_init_data.begin(), rng_init_data.end(), random_engine);
+    path_independent_sampler_state.from_cpu(rng_init_data.data());
 }
 
 void PathState::next_iteration()

@@ -1,4 +1,3 @@
-#include <btrc/builtin/medium/henyey_greenstein.h>
 #include <btrc/builtin/medium/homogeneous.h>
 
 BTRC_BUILTIN_BEGIN

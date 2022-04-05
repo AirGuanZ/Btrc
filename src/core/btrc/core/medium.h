@@ -37,10 +37,28 @@ public:
         CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const = 0;
 };
 
+class HenyeyGreensteinPhaseShader : public PhaseShader
+{
+public:
+
+    void set_g(f32 g);
+
+    void set_color(ref<CSpectrum> color);
+
+    SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam) const override;
+
+    CSpectrum eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const override;
+
+    f32 pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const override;
+
+private:
+
+    f32 g_;
+    CSpectrum color_;
+};
+
 using MediumID = uint32_t;
 using CMediumID = cuj::cxx<MediumID>;
-
-constexpr MediumID MEDIUM_ID_VOID = MediumID(-1);
 
 class Medium : public Object
 {
@@ -69,6 +87,18 @@ public:
         ref<CVec3f>     uvw_a,
         ref<CVec3f>     uvw_b,
         Sampler        &sampler) const = 0;
+
+    SampleResult sample(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        Sampler        &sampler) const;
+
+    CSpectrum tr(
+        CompileContext &cc,
+        ref<CVec3f>     a,
+        ref<CVec3f>     b,
+        Sampler        &sampler) const;
 
     virtual float get_priority() const = 0;
 };

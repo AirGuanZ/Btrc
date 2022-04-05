@@ -1,10 +1,9 @@
 #pragma once
 
-#include <btrc/builtin/medium/henyey_greenstein.h>
-#include <btrc/builtin/volume/bvh.h>
+#include <btrc/core/volume/bvh.h>
 #include <btrc/core/medium.h>
 
-BTRC_BUILTIN_BEGIN
+BTRC_BEGIN
 
 namespace volume
 {
@@ -73,4 +72,4 @@ namespace volume
 
 } // namespace volume
 
-BTRC_BUILTIN_END
+BTRC_END

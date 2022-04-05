@@ -1,4 +1,5 @@
-#include <btrc/core/volume.h>
+#include <btrc/core/volume/aggregate.h>
+#include <btrc/core/volume/bvh.h>
 
 BTRC_BEGIN
 
@@ -73,6 +74,135 @@ RC<Texture3D> VolumePrimitive::get_sigma_t() const
 RC<Texture3D> VolumePrimitive::get_albedo() const
 {
     return albedo_.get();
+}
+
+struct VolumePrimitiveMedium::Impl
+{
+    std::vector<RC<VolumePrimitive>> vols;
+    Box<volume::Aggregate> aggregate;
+    Box<volume::BVH> bvh;
+};
+
+VolumePrimitiveMedium::VolumePrimitiveMedium()
+{
+    impl_ = new Impl;
+}
+
+VolumePrimitiveMedium::~VolumePrimitiveMedium()
+{
+    delete impl_;
+}
+
+void VolumePrimitiveMedium::set_volumes(const std::vector<RC<VolumePrimitive>> &vols)
+{
+    impl_->vols = vols;
+    set_need_commit();
+}
+
+void VolumePrimitiveMedium::commit()
+{
+    impl_->aggregate = newBox<volume::Aggregate>(impl_->vols);
+    impl_->bvh = newBox<volume::BVH>(impl_->vols);
+}
+
+Medium::SampleResult VolumePrimitiveMedium::sample(
+    CompileContext &cc,
+    ref<CVec3f>     a,
+    ref<CVec3f>     b,
+    ref<CVec3f>     uvw_a,
+    ref<CVec3f>     uvw_b,
+    Sampler        &sampler) const
+{
+    SampleResult result;
+    auto shader = newRC<HenyeyGreensteinPhaseShader>();
+    result.shader = shader;
+
+    if(impl_->bvh->is_empty())
+    {
+        result.scattered = false;
+        result.throughput = CSpectrum::one();
+        return result;
+    }
+
+    var o = a, d = normalize(b - a);
+    $loop
+    {
+        $if(dot(b - o, d) <= 0.0f | length_square(b - o) < 0.00001f)
+        {
+            result.scattered = false;
+            result.throughput = CSpectrum::one();
+            $break;
+        };
+        CVec3f inct_pos;
+        $if(!impl_->bvh->find_closest_intersection(o, b, inct_pos))
+        {
+            inct_pos = b;
+        };
+        var overlap = impl_->bvh->get_overlap(0.5f * (o + inct_pos));
+        $if(overlap.count != i32(0))
+        {
+            impl_->aggregate->sample_scattering(
+                cc, overlap, o, inct_pos, sampler,
+                result.scattered, result.throughput, result.position, *shader);
+            $if(result.scattered)
+            {
+                // result.throughput will always be one in this case
+                $break;
+            };
+        };
+        o = inct_pos + 0.001f * d;
+    };
+
+    return result;
+}
+
+CSpectrum VolumePrimitiveMedium::tr(
+    CompileContext &cc,
+    ref<CVec3f>     a,
+    ref<CVec3f>     b,
+    ref<CVec3f>     uvw_a,
+    ref<CVec3f>     uvw_b,
+    Sampler        &sampler) const
+{
+    var result = CSpectrum::one();
+    if(impl_->bvh->is_empty())
+        return result;
+
+    var o = a, d = normalize(b - a);
+    $loop
+    {
+        $if(dot(b - o, d) <= 0.0f | length_square(b - o) < 0.0001f)
+        {
+            $break;
+        };
+        CVec3f inct_pos;
+        $if(!impl_->bvh->find_closest_intersection(o, b, inct_pos))
+        {
+            inct_pos = b;
+        };
+        var overlap = impl_->bvh->get_overlap(0.5f * (o + inct_pos));
+        $if(overlap.count != i32(0))
+        {
+            var seg_tr = impl_->aggregate->tr(cc, overlap, o, inct_pos, sampler);
+            result = result * seg_tr;
+        };
+        o = inct_pos + 0.001f * d;
+    };
+
+    return result;
+}
+
+float VolumePrimitiveMedium::get_priority() const
+{
+    return std::numeric_limits<float>::lowest();
+}
+
+std::vector<RC<Object>> VolumePrimitiveMedium::get_dependent_objects()
+{
+    std::vector<RC<Object>> result;
+    for(auto &v : impl_->vols)
+        result.push_back(v);
+    return result;
 }
 
 BTRC_END

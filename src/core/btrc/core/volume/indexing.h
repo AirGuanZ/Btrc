@@ -2,7 +2,7 @@
 
 #include <btrc/core/volume.h>
 
-BTRC_BUILTIN_BEGIN
+BTRC_BEGIN
 
 namespace volume
 {
@@ -25,4 +25,4 @@ namespace volume
 
 } // namespace volume
 
-BTRC_BUILTIN_END
+BTRC_END

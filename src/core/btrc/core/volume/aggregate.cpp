@@ -1,9 +1,9 @@
-#include <btrc/builtin/volume/aggregate.h>
-#include <btrc/builtin/volume/indexing.h>
-#include <btrc/builtin/volume/overlap.h>
+#include <btrc/core/volume/aggregate.h>
+#include <btrc/core/volume/indexing.h>
+#include <btrc/core/volume/overlap.h>
 #include <btrc/utils/enumerate.h>
 
-BTRC_BUILTIN_BEGIN
+BTRC_BEGIN
 
 volume::Aggregate::Aggregate(const std::vector<RC<VolumePrimitive>> &vols)
 {
@@ -256,4 +256,4 @@ CSpectrum volume::Aggregate::tr_in_overlap(
     return CSpectrum::from_rgb(result, result, result);
 }
 
-BTRC_BUILTIN_END
+BTRC_END

@@ -1,11 +1,10 @@
 #pragma once
 
+#include <btrc/builtin/renderer/wavefront/common.h>
 #include <btrc/core/film.h>
 #include <btrc/core/scene.h>
 #include <btrc/utils/cuda/module.h>
 #include <btrc/utils/uncopyable.h>
-
-#include "./volume.h"
 
 BTRC_WFPT_BEGIN
 
@@ -37,7 +36,7 @@ namespace shade_pipeline_detail
         Vec4f *ray_o_medium_id;
         Vec4f *ray_d_t1;
 
-        int32_t *next_state_index;
+        //int32_t *next_state_index;
 
         GlobalSampler::State  *output_sampler_state;
 
@@ -61,6 +60,10 @@ namespace shade_pipeline_detail
         Vec4f    *output_new_ray_d_t1;
 
         Spectrum *output_beta_le_bsdf_pdf;
+
+        // path-independent
+
+        IndependentSampler::State *path_independent_sampler_state;
     };
 
     CUJ_PROXY_CLASS(
@@ -75,7 +78,7 @@ namespace shade_pipeline_detail
         inct_t_prim_uv,
         ray_o_medium_id,
         ray_d_t1,
-        next_state_index,
+        //next_state_index,
         output_sampler_state,
         output_path_radiance,
         output_pixel_coord,
@@ -87,7 +90,8 @@ namespace shade_pipeline_detail
         output_shadow_beta_li,
         output_new_ray_o_medium_id,
         output_new_ray_d_t1,
-        output_beta_le_bsdf_pdf);
+        output_beta_le_bsdf_pdf,
+        path_independent_sampler_state);
 
 } // namespace shade_pipeline_detail
 
@@ -101,12 +105,11 @@ public:
     ShadePipeline() = default;
 
     void record_device_code(
-        CompileContext      &cc,
-        Film                &film,
-        const Scene         &scene,
-        const VolumeManager &vols,
-        const ShadeParams   &shade_params,
-        float                world_diagonal);
+        CompileContext    &cc,
+        Film              &film,
+        const Scene       &scene,
+        const ShadeParams &shade_params,
+        float              world_diagonal);
 
     void initialize(
         RC<cuda::Module>                cuda_module,
@@ -122,17 +125,6 @@ public:
     void shade(int total_state_count, const SOAParams &soa);
 
 private:
-
-    void handle_miss(
-        CompileContext      &cc,
-        float                world_diagonal,
-        const VolumeManager &vols,
-        const LightSampler *light_sampler,
-        ref<CSOAParams>     soa_params,
-        i32                 soa_index,
-        ref<CSpectrum>      path_rad,
-        Sampler            &sampler,
-        boolean             scattered);
 
     RC<cuda::Module>                kernel_;
     RC<cuda::Buffer<StateCounters>> counters_;

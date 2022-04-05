@@ -7,7 +7,6 @@
 #include <btrc/builtin/renderer/wavefront/shadow.h>
 #include <btrc/builtin/renderer/wavefront/sort.h>
 #include <btrc/builtin/renderer/wavefront/trace.h>
-#include <btrc/builtin/renderer/wavefront/volume.h>
 #include <btrc/builtin/renderer/wavefront.h>
 
 BTRC_BUILTIN_BEGIN
@@ -34,7 +33,6 @@ struct WavefrontPathTracer::Impl
     wfpt::ShadePipeline         shade;
     wfpt::ShadowPipeline        shadow;
     wfpt::PreviewImageGenerator preview;
-    wfpt::VolumeManager         volumes;
 
     RC<cuda::Buffer<wfpt::StateCounters>> state_counters;
 
@@ -131,17 +129,15 @@ void WavefrontPathTracer::recompile()
     impl_->shade = {};
     impl_->shadow = {};
 
-    impl_->volumes = wfpt::VolumeManager(impl_->scene->get_volumes());
-
     const AABB3f world_bbox = union_aabb(impl_->camera->get_bounding_box(), impl_->scene->get_bbox());
     const float world_diagonal = 1.2f * length(world_bbox.upper - world_bbox.lower);
 
     {
         cuj::ScopedModule cuj_module;
 
-        impl_->generate.record_device_code(cc, *impl_->camera, impl_->film, *impl_->filter);
-        impl_->medium.record_device_code(cc, impl_->film, impl_->volumes, *impl_->scene, shade_params, world_diagonal);
-        impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, impl_->volumes, shade_params, world_diagonal);
+        impl_->generate.record_device_code(cc, *impl_->scene, *impl_->camera, impl_->film, *impl_->filter);
+        impl_->medium.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
+        impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
 
         cuj::PTXGenerator ptx_gen;
         ptx_gen.set_options(cuj::Options{
@@ -171,8 +167,7 @@ void WavefrontPathTracer::recompile()
     impl_->sort = wfpt::SortPipeline();
 
     impl_->shadow = wfpt::ShadowPipeline(
-        *impl_->scene, impl_->film,
-        impl_->volumes, *impl_->optix_ctx,
+        *impl_->scene, impl_->film, *impl_->optix_ctx,
         impl_->scene->has_motion_blur(),
         impl_->scene->is_triangle_only(),
         2, world_diagonal);
@@ -252,7 +247,7 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 .inct_t_prim_uv                = soa.inct_t_prim_uv,
                 .ray_o_medium_id               = soa.o_medium_id,
                 .ray_d_t1                      = soa.d_t1,
-                .next_state_index              = soa.next_state_index,
+                //.next_state_index              = soa.next_state_index,
                 .output_sampler_state          = soa.next_sampler_state,
                 .output_path_radiance          = soa.next_path_radiance,
                 .output_pixel_coord            = soa.next_pixel_coord,
@@ -272,29 +267,30 @@ Renderer::RenderResult WavefrontPathTracer::render()
         impl_->shade.shade(
             active_state_count,
             wfpt::ShadePipeline::SOAParams{
-                .sampler_state                 = soa.sampler_state,
-                .path_radiance                 = soa.path_radiance,
-                .pixel_coord                   = soa.pixel_coord,
-                .depth                         = soa.depth,
-                .beta                          = soa.beta,
-                .beta_le_bsdf_pdf              = soa.beta_le_bsdf_pdf,
-                .path_flag                     = soa.path_flag,
-                .inct_t_prim_uv                = soa.inct_t_prim_uv,
-                .ray_o_medium_id               = soa.o_medium_id,
-                .ray_d_t1                      = soa.d_t1,
-                .next_state_index              = soa.next_state_index,
-                .output_sampler_state          = soa.next_sampler_state,
-                .output_path_radiance          = soa.next_path_radiance,
-                .output_pixel_coord            = soa.next_pixel_coord,
-                .output_depth                  = soa.next_depth,
-                .output_beta                   = soa.next_beta,
-                .output_shadow_pixel_coord     = soa.shadow_pixel_coord,
-                .output_shadow_ray_o_medium_id = soa.shadow_o_medium_id,
-                .output_shadow_ray_d_t1        = soa.shadow_d_t1,
-                .output_shadow_beta_li         = soa.shadow_beta_li,
-                .output_new_ray_o_medium_id    = soa.next_o_medium_id,
-                .output_new_ray_d_t1           = soa.next_d_t1,
-                .output_beta_le_bsdf_pdf       = soa.next_beta_le_bsdf_pdf
+                .sampler_state                  = soa.sampler_state,
+                .path_radiance                  = soa.path_radiance,
+                .pixel_coord                    = soa.pixel_coord,
+                .depth                          = soa.depth,
+                .beta                           = soa.beta,
+                .beta_le_bsdf_pdf               = soa.beta_le_bsdf_pdf,
+                .path_flag                      = soa.path_flag,
+                .inct_t_prim_uv                 = soa.inct_t_prim_uv,
+                .ray_o_medium_id                = soa.o_medium_id,
+                .ray_d_t1                       = soa.d_t1,
+                //.next_state_index               = soa.next_state_index,
+                .output_sampler_state           = soa.next_sampler_state,
+                .output_path_radiance           = soa.next_path_radiance,
+                .output_pixel_coord             = soa.next_pixel_coord,
+                .output_depth                   = soa.next_depth,
+                .output_beta                    = soa.next_beta,
+                .output_shadow_pixel_coord      = soa.shadow_pixel_coord,
+                .output_shadow_ray_o_medium_id  = soa.shadow_o_medium_id,
+                .output_shadow_ray_d_t1         = soa.shadow_d_t1,
+                .output_shadow_beta_li          = soa.shadow_beta_li,
+                .output_new_ray_o_medium_id     = soa.next_o_medium_id,
+                .output_new_ray_d_t1            = soa.next_d_t1,
+                .output_beta_le_bsdf_pdf        = soa.next_beta_le_bsdf_pdf,
+                .path_independent_sampler_state = soa.path_independent_sampler_state
             });
 
         wfpt::StateCounters state_counters;

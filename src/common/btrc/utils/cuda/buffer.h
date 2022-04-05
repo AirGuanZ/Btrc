@@ -6,6 +6,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cuj.h>
 
 #include <btrc/utils/cuda/error.h>
 #include <btrc/utils/scope_guard.h>
@@ -69,6 +70,8 @@ public:
     void to_cpu(T *output, size_t beg = 0, size_t end = 0) const;
 
     void from_cpu(const T *cpu_data, size_t beg = 0, size_t end = 0);
+
+    auto get_cuj_ptr() const;
 
 private:
 
@@ -247,6 +250,12 @@ void Buffer<T>::from_cpu(const T *cpu_data, size_t beg, size_t end)
     const size_t bytes = sizeof(T) * (end - beg);
     throw_on_error(cudaMemcpy(
         buffer_ + beg, cpu_data, bytes, cudaMemcpyHostToDevice));
+}
+
+template<typename T>
+auto Buffer<T>::get_cuj_ptr() const
+{
+    return cuj::import_pointer(buffer_);
 }
 
 template<typename T>

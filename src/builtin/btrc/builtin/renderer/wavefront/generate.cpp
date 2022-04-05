@@ -18,7 +18,7 @@ GeneratePipeline::GeneratePipeline()
 
 }
 
-void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &camera, Film &film, FilmFilter &filter)
+void GeneratePipeline::record_device_code(CompileContext &cc, const Scene &scene, const Camera &camera, Film &film, FilmFilter &filter)
 {
     using namespace cuj;
 
@@ -26,7 +26,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
 
     kernel(
         GENERATE_KERNEL_NAME,
-        [&cc, &camera, &film, &filter, &film_res](
+        [&cc, &scene, &camera, &film, &filter, &film_res](
             CSOAParams soa_params,
             i64        initial_pixel_index,
             i32        new_state_count,
@@ -69,7 +69,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Camera &came
             sample_we_result.pos.x,
             sample_we_result.pos.y,
             sample_we_result.pos.z,
-            bitcast<f32>(CMediumID(MEDIUM_ID_VOID)));
+            bitcast<f32>(CMediumID(scene.get_volume_primitive_medium_id())));
         save_aligned(o_t0, soa_params.output_ray_o_medium_id + state_index);
 
         var d_t1 = CVec4f(

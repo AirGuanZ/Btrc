@@ -13,9 +13,7 @@ using namespace shade_pipeline_detail;
 
 namespace
 {
-
-    constexpr float EPS = 1.5e-4f;
-
+    
     constexpr char SHADE_KERNEL_NAME[] = "shade_kernel";
 
     SurfacePoint get_intersection(
@@ -78,16 +76,13 @@ namespace
 } // namespace anonymous
 
 void ShadePipeline::record_device_code(
-    CompileContext      &cc,
-    Film                &film,
-    const Scene         &scene,
-    const VolumeManager &vols,
-    const ShadeParams   &shade_params,
-    float                world_diagonal)
+    CompileContext    &cc,
+    Film              &film,
+    const Scene       &scene,
+    const ShadeParams &shade_params,
+    float              world_diagonal)
 {
     using namespace cuj;
-
-    auto light_sampler = scene.get_light_sampler();
 
     kernel(
         SHADE_KERNEL_NAME, [&](
@@ -96,6 +91,8 @@ void ShadePipeline::record_device_code(
             ptr<i32>   shadow_ray_counter,
             CSOAParams soa_params)
     {
+        const WFPTScene wfpt_scene = { cc, scene, world_diagonal };
+
         var soa_index = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
         $if(soa_index >= total_state_count)
         {
@@ -107,35 +104,38 @@ void ShadePipeline::record_device_code(
         var path_flag = soa_params.path_flag[soa_index];
         
         var beta = load_aligned(soa_params.beta + soa_index);
-        var path_radiance = load_aligned(soa_params.path_radiance + soa_index);
 
         var pixel_coord = load_aligned(soa_params.pixel_coord + soa_index);
         i32 depth = soa_params.depth[soa_index];
 
         var scattered = is_path_scattered(path_flag);
 
-        //IndependentSampler sampler(soa_params.sampler_state[soa_index]);
-        GlobalSampler sampler({ film.width(), film.height() }, soa_params.sampler_state[soa_index]);
-
-        i32 next_state_index;
+        var path_radiance = load_aligned(soa_params.path_radiance + soa_index);
         $if(scattered)
         {
-            next_state_index = soa_params.next_state_index[soa_index];
+            path_radiance = CSpectrum::zero();
         };
 
         $if(!is_path_intersected(path_flag))
         {
-            handle_miss(
-                cc, world_diagonal, vols, light_sampler, soa_params,
-                soa_index, path_radiance, sampler, scattered);
+            var env_path_rad = CSpectrum::zero();
+
+            if(scene.get_light_sampler()->get_envir_light())
+            {
+                var ray_ori = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_medium_id + soa_index));
+                var ray_dir = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
+                var beta_le = load_aligned(soa_params.beta_le_bsdf_pdf + soa_index);
+                var bsdf_pdf = beta_le.additional_data;
+                env_path_rad = wfpt::handle_miss(wfpt_scene, ray_ori, ray_dir, beta_le, bsdf_pdf);
+            }
 
             $if(scattered)
             {
-                sampler.save(soa_params.output_sampler_state + next_state_index);
+                film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, env_path_rad.to_rgb());
             }
             $else
             {
-                film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, path_radiance.to_rgb());
+                film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, (path_radiance + env_path_rad).to_rgb());
             };
             $return();
         };
@@ -160,60 +160,21 @@ void ShadePipeline::record_device_code(
         ref instance = instances[inst_id];
         ref geometry = geometries[instance.geometry_id];
         var inct = get_intersection(inct_t, ray_o, ray_d, instance, geometry, prim_id, uv);
-
-        // handle intersected light
-
-        auto handle_intersected_light = [&](int light_id)
-        {
-            auto light = light_sampler->get_light(light_id);
-            const AreaLight *area = light->as_area();
-            if(!area)
-                return;
-
-            var le = area->eval_le(cc, inct.position, inct.frame.z, inct.uv, inct.tex_coord, -ray_d);
-            var beta_le = load_aligned(soa_params.beta_le_bsdf_pdf + soa_index);
-            var bsdf_pdf = beta_le.additional_data;
-
-            $if(scattered)
-            {
-                var tr = estimate_medium_tr(cc, scene, vols, medium_id, ray_o, inct.position, sampler);
-                beta_le = beta_le * tr;
-            };
-
-            $if(bsdf_pdf < 0)
-            {
-                path_radiance = path_radiance + beta_le * le / -bsdf_pdf;
-            }
-            $else
-            {
-                var select_light_pdf = light_sampler->pdf(ray_o, light_id);
-                var light_dir_pdf = area->pdf_li(cc, ray_o, inct.position, inct.frame.z);
-                var light_pdf = select_light_pdf * light_dir_pdf;
-                path_radiance = path_radiance + beta_le * le / (bsdf_pdf + light_pdf);
-            };
-        };
-
-        var intersected_light_id = instance.light_id;
-        $if(intersected_light_id >= 0)
-        {
-            $switch(intersected_light_id)
-            {
-                for(int i = 0; i < light_sampler->get_light_count(); ++i)
-                {
-                    $case(i)
-                    {
-                        handle_intersected_light(i);
-                    };
-                }
-                $default{ cstd::unreachable(); };
-            };
-        };
+        
+        var beta_le = load_aligned(soa_params.beta_le_bsdf_pdf + soa_index);
+        var bsdf_pdf = beta_le.additional_data;
+        var le_rad = handle_intersected_light(
+            wfpt_scene, ray_o, ray_d, inct, beta_le, bsdf_pdf, instance.light_id);
 
         $if(scattered)
         {
-            sampler.save(soa_params.output_sampler_state + next_state_index);
+            film.splat_atomic(pixel_coord, Film::OUTPUT_RADIANCE, le_rad.to_rgb());
             $return();
         };
+
+        path_radiance = path_radiance + le_rad;
+
+        GlobalSampler sampler({ film.width(), film.height() }, soa_params.sampler_state[soa_index]);
 
         // rr
 
@@ -232,51 +193,16 @@ void ShadePipeline::record_device_code(
 
         // sample light
 
-        auto select_light = light_sampler->sample(inct.position, sampler.get1d());
-        var light_id = select_light.light_idx;
-        
         CVec3f shadow_o, shadow_d;
-        var shadow_t1 = 0.0f, light_dir_pdf = 0.0f;
-        var li = CSpectrum::zero();
-        $if(light_id >= 0)
-        {
-            var sam = sampler.get3d();
-            $switch(light_id)
-            {
-                for(int i = 0; i < light_sampler->get_light_count(); ++i)
-                {
-                    $case(i)
-                    {
-                        auto light = light_sampler->get_light(i);
-                        if(auto area = light->as_area())
-                        {
-                            auto sample = area->sample_li(cc, inct.position, sam);
-                            var diff = sample.position - inct.position;
-                            var shadow_dst = intersection_offset(sample.position, sample.normal, -diff);
-                            shadow_o = intersection_offset(inct.position, inct.frame.z, diff);
-                            shadow_d = shadow_dst - shadow_o;
-                            shadow_t1 = 1;
-                            light_dir_pdf = sample.pdf;
-                            li = sample.radiance;
-                        }
-                        else
-                        {
-                            assert(!light->is_area());
-                            auto sample = light->as_envir()->sample_li(cc, sam);
-                            shadow_o = intersection_offset(inct.position, inct.frame.z, sample.direction_to_light);
-                            shadow_d = sample.direction_to_light;
-                            shadow_t1 = btrc_max_float;
-                            light_dir_pdf = sample.pdf;
-                            li = sample.radiance;
-                        }
-                    };
-                }
-                $default
-                {
-                    cstd::unreachable();
-                };
-            };
-        };
+        f32 shadow_t1, shadow_light_pdf;
+        CSpectrum shadow_li;
+
+        var shadow_bsdf_val = CSpectrum::zero();
+        var shadow_bsdf_pdf = 0.0f;
+
+        var emit_shadow_ray =  sample_light_li(
+            wfpt_scene, inct.position, inct.frame.z, sampler,
+            shadow_o, shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
 
         // eval bsdf
 
@@ -284,10 +210,6 @@ void ShadePipeline::record_device_code(
 
         CVec3f gbuffer_albedo;
         CVec3f gbuffer_normal;
-
-        var shadow_bsdf_val = CSpectrum::zero();
-        var shadow_bsdf_pdf = 0.0f;
-        var emit_shadow_ray = false;
 
         auto handle_material = [&](const Material *mat)
         {
@@ -307,7 +229,7 @@ void ShadePipeline::record_device_code(
 
             // shadow ray
 
-            $if(!bsdf_sample.is_delta & light_id >= 0 & shadow_t1 > EPS & !li.is_zero())
+            $if(emit_shadow_ray)
             {
                 shadow_bsdf_val = shader->eval(cc, shadow_d, -ray_d, TransportMode::Radiance);
                 emit_shadow_ray = !shadow_bsdf_val.is_zero();
@@ -361,8 +283,7 @@ void ShadePipeline::record_device_code(
                 soa_params.output_shadow_ray_d_t1 + shadow_soa_index);
 
             var cos = cstd::abs(dot(normalize(shadow_d), inct.frame.z));
-            var light_pdf = select_light.pdf * light_dir_pdf;
-            var beta_li = li * beta * shadow_bsdf_val * cos / (shadow_bsdf_pdf + light_pdf);
+            var beta_li = shadow_li * beta * shadow_bsdf_val * cos / (shadow_bsdf_pdf + shadow_light_pdf);
 
             save_aligned(beta_li, soa_params.output_shadow_beta_li + shadow_soa_index);
         };
@@ -465,53 +386,6 @@ void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
         active_state_counter,
         shadow_ray_counter,
         soa);
-}
-
-void ShadePipeline::handle_miss(
-    CompileContext      &cc,
-    float                world_diagonal,
-    const VolumeManager &vols,
-    const LightSampler *light_sampler,
-    ref<CSOAParams>     soa_params,
-    i32                 soa_index,
-    ref<CSpectrum>      path_rad,
-    Sampler            &sampler,
-    boolean             scattered)
-{
-    auto envir_light = light_sampler->get_envir_light();
-    if(envir_light)
-    {
-        var ray_ori = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_medium_id + soa_index));
-        var ray_dir = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
-        var le = envir_light->eval_le(cc, ray_dir);
-        var beta_le = load_aligned(soa_params.beta_le_bsdf_pdf + soa_index);
-        var bsdf_pdf = beta_le.additional_data;
-
-        $if(scattered)
-        {
-            var tr = vols.tr(cc, ray_ori, ray_ori + normalize(ray_dir) * world_diagonal, sampler);
-            beta_le = beta_le * tr;
-        };
-
-        $if(bsdf_pdf < 0) // delta
-        {
-            var rad = beta_le * le / -bsdf_pdf;
-            path_rad = path_rad + rad;
-        }
-        $else
-        {
-            var o = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_o_medium_id + soa_index));
-            var d = load_aligned(cuj::bitcast<ptr<CVec3f>>(soa_params.ray_d_t1 + soa_index));
-
-            var select_light_pdf = light_sampler->pdf(
-                o, light_sampler->get_envir_light_index());
-            var envir_light_pdf = envir_light->pdf_li(cc, d);
-            var light_pdf = select_light_pdf * envir_light_pdf;
-
-            var rad = beta_le * le / (bsdf_pdf + light_pdf);
-            path_rad = path_rad + rad;
-        };
-    }
 }
 
 BTRC_WFPT_END
