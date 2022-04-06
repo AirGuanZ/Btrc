@@ -287,4 +287,16 @@ const AABB3f &Scene::get_bbox() const
     return bbox_;
 }
 
+bool Scene::has_medium() const
+{
+    if(!volumes_.empty())
+        return true;
+    for(auto &inst : instances_)
+    {
+        if(inst.inner_medium || inst.outer_medium)
+            return true;
+    }
+    return false;
+}
+
 BTRC_END

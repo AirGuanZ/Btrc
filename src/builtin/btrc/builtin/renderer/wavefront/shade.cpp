@@ -49,20 +49,17 @@ void ShadePipeline::record_device_code(
         $if(!inct_flag.is_intersected)
         {
             var env_path_rad = CSpectrum::zero();
-
             if(scene.get_light_sampler()->get_envir_light())
             {
-                env_path_rad = handle_miss(wfpt_scene, load_ray.ray.o, load_ray.ray.d, load_bsdf_le.beta_le, load_bsdf_le.bsdf_pdf);
+                env_path_rad = handle_miss(
+                    wfpt_scene, load_ray.ray.o, load_ray.ray.d,
+                    load_bsdf_le.beta_le, load_bsdf_le.bsdf_pdf);
             }
-
-            $if(inct_flag.is_scattered)
+            $if(!inct_flag.is_scattered)
             {
-                film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, env_path_rad.to_rgb());
-            }
-            $else
-            {
-                film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, (path.path_radiance + env_path_rad).to_rgb());
+                env_path_rad = env_path_rad + path.path_radiance;
             };
+            film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, env_path_rad.to_rgb());
             $return();
         };
 
@@ -75,10 +72,13 @@ void ShadePipeline::record_device_code(
 
         ref instance = instances[inct_flag.instance_id];
         ref geometry = geometries[instance.geometry_id];
-        var inct = get_intersection(load_ray.ray.o, load_ray.ray.d, instance, geometry, inct_detail.t, inct_detail.prim_id, inct_detail.uv);
+        var inct = get_intersection(
+            load_ray.ray.o, load_ray.ray.d, instance, geometry,
+            inct_detail.t, inct_detail.prim_id, inct_detail.uv);
 
         var le_rad = handle_intersected_light(
-            wfpt_scene, load_ray.ray.o, load_ray.ray.d, inct, load_bsdf_le.beta_le, load_bsdf_le.bsdf_pdf, instance.light_id);
+            wfpt_scene, load_ray.ray.o, load_ray.ray.d, inct,
+            load_bsdf_le.beta_le, load_bsdf_le.bsdf_pdf, instance.light_id);
         $if(inct_flag.is_scattered)
         {
             film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, le_rad.to_rgb());

@@ -36,6 +36,6 @@ struct ShadeParams
 };
 
 //using GlobalSampler = IndependentSampler;
-using GlobalSampler = HaltonSampler;
+using GlobalSampler = IndependentSampler;
 
 BTRC_WFPT_END

@@ -21,6 +21,8 @@ struct WavefrontPathTracer::Impl
     RC<Camera>     camera;
     RC<Reporter>   reporter;
 
+    bool has_medium = false;
+
     int width = 512;
     int height = 512;
 
@@ -111,6 +113,8 @@ void WavefrontPathTracer::recompile()
 
     auto &params = impl_->params;
 
+    impl_->has_medium = impl_->scene->has_medium();
+
     // film
 
     impl_->film = Film(impl_->width, impl_->height);
@@ -148,16 +152,16 @@ void WavefrontPathTracer::recompile()
         cuj::ScopedModule cuj_module;
 
         impl_->generate.record_device_code(cc, *impl_->scene, *impl_->camera, impl_->film, *impl_->filter);
-        impl_->medium.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
+        if(impl_->has_medium)
+            impl_->medium.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
         impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
 
         cuj::PTXGenerator ptx_gen;
         ptx_gen.set_options(cuj::Options{
             .opt_level = cuj::OptimizationLevel::O3,
             .fast_math = true,
-            .approx_math_func = true,
-            .enable_assert = true
-            });
+            .approx_math_func = true
+        });
         ptx_gen.generate(cuj_module);
 
         auto &ptx = ptx_gen.get_ptx();
@@ -166,7 +170,8 @@ void WavefrontPathTracer::recompile()
         cuda_module->link();
 
         impl_->generate.initialize(cuda_module, params.spp, params.state_count, { impl_->width, impl_->height });
-        impl_->medium.initialize(cuda_module, impl_->state_counters, *impl_->scene);
+        if(impl_->has_medium)
+            impl_->medium.initialize(cuda_module, impl_->state_counters, *impl_->scene);
         impl_->shade.initialize(cuda_module, impl_->state_counters, *impl_->scene);
     }
 
@@ -248,18 +253,21 @@ Renderer::RenderResult WavefrontPathTracer::render()
 
         cudaMemsetAsync(impl_->state_counters->get(), 0, sizeof(wfpt::StateCounters));
 
-        impl_->medium.sample_scattering(
-            active_state_count,
-            wfpt::MediumPipeline::SOAParams{
-                .path           = *impl_->path_buffer,
-                .ray            = *impl_->ray_buffer,
-                .bsdf_le        = *impl_->bsdf_le_buffer,
-                .inct           = *impl_->inct_buffer,
-                .output_path    = *impl_->next_path_buffer,
-                .output_ray     = *impl_->next_ray_buffer,
-                .output_bsdf_le = *impl_->next_bsdf_le_buffer,
-                .shadow_ray     = *impl_->shadow_ray_buffer
-            });
+        if(impl_->has_medium)
+        {
+            impl_->medium.sample_scattering(
+                active_state_count,
+                wfpt::MediumPipeline::SOAParams{
+                    .path           = *impl_->path_buffer,
+                    .ray            = *impl_->ray_buffer,
+                    .bsdf_le        = *impl_->bsdf_le_buffer,
+                    .inct           = *impl_->inct_buffer,
+                    .output_path    = *impl_->next_path_buffer,
+                    .output_ray     = *impl_->next_ray_buffer,
+                    .output_bsdf_le = *impl_->next_bsdf_le_buffer,
+                    .shadow_ray     = *impl_->shadow_ray_buffer
+                });
+        }
 
         // impl_->sort.sort(active_state_count, soa.inct_t, soa.inct_uv_id, soa.active_state_indices);
 

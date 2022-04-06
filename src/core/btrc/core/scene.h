@@ -102,6 +102,8 @@ public:
 
     const AABB3f &get_bbox() const;
 
+    bool has_medium() const;
+
 private:
 
     optix::Context *optix_ctx_;
