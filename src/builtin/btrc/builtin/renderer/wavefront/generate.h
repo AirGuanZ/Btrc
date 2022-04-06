@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/builtin/renderer/wavefront/common.h>
+#include <btrc/builtin/renderer/wavefront/soa.h>
 #include <btrc/core/camera.h>
 #include <btrc/core/film.h>
 #include <btrc/core/film_filter.h>
@@ -15,27 +15,17 @@ namespace generate_pipeline_detail
 
     struct SOAParams
     {
-        GlobalSampler::State *output_sampler_state;
-        Vec2u                *output_pixel_coord;
-        Vec4f                *output_ray_o_medium_id;
-        Vec4f                *output_ray_d_t1;
-        Spectrum             *output_beta;
-        Spectrum             *output_beta_le_bsdf_pdf;
-        int                  *output_depth;
-        Spectrum             *output_path_radiance;
+        PathSOA   path;
+        RaySOA    ray;
+        BSDFLeSOA bsdf_le;
     };
 
     CUJ_PROXY_CLASS(
         CSOAParams,
         SOAParams,
-        output_sampler_state,
-        output_pixel_coord,
-        output_ray_o_medium_id,
-        output_ray_d_t1,
-        output_beta,
-        output_beta_le_bsdf_pdf,
-        output_depth,
-        output_path_radiance);
+        path,
+        ray,
+        bsdf_le);
 
 } // namespace generate_pipeline_detail
 

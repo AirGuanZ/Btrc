@@ -10,12 +10,9 @@
 
 BTRC_WFPT_BEGIN
 
-constexpr uint32_t PATH_FLAG_ACTIVE           = 0b001u << 29;
-constexpr uint32_t PATH_FLAG_HAS_INTERSECTION = 0b010u << 29;
-constexpr uint32_t PATH_FLAG_HAS_SCATTERING   = 0b100u << 29;
-constexpr uint32_t PATH_FLAG_INSTANCE_ID_MASK = ~0u << 3 >> 3;
-
-cuj::boolean is_path_active(cuj::u32 path_flag);
+constexpr uint32_t PATH_FLAG_HAS_INTERSECTION = 0b01u << 30;
+constexpr uint32_t PATH_FLAG_HAS_SCATTERING   = 0b10u << 30;
+constexpr uint32_t PATH_FLAG_INSTANCE_ID_MASK = ~0u << 2 >> 2;
 
 cuj::boolean is_path_intersected(cuj::u32 path_flag);
 

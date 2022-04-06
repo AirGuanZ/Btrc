@@ -45,7 +45,6 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Scene &scene
         i32 pixel_x = pixel_index % film_res.x;
         i32 pixel_y = pixel_index / film_res.x;
 
-        //IndependentSampler sampler(hash::hash(pixel_index), u64(sample_index * i64(65536)));
         GlobalSampler sampler(film_res, CVec2u(u32(pixel_x), u32(pixel_y)), i32(sample_index));
 
         var filter_sample = filter.sample(sampler);
@@ -62,33 +61,11 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Scene &scene
             cc, CVec2f(film_x, film_y), time_sample);
 
         var pixel_coord = CVec2u(u32(pixel_x), u32(pixel_y));
-        soa_params.output_pixel_coord[state_index] = pixel_coord;
         film.splat_atomic(pixel_coord, Film::OUTPUT_WEIGHT, 1.0f);
 
-        var o_t0 = CVec4f(
-            sample_we_result.pos.x,
-            sample_we_result.pos.y,
-            sample_we_result.pos.z,
-            bitcast<f32>(CMediumID(scene.get_volume_primitive_medium_id())));
-        save_aligned(o_t0, soa_params.output_ray_o_medium_id + state_index);
-
-        var d_t1 = CVec4f(
-            sample_we_result.dir.x,
-            sample_we_result.dir.y,
-            sample_we_result.dir.z,
-            btrc_max_float);
-        save_aligned(d_t1, soa_params.output_ray_d_t1 + state_index);
-
-        soa_params.output_depth[state_index] = 0;
-
-        save_aligned(
-            CSpectrum(sample_we_result.throughput.r, sample_we_result.throughput.g, sample_we_result.throughput.b, -1),
-            soa_params.output_beta_le_bsdf_pdf + state_index);
-
-        save_aligned(sample_we_result.throughput, soa_params.output_beta + state_index);
-        save_aligned(CSpectrum::zero(), soa_params.output_path_radiance + state_index);
-
-        sampler.save(soa_params.output_sampler_state + state_index);
+        soa_params.path.save(state_index, 0, pixel_coord, sample_we_result.throughput, CSpectrum::zero(), sampler);
+        soa_params.ray.save(state_index, CRay(sample_we_result.pos, sample_we_result.dir), scene.get_volume_primitive_medium_id());
+        soa_params.bsdf_le.save(state_index, sample_we_result.throughput, -1);
     });
 }
 

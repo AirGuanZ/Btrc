@@ -72,7 +72,7 @@ HaltonSampler::HaltonSampler(const Vec2i &res, const CState &state)
     state_ = state;
 }
 
-void HaltonSampler::save(ptr<CState> output)
+void HaltonSampler::save(ptr<CState> output) const
 {
     *output = state_;
 }

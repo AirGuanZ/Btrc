@@ -72,4 +72,11 @@ CSpectrum handle_intersected_light(
     f32                 bsdf_pdf,
     i32                 light_index);
 
+SurfacePoint get_intersection(
+    const CVec3f &o,
+    const CVec3f &d,
+    const CInstanceInfo &instance,
+    const CGeometryInfo &geometry,
+    f32 t, u32 prim_id, const CVec2f &uv);
+
 BTRC_WFPT_END

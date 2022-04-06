@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/builtin/renderer/wavefront/common.h>
+#include <btrc/builtin/renderer/wavefront/soa.h>
 #include <btrc/core/film.h>
 #include <btrc/core/scene.h>
 #include <btrc/utils/cuda/module.h>
@@ -13,81 +13,23 @@ namespace medium_pipeline_detail
 
     struct SOAParams
     {
-        // rng is updated if not scattered
+        PathSOA         path;
+        RaySOA          ray;
+        BSDFLeSOA       bsdf_le;
+        IntersectionSOA inct;
 
-        GlobalSampler::State *sampler_state;
+        PathSOA         output_path;
+        RaySOA          output_ray;
+        BSDFLeSOA       output_bsdf_le;
 
-        // per path
-
-        Spectrum *path_radiance;
-        Vec2u    *pixel_coord;
-        int32_t  *depth;
-        Spectrum *beta;
-
-        // beta and beta_le is modified if not scattered
-
-        Spectrum *beta_le_bsdf_pdf;
-
-        // last intersection
-
-        uint32_t *path_flag;
-        Vec4u    *inct_t_prim_uv;
-
-        // last ray
-        // resolved medium id will always be stored
-
-        Vec4f    *ray_o_medium_id;
-        Vec4f    *ray_d_t1;
-
-        // output only when scattered
-        // and mark original inst_id with INST_ID_MEDIUM_MASK
-
-        //int32_t *next_state_index;
-
-        GlobalSampler::State *output_sampler_state;
-        Spectrum             *output_path_radiance;
-        Vec2u                *output_pixel_coord;
-        int32_t              *output_depth;
-        Spectrum             *output_beta;
-        
-        Vec2u    *output_shadow_pixel_coord;
-        Vec4f    *output_shadow_ray_o_medium_id;
-        Vec4f    *output_shadow_ray_d_t1;
-        Spectrum *output_shadow_beta_li;
-
-        // for next ray
-
-        Vec4f    *output_new_ray_o_medium_id;
-        Vec4f    *output_new_ray_d_t1;
-
-        Spectrum *output_beta_le_bsdf_pdf;
+        ShadowRaySOA shadow_ray;
     };
 
     CUJ_PROXY_CLASS(
         CSOAParams, SOAParams,
-        sampler_state,
-        path_radiance,
-        pixel_coord,
-        depth,
-        beta,
-        beta_le_bsdf_pdf,
-        path_flag,
-        inct_t_prim_uv,
-        ray_o_medium_id,
-        ray_d_t1,
-        //next_state_index,
-        output_sampler_state,
-        output_path_radiance,
-        output_pixel_coord,
-        output_depth,
-        output_beta,
-        output_shadow_pixel_coord,
-        output_shadow_ray_o_medium_id,
-        output_shadow_ray_d_t1,
-        output_shadow_beta_li,
-        output_new_ray_o_medium_id,
-        output_new_ray_d_t1,
-        output_beta_le_bsdf_pdf);
+        path, ray, bsdf_le, inct,
+        output_path, output_ray, output_bsdf_le,
+        shadow_ray);
 
 } // namespace medium_pipeline_detail
 

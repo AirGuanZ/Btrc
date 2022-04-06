@@ -1,6 +1,6 @@
 #pragma once
 
-#include <btrc/builtin/renderer/wavefront/common.h>
+#include <btrc/builtin/renderer/wavefront/soa.h>
 #include <btrc/builtin/sampler/independent.h>
 #include <btrc/core/film.h>
 #include <btrc/core/scene.h>
@@ -15,12 +15,8 @@ namespace shadow_pipeline_detail
 
     struct LaunchParams
     {
-        OptixTraversableHandle handle;
-
-        Vec2u                     *pixel_coord;
-        Vec4f                     *ray_o_medium_id;
-        Vec4f                     *ray_d_t1;
-        Spectrum                  *beta_li;
+        OptixTraversableHandle     handle;
+        ShadowRaySOA               shadow_ray;
         IndependentSampler::State *sampler_state;
     };
 
@@ -28,10 +24,7 @@ namespace shadow_pipeline_detail
         CLaunchParams,
         LaunchParams,
         handle,
-        pixel_coord,
-        ray_o_medium_id,
-        ray_d_t1,
-        beta_li,
+        shadow_ray,
         sampler_state);
 
 } // namespace shadow_pipeline_detail
@@ -42,10 +35,7 @@ public:
 
     struct SOAParams
     {
-        Vec2u                     *pixel_coord;
-        Vec4f                     *ray_o_medium_id;
-        Vec4f                     *ray_d_t1;
-        Spectrum                  *beta_li;
+        ShadowRaySOA               shadow_ray;
         IndependentSampler::State *sampler_state;
     };
 

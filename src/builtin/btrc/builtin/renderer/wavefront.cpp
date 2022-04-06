@@ -1,10 +1,10 @@
 #include <btrc/builtin/film_filter/box.h>
 #include <btrc/builtin/renderer/wavefront/generate.h>
 #include <btrc/builtin/renderer/wavefront/medium.h>
-#include <btrc/builtin/renderer/wavefront/path_state.h>
 #include <btrc/builtin/renderer/wavefront/preview.h>
 #include <btrc/builtin/renderer/wavefront/shade.h>
 #include <btrc/builtin/renderer/wavefront/shadow.h>
+#include <btrc/builtin/renderer/wavefront/soa_buffer.h>
 #include <btrc/builtin/renderer/wavefront/sort.h>
 #include <btrc/builtin/renderer/wavefront/trace.h>
 #include <btrc/builtin/renderer/wavefront.h>
@@ -24,8 +24,20 @@ struct WavefrontPathTracer::Impl
     int width = 512;
     int height = 512;
 
-    Film                        film;
-    wfpt::PathState             path_state;
+    Film film;
+    
+    RC<wfpt::RayBuffer>          ray_buffer;
+    RC<wfpt::PathBuffer>         path_buffer;
+    RC<wfpt::BSDFLeBuffer>       bsdf_le_buffer;
+    RC<wfpt::IntersectionBuffer> inct_buffer;
+
+    RC<wfpt::RayBuffer>          next_ray_buffer;
+    RC<wfpt::PathBuffer>         next_path_buffer;
+    RC<wfpt::BSDFLeBuffer>       next_bsdf_le_buffer;
+
+    RC<wfpt::ShadowRayBuffer>     shadow_ray_buffer;
+    RC<wfpt::ShadowSamplerBuffer> shadow_sampler_buffer;
+
     wfpt::GeneratePipeline      generate;
     wfpt::TracePipeline         trace;
     wfpt::MediumPipeline        medium;
@@ -174,13 +186,23 @@ void WavefrontPathTracer::recompile()
 
     // path state
 
-    impl_->path_state.initialize(params.state_count);
+    impl_->ray_buffer     = newRC<wfpt::RayBuffer>(params.state_count);
+    impl_->path_buffer    = newRC<wfpt::PathBuffer>(params.state_count);
+    impl_->bsdf_le_buffer = newRC<wfpt::BSDFLeBuffer>(params.state_count);
+    impl_->inct_buffer    = newRC<wfpt::IntersectionBuffer>(params.state_count);
+
+    impl_->next_ray_buffer = newRC<wfpt::RayBuffer>(params.state_count);
+    impl_->next_path_buffer = newRC<wfpt::PathBuffer>(params.state_count);
+    impl_->next_bsdf_le_buffer = newRC<wfpt::BSDFLeBuffer>(params.state_count);
+    
+    impl_->shadow_ray_buffer = newRC<wfpt::ShadowRayBuffer>(params.state_count);
+    impl_->shadow_sampler_buffer = newRC<wfpt::ShadowSamplerBuffer>(params.state_count);
 }
 
 Renderer::RenderResult WavefrontPathTracer::render()
 {
     impl_->generate.clear();
-    impl_->path_state.clear();
+    impl_->shadow_sampler_buffer->clear();
 
     impl_->film.clear_output(Film::OUTPUT_RADIANCE);
     impl_->film.clear_output(Film::OUTPUT_WEIGHT);
@@ -190,7 +212,6 @@ Renderer::RenderResult WavefrontPathTracer::render()
         impl_->film.clear_output(Film::OUTPUT_NORMAL);
 
     auto &scene = *impl_->scene;
-    auto &soa = impl_->path_state;
     auto &params = impl_->params;
     auto &reporter = *impl_->reporter;
 
@@ -209,14 +230,9 @@ Renderer::RenderResult WavefrontPathTracer::render()
         const int new_state_count = impl_->generate.generate(
             active_state_count,
             wfpt::GeneratePipeline::SOAParams{
-                .output_sampler_state    = soa.sampler_state,
-                .output_pixel_coord      = soa.pixel_coord,
-                .output_ray_o_medium_id  = soa.o_medium_id,
-                .output_ray_d_t1         = soa.d_t1,
-                .output_beta             = soa.beta,
-                .output_beta_le_bsdf_pdf = soa.beta_le_bsdf_pdf,
-                .output_depth            = soa.depth,
-                .output_path_radiance    = soa.path_radiance
+                .path    = *impl_->path_buffer,
+                .ray     = *impl_->ray_buffer,
+                .bsdf_le = *impl_->bsdf_le_buffer
             },
             limited_state_count);
 
@@ -226,10 +242,8 @@ Renderer::RenderResult WavefrontPathTracer::render()
             scene.get_tlas(),
             active_state_count,
             wfpt::TracePipeline::SOAParams{
-                .ray_o_medium_id = soa.o_medium_id,
-                .ray_d_t1        = soa.d_t1,
-                .path_flag       = soa.path_flag,
-                .inct_t_prim_uv  = soa.inct_t_prim_uv
+                .ray  = *impl_->ray_buffer,
+                .inct = *impl_->inct_buffer
             });
 
         cudaMemsetAsync(impl_->state_counters->get(), 0, sizeof(wfpt::StateCounters));
@@ -237,29 +251,14 @@ Renderer::RenderResult WavefrontPathTracer::render()
         impl_->medium.sample_scattering(
             active_state_count,
             wfpt::MediumPipeline::SOAParams{
-                .sampler_state                 = soa.sampler_state,
-                .path_radiance                 = soa.path_radiance,
-                .pixel_coord                   = soa.pixel_coord,
-                .depth                         = soa.depth,
-                .beta                          = soa.beta,
-                .beta_le_bsdf_pdf              = soa.beta_le_bsdf_pdf,
-                .path_flag                     = soa.path_flag,
-                .inct_t_prim_uv                = soa.inct_t_prim_uv,
-                .ray_o_medium_id               = soa.o_medium_id,
-                .ray_d_t1                      = soa.d_t1,
-                //.next_state_index              = soa.next_state_index,
-                .output_sampler_state          = soa.next_sampler_state,
-                .output_path_radiance          = soa.next_path_radiance,
-                .output_pixel_coord            = soa.next_pixel_coord,
-                .output_depth                  = soa.next_depth,
-                .output_beta                   = soa.next_beta,
-                .output_shadow_pixel_coord     = soa.shadow_pixel_coord,
-                .output_shadow_ray_o_medium_id = soa.shadow_o_medium_id,
-                .output_shadow_ray_d_t1        = soa.shadow_d_t1,
-                .output_shadow_beta_li         = soa.shadow_beta_li,
-                .output_new_ray_o_medium_id    = soa.next_o_medium_id,
-                .output_new_ray_d_t1           = soa.next_d_t1,
-                .output_beta_le_bsdf_pdf       = soa.next_beta_le_bsdf_pdf
+                .path           = *impl_->path_buffer,
+                .ray            = *impl_->ray_buffer,
+                .bsdf_le        = *impl_->bsdf_le_buffer,
+                .inct           = *impl_->inct_buffer,
+                .output_path    = *impl_->next_path_buffer,
+                .output_ray     = *impl_->next_ray_buffer,
+                .output_bsdf_le = *impl_->next_bsdf_le_buffer,
+                .shadow_ray     = *impl_->shadow_ray_buffer
             });
 
         // impl_->sort.sort(active_state_count, soa.inct_t, soa.inct_uv_id, soa.active_state_indices);
@@ -267,30 +266,14 @@ Renderer::RenderResult WavefrontPathTracer::render()
         impl_->shade.shade(
             active_state_count,
             wfpt::ShadePipeline::SOAParams{
-                .sampler_state                  = soa.sampler_state,
-                .path_radiance                  = soa.path_radiance,
-                .pixel_coord                    = soa.pixel_coord,
-                .depth                          = soa.depth,
-                .beta                           = soa.beta,
-                .beta_le_bsdf_pdf               = soa.beta_le_bsdf_pdf,
-                .path_flag                      = soa.path_flag,
-                .inct_t_prim_uv                 = soa.inct_t_prim_uv,
-                .ray_o_medium_id                = soa.o_medium_id,
-                .ray_d_t1                       = soa.d_t1,
-                //.next_state_index               = soa.next_state_index,
-                .output_sampler_state           = soa.next_sampler_state,
-                .output_path_radiance           = soa.next_path_radiance,
-                .output_pixel_coord             = soa.next_pixel_coord,
-                .output_depth                   = soa.next_depth,
-                .output_beta                    = soa.next_beta,
-                .output_shadow_pixel_coord      = soa.shadow_pixel_coord,
-                .output_shadow_ray_o_medium_id  = soa.shadow_o_medium_id,
-                .output_shadow_ray_d_t1         = soa.shadow_d_t1,
-                .output_shadow_beta_li          = soa.shadow_beta_li,
-                .output_new_ray_o_medium_id     = soa.next_o_medium_id,
-                .output_new_ray_d_t1            = soa.next_d_t1,
-                .output_beta_le_bsdf_pdf        = soa.next_beta_le_bsdf_pdf,
-                .path_independent_sampler_state = soa.path_independent_sampler_state
+                .path           = *impl_->path_buffer,
+                .ray            = *impl_->ray_buffer,
+                .bsdf_le        = *impl_->bsdf_le_buffer,
+                .inct           = *impl_->inct_buffer,
+                .output_path    = *impl_->next_path_buffer,
+                .output_ray     = *impl_->next_ray_buffer,
+                .output_bsdf_le = *impl_->next_bsdf_le_buffer,
+                .shadow_ray     = *impl_->shadow_ray_buffer
             });
 
         wfpt::StateCounters state_counters;
@@ -306,18 +289,17 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 scene.get_tlas(),
                 state_counters.shadow_ray_counter,
                 wfpt::ShadowPipeline::SOAParams{
-                    .pixel_coord     = soa.shadow_pixel_coord,
-                    .ray_o_medium_id = soa.shadow_o_medium_id,
-                    .ray_d_t1        = soa.shadow_d_t1,
-                    .beta_li         = soa.shadow_beta_li,
-                    .sampler_state   = soa.shadow_sampler_state
+                    .shadow_ray    = *impl_->shadow_ray_buffer,
+                    .sampler_state = *impl_->shadow_sampler_buffer
                 });
         }
 
         if(reporter.need_preview())
             new_preview_image();
 
-        soa.next_iteration();
+        std::swap(impl_->path_buffer, impl_->next_path_buffer);
+        std::swap(impl_->ray_buffer, impl_->next_ray_buffer);
+        std::swap(impl_->bsdf_le_buffer, impl_->next_bsdf_le_buffer);
 
         if(should_stop())
             break;

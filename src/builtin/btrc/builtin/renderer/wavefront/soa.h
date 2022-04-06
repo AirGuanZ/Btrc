@@ -5,12 +5,41 @@
 
 BTRC_WFPT_BEGIN
 
-class RaySOA : public Uncopyable
+struct RaySOA
 {
-    cuda::Buffer<Vec4f> o_med_id_;
-    cuda::Buffer<Vec4f> d_t1_;
+    Vec4f *o_med_id_buffer;
+    Vec4f *d_t1_buffer;
+};
 
-public:
+struct BSDFLeSOA
+{
+    Vec4f *beta_le_bsdf_pdf_buffer;
+};
+
+struct PathSOA
+{
+    Vec2u                *pixel_coord_buffer;
+    Vec4f                *beta_depth_buffer;
+    Vec4f                *path_radiance_buffer;
+    GlobalSampler::State *sampler_state_buffer;
+};
+
+struct IntersectionSOA
+{
+    uint32_t *path_flag_buffer;
+    Vec4u    *t_prim_id_buffer;
+};
+
+struct ShadowRaySOA
+{
+    Vec2u *pixel_coord_buffer;
+    Vec4f *beta_li_buffer;
+    RaySOA ray;
+};
+
+CUJ_PROXY_CLASS_EX(CRaySOA, RaySOA, o_med_id_buffer, d_t1_buffer)
+{
+    CUJ_BASE_CONSTRUCTORS
 
     struct LoadResult
     {
@@ -18,56 +47,101 @@ public:
         CMediumID medium_id;
     };
 
-    void initialize(int state_count);
-
     void save(i32 index, const CRay &r, CMediumID medium_id);
 
     LoadResult load(i32 index) const;
 };
 
-template<typename AdditionalData = int32_t>
-    requires (sizeof(AdditionalData) == 4)
-class SpectrumSOA
+CUJ_PROXY_CLASS_EX(CBSDFLeSOA, BSDFLeSOA, beta_le_bsdf_pdf_buffer)
 {
-    cuda::Buffer<Vec4f> buffer_;
-
-public:
+    CUJ_BASE_CONSTRUCTORS
 
     struct LoadResult
     {
-        CSpectrum spectrum;
-        cuj::cxx<AdditionalData> additional_data;
+        CSpectrum beta_le;
+        f32 bsdf_pdf;
     };
 
-    void initialize(int state_count);
-
-    void save(i32 index, const CSpectrum &spec, cuj::cxx<AdditionalData> additional_data = 0);
+    void save(i32 index, const CSpectrum &beta_le, f32 bsdf_pdf);
 
     LoadResult load(i32 index) const;
 };
 
-// ========================== impl ==========================
-
-template<typename AdditionalData> requires (sizeof(AdditionalData) == 4)
-void SpectrumSOA<AdditionalData>::initialize(int state_count)
+CUJ_PROXY_CLASS_EX(
+    CPathSOA, PathSOA,
+    pixel_coord_buffer,
+    beta_depth_buffer,
+    path_radiance_buffer,
+    sampler_state_buffer)
 {
-    buffer_.initialize(state_count);
-}
+    CUJ_BASE_CONSTRUCTORS
 
-template<typename AdditionalData> requires (sizeof(AdditionalData) == 4)
-void SpectrumSOA<AdditionalData>::save(i32 index, const CSpectrum &spec, cuj::cxx<AdditionalData> additional_data)
-{
-    save_aligned(CVec4f(spec.r, spec.g, spec.b, cuj::bitcast<f32>(additional_data)), buffer_.get_cuj_ptr() + index);
-}
-
-template<typename AdditionalData> requires (sizeof(AdditionalData) == 4)
-typename SpectrumSOA<AdditionalData>::LoadResult SpectrumSOA<AdditionalData>::load(i32 index) const
-{
-    var v4 = load_aligned(buffer_.get_cuj_ptr() + index);
-    return LoadResult{
-        CSpectrum::from_rgb(v4.x, v4.y, v4.z),
-        cuj::bitcast<cuj::cxx<AdditionalData>>(v4.w)
+    struct LoadResult
+    {
+        i32                   depth;
+        CVec2u                pixel_coord;
+        CSpectrum             beta;
+        CSpectrum             path_radiance;
+        GlobalSampler::CState sampler_state;
     };
-}
+
+    void save(
+        i32                  index,
+        i32                  depth,
+        const CVec2u        &pixel_coord,
+        const CSpectrum     &beta,
+        const CSpectrum     &path_radiance,
+        const GlobalSampler &sampler);
+
+    void save_sampler(i32 index, const GlobalSampler &sampler);
+
+    LoadResult load(i32 index) const;
+};
+
+CUJ_PROXY_CLASS_EX(
+    CIntersectionSOA, IntersectionSOA,
+    path_flag_buffer, t_prim_id_buffer)
+{
+    CUJ_BASE_CONSTRUCTORS
+
+    struct LoadFlagResult
+    {
+        boolean is_intersected;
+        boolean is_scattered;
+        u32     instance_id;
+    };
+
+    struct LoadDetailResult
+    {
+        f32    t;
+        u32    prim_id;
+        CVec2f uv;
+    };
+
+    void save_flag(i32 index, boolean is_intersected, boolean is_scattered, u32 instance_id);
+
+    void save_detail(i32 index, f32 t, u32 prim_id, const CVec2f &uv);
+
+    LoadFlagResult load_flag(i32 index) const;
+
+    LoadDetailResult load_detail(i32 index) const;
+};
+
+CUJ_PROXY_CLASS_EX(CShadowRaySOA, ShadowRaySOA, pixel_coord_buffer, beta_li_buffer, ray)
+{
+    CUJ_BASE_CONSTRUCTORS
+
+    struct LoadBetaResult
+    {
+        CVec2u    pixel_coord;
+        CSpectrum beta_li;
+    };
+
+    void save(i32 index, const CVec2u &pixel_coord, const CSpectrum &beta_li, const CRay &r, CMediumID medium_id);
+
+    CRaySOA::LoadResult load_ray(i32 index) const;
+
+    LoadBetaResult load_beta(i32 index) const;
+};
 
 BTRC_WFPT_END

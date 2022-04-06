@@ -2,11 +2,6 @@
 
 BTRC_WFPT_BEGIN
 
-cuj::boolean is_path_active(cuj::u32 path_flag)
-{
-    return (path_flag & PATH_FLAG_ACTIVE) != 0;
-}
-
 cuj::boolean is_path_intersected(cuj::u32 path_flag)
 {
     return (path_flag & PATH_FLAG_HAS_INTERSECTION) != 0;

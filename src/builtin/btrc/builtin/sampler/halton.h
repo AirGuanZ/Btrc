@@ -28,7 +28,7 @@ public:
 
     HaltonSampler(const Vec2i &res, const CState &state);
 
-    void save(ptr<CState> output);
+    void save(ptr<CState> output) const;
 
     f32 get1d() override;
 

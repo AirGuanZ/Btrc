@@ -27,22 +27,12 @@ namespace
         {
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_launch_index_x();
-
-            CUJ_ASSERT(bitcast<u64>(launch_params.ray_d_t1) != 0);
-
-            var o_medium_id = load_aligned(launch_params.ray_o_medium_id + launch_idx);
-            var d_t1 = load_aligned(launch_params.ray_d_t1 + launch_idx);
-
-            var o = o_medium_id.xyz();
-            var d = d_t1.xyz();
-            var medium_id = bitcast<CMediumID>(o_medium_id.w);
-            var t1 = d_t1.w;
-            var time = 0.0f;
-            var mask = u32(optix::RAY_MASK_ALL);
+            
+            auto [ray, medium_id] = launch_params.shadow_ray.load_ray(i32(launch_idx));
 
             optix::trace(
                 launch_params.handle,
-                o, d, 0, t1, time, mask,
+                ray.o, ray.d, 0, ray.t, 0, u32(optix::RAY_MASK_ALL),
                 OPTIX_RAY_FLAG_NONE, 0, 1, 0, launch_idx, medium_id);
         });
 
@@ -53,8 +43,7 @@ namespace
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
 
-            var pixel_coord = load_aligned(launch_params.pixel_coord + launch_idx);
-            var beta = load_aligned(launch_params.beta_li + launch_idx);
+            auto [pixel_coord, beta] = launch_params.shadow_ray.load_beta(i32(launch_idx));
 
             IndependentSampler sampler({ film.width(), film.height() }, launch_params.sampler_state[launch_idx]);
 
@@ -167,12 +156,9 @@ void ShadowPipeline::test(
     const SOAParams &soa_params) const
 {
     const LaunchParams launch_params = {
-        .handle          = handle,
-        .pixel_coord     = soa_params.pixel_coord,
-        .ray_o_medium_id = soa_params.ray_o_medium_id,
-        .ray_d_t1        = soa_params.ray_d_t1,
-        .beta_li         = soa_params.beta_li,
-        .sampler_state   = soa_params.sampler_state
+        .handle     = handle,
+        .shadow_ray = soa_params.shadow_ray,
+        .sampler_state = soa_params.sampler_state
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(

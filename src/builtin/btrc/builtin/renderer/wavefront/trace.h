@@ -1,27 +1,32 @@
 #pragma once
 
+#include <btrc/builtin/renderer/wavefront/soa.h>
 #include <btrc/utils/cmath/cmath.h>
 #include <btrc/utils/cuda/buffer.h>
 #include <btrc/utils/optix/pipeline.h>
 #include <btrc/utils/uncopyable.h>
-
-#include "./common.h"
 
 BTRC_WFPT_BEGIN
 
 namespace trace_pipeline_detail
 {
 
-    struct SOAParams
+    struct LaunchParams
     {
-        Vec4f *ray_o_medium_id;
+        /*Vec4f *ray_o_medium_id;
         Vec4f *ray_d_t1;
 
         uint32_t *path_flag;
-        Vec4u    *inct_t_prim_uv;
+        Vec4u    *inct_t_prim_uv;*/
+
+        OptixTraversableHandle tlas;
+        RaySOA                 ray;
+        IntersectionSOA        inct;
     };
 
-    struct LaunchParams
+    CUJ_PROXY_CLASS(CLaunchParams, LaunchParams, tlas, ray, inct);
+
+    /*struct LaunchParams
     {
         OptixTraversableHandle handle;
 
@@ -38,7 +43,7 @@ namespace trace_pipeline_detail
 
     CUJ_PROXY_CLASS(
         CLaunchParams, LaunchParams,
-        handle, ray_o_medium_id, ray_d_t1, path_flag, inct_t_prim_uv);
+        handle, ray_o_medium_id, ray_d_t1, path_flag, inct_t_prim_uv);*/
 
 } // namespace trace_pipeline_detail
 
@@ -46,7 +51,12 @@ class TracePipeline : public Uncopyable
 {
 public:
 
-    using SOAParams = trace_pipeline_detail::SOAParams;
+    struct SOAParams
+    {
+        RaySOA          ray;
+        IntersectionSOA inct;
+    };
+
     using LaunchParams = trace_pipeline_detail::LaunchParams;
     using CLaunchParams = trace_pipeline_detail::CLaunchParams;
 

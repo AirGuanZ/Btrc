@@ -44,18 +44,13 @@ namespace
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_launch_index_x();
 
-            var o_medium_id = load_aligned(launch_params.ray_o_medium_id + launch_idx);
-            var d_t1 = load_aligned(launch_params.ray_d_t1 + launch_idx);
-
-            var o = o_medium_id.xyz();
-            var d = d_t1.xyz();
-            var t1 = d_t1.w;
+            auto [ray, medium_id] = launch_params.ray.load(i32(launch_idx));
             var time = 0.0f;
             var mask = u32(optix::RAY_MASK_ALL);
 
             optix::trace(
-                launch_params.handle,
-                o, d, 0, t1, time, mask, OPTIX_RAY_FLAG_NONE,
+                launch_params.tlas,
+                ray.o, ray.d, 0, ray.t, time, mask, OPTIX_RAY_FLAG_NONE,
                 0, 1, 0, launch_idx);
         });
 
@@ -65,7 +60,7 @@ namespace
         {
             ref launch_params = global_launch_params.get_reference();
             var launch_idx = optix::get_payload(0);
-            launch_params.path_flag[launch_idx] = 0;
+            launch_params.inct.save_flag(i32(launch_idx), false, false, 0);
         });
 
         kernel(
@@ -73,17 +68,15 @@ namespace
             [global_launch_params]
         {
             ref launch_params = global_launch_params.get_reference();
-            var launch_idx = optix::get_payload(0);
-            
-            
+            var launch_idx = i32(optix::get_payload(0));
+
             var inst_id = optix::get_instance_id();
-            launch_params.path_flag[launch_idx] = inst_id | PATH_FLAG_HAS_INTERSECTION;
+            launch_params.inct.save_flag(i32(launch_idx), true, false, inst_id);
 
             var t = optix::get_ray_tmax();
             var uv = optix::get_triangle_barycentrics();
             var prim_id = optix::get_primitive_index();
-            var inct_t_prim_uv = CVec4u(bitcast<u32>(t), prim_id, bitcast<u32>(uv.x), bitcast<u32>(uv.y));
-            save_aligned(inct_t_prim_uv, launch_params.inct_t_prim_uv + launch_idx);
+            launch_params.inct.save_detail(i32(launch_idx), t, prim_id, uv);
         });
 
         PTXGenerator gen;
@@ -139,11 +132,9 @@ void TracePipeline::trace(
     const SOAParams &soa_params) const
 {
     const LaunchParams launch_params = {
-        .handle          = handle,
-        .ray_o_medium_id = soa_params.ray_o_medium_id,
-        .ray_d_t1        = soa_params.ray_d_t1,
-        .path_flag       = soa_params.path_flag,
-        .inct_t_prim_uv  = soa_params.inct_t_prim_uv
+        .tlas = handle,
+        .ray  = soa_params.ray,
+        .inct = soa_params.inct
     };
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(

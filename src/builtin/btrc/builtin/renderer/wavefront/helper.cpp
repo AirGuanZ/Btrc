@@ -250,4 +250,59 @@ CSpectrum handle_intersected_light(
     return result;
 }
 
+SurfacePoint get_intersection(
+    const CVec3f &o,
+    const CVec3f &d,
+    const CInstanceInfo &instance,
+    const CGeometryInfo &geometry,
+    f32 t, u32 prim_id, const CVec2f &uv)
+{
+    ref local_to_world = instance.transform;
+
+    // position
+
+    var position = o + t * d;
+
+    // geometry frame
+
+    var gx_ua = load_aligned(geometry.geometry_ex_tex_coord_u_a + prim_id);
+    var gy_uba = load_aligned(geometry.geometry_ey_tex_coord_u_ba + prim_id);
+    var gz_uca = load_aligned(geometry.geometry_ez_tex_coord_u_ca + prim_id);
+
+    var sn_v_a = load_aligned(geometry.shading_normal_tex_coord_v_a + prim_id);
+    var sn_v_ba = load_aligned(geometry.shading_normal_tex_coord_v_ba + prim_id);
+    var sn_v_ca = load_aligned(geometry.shading_normal_tex_coord_v_ca + prim_id);
+
+    CFrame geometry_frame = CFrame(gx_ua.xyz(), gy_uba.xyz(), gz_uca.xyz());
+
+    geometry_frame.x = local_to_world.apply_to_vector(geometry_frame.x);
+    geometry_frame.y = local_to_world.apply_to_vector(geometry_frame.y);
+    geometry_frame.z = local_to_world.apply_to_normal(geometry_frame.z);
+    geometry_frame.x = normalize(geometry_frame.x);
+    geometry_frame.y = normalize(geometry_frame.y);
+    geometry_frame.z = normalize(geometry_frame.z);
+
+    // interpolated normal
+
+    var interp_normal = sn_v_a.xyz() + sn_v_ba.xyz() * uv.x + sn_v_ca.xyz() * uv.y;
+    interp_normal = normalize(local_to_world.apply_to_normal(interp_normal));
+
+    // tex coord
+
+    var tex_coord_u = gx_ua.w + gy_uba.w * uv.x + gz_uca.w * uv.y;
+    var tex_coord_v = sn_v_a.w + sn_v_ba.w * uv.x + sn_v_ca.w * uv.y;
+    var tex_coord = CVec2f(tex_coord_u, tex_coord_v);
+
+    // intersection
+
+    SurfacePoint material_inct;
+    material_inct.position = position;
+    material_inct.frame = geometry_frame;
+    material_inct.interp_z = interp_normal;
+    material_inct.uv = uv;
+    material_inct.tex_coord = tex_coord;
+
+    return material_inct;
+}
+
 BTRC_WFPT_END
