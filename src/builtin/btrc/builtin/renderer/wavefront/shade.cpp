@@ -41,27 +41,35 @@ void ShadePipeline::record_device_code(
             $return();
         };
 
+        // load basic path states
+
         auto inct_flag = soa.inct.load_flag(soa_index);
         auto path = soa.path.load(soa_index);
         auto load_ray = soa.ray.load(soa_index);
-        auto load_bsdf_le = soa.bsdf_le.load(soa_index);
+        auto bsdf_le = soa.bsdf_le.load(soa_index);
+
+        GlobalSampler sampler({ film.width(), film.height() }, path.sampler_state);
+
+        // handle miss le
 
         $if(!inct_flag.is_intersected)
         {
-            var env_path_rad = CSpectrum::zero();
+            var splat_path_rad = CSpectrum::zero();
             if(scene.get_light_sampler()->get_envir_light())
             {
-                env_path_rad = handle_miss(
+                splat_path_rad = eval_miss_le(
                     wfpt_scene, load_ray.ray.o, load_ray.ray.d,
-                    load_bsdf_le.beta_le, load_bsdf_le.bsdf_pdf);
+                    bsdf_le.beta_le, bsdf_le.bsdf_pdf);
             }
             $if(!inct_flag.is_scattered)
             {
-                env_path_rad = env_path_rad + path.path_radiance;
+                splat_path_rad = splat_path_rad + path.path_radiance;
             };
-            film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, env_path_rad.to_rgb());
+            film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, splat_path_rad.to_rgb());
             $return();
         };
+
+        // get detailed intersection
 
         auto inct_detail = soa.inct.load_detail(soa_index);
 
@@ -70,23 +78,23 @@ void ShadePipeline::record_device_code(
         var geometries = const_data(std::span{
             scene.get_host_geometry_info(), static_cast<size_t>(scene.get_geometry_count()) });
 
-        ref instance = instances[inct_flag.instance_id];
-        ref geometry = geometries[instance.geometry_id];
+        ref<CInstanceInfo> instance = instances[inct_flag.instance_id];
+        ref<CGeometryInfo> geometry = geometries[instance.geometry_id];
         var inct = get_intersection(
             load_ray.ray.o, load_ray.ray.d, instance, geometry,
             inct_detail.t, inct_detail.prim_id, inct_detail.uv);
 
+        // handle le at intersection
+
         var le_rad = handle_intersected_light(
             wfpt_scene, load_ray.ray.o, load_ray.ray.d, inct,
-            load_bsdf_le.beta_le, load_bsdf_le.bsdf_pdf, instance.light_id);
+            bsdf_le.beta_le, bsdf_le.bsdf_pdf, instance.light_id);
         $if(inct_flag.is_scattered)
         {
             film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, le_rad.to_rgb());
             $return();
         };
         path.path_radiance = path.path_radiance + le_rad;
-
-        GlobalSampler sampler({ film.width(), film.height() }, path.sampler_state);
 
         // rr
 
@@ -97,6 +105,7 @@ void ShadePipeline::record_device_code(
                 .beta_threshold = shade_params.rr_threshold,
                 .cont_prob      = shade_params.rr_cont_prob
             });
+
         $if(rr_exit)
         {
             film.splat_atomic(path.pixel_coord, Film::OUTPUT_RADIANCE, path.path_radiance.to_rgb());
@@ -105,16 +114,10 @@ void ShadePipeline::record_device_code(
 
         // sample light
 
-        CVec3f shadow_o, shadow_d;
-        f32 shadow_t1, shadow_light_pdf;
-        CSpectrum shadow_li;
-
         var shadow_bsdf_val = CSpectrum::zero();
         var shadow_bsdf_pdf = 0.0f;
-
-        var emit_shadow_ray =  sample_light_li(
-            wfpt_scene, inct.position, inct.frame.z, sampler,
-            shadow_o, shadow_d, shadow_t1, shadow_light_pdf, shadow_li);
+        auto sample_shadow = sample_surface_light_li(
+            wfpt_scene, inct.position, inct.frame.z, sampler);
 
         // eval bsdf
 
@@ -137,17 +140,20 @@ void ShadePipeline::record_device_code(
 
             // sample bsdf
 
-            bsdf_sample = shader->sample(cc, -load_ray.ray.d, sampler.get3d(), TransportMode::Radiance);
+            bsdf_sample = shader->sample(
+                cc, -load_ray.ray.d, sampler.get3d(), TransportMode::Radiance);
 
             // shadow ray
 
-            $if(emit_shadow_ray)
+            $if(sample_shadow.success)
             {
-                shadow_bsdf_val = shader->eval(cc, shadow_d, -load_ray.ray.d, TransportMode::Radiance);
-                emit_shadow_ray = !shadow_bsdf_val.is_zero();
-                $if(emit_shadow_ray)
+                shadow_bsdf_val = shader->eval(
+                    cc, sample_shadow.d, -load_ray.ray.d, TransportMode::Radiance);
+                sample_shadow.success = !shadow_bsdf_val.is_zero();
+                $if(sample_shadow.success)
                 {
-                    shadow_bsdf_pdf = shader->pdf(cc, shadow_d, -load_ray.ray.d, TransportMode::Radiance);
+                    shadow_bsdf_pdf = shader->pdf(
+                        cc, sample_shadow.d, -load_ray.ray.d, TransportMode::Radiance);
                 };
             };
         };
@@ -165,12 +171,14 @@ void ShadePipeline::record_device_code(
             $default{ cstd::unreachable(); };
         };
 
-        $if(emit_shadow_ray)
+        // emit shadow ray
+
+        $if(sample_shadow.success)
         {
             var shadow_soa_index = cstd::atomic_add(shadow_ray_counter, 1);
 
             CMediumID shadow_medium_id;
-            var shadow_d_out = dot(inct.frame.z, shadow_d) > 0;
+            var shadow_d_out = dot(inct.frame.z, sample_shadow.d) > 0;
             var last_ray_out = dot(inct.frame.z, load_ray.ray.d) < 0;
             $if(shadow_d_out == last_ray_out)
             {
@@ -185,11 +193,19 @@ void ShadePipeline::record_device_code(
                 shadow_medium_id = instance.inner_medium_id;
             };
 
-            var cos = cstd::abs(dot(normalize(shadow_d), inct.frame.z));
-            var beta_li = shadow_li * path.beta * shadow_bsdf_val * cos / (shadow_bsdf_pdf + shadow_light_pdf);
+            var cos = cstd::abs(dot(normalize(sample_shadow.d), inct.frame.z));
+            var beta_li = sample_shadow.li * path.beta * shadow_bsdf_val * cos
+                        / (shadow_bsdf_pdf + sample_shadow.light_pdf);
 
-            soa.shadow_ray.save(shadow_soa_index, path.pixel_coord, beta_li, CRay(shadow_o, shadow_d, shadow_t1), shadow_medium_id);
+            soa.shadow_ray.save(
+                shadow_soa_index,
+                path.pixel_coord,
+                beta_li,
+                CRay(sample_shadow.o, sample_shadow.d, sample_shadow.t1),
+                shadow_medium_id);
         };
+
+        // write g-buffer
 
         $if(path.depth == 0)
         {
@@ -212,17 +228,16 @@ void ShadePipeline::record_device_code(
 
             var next_ray_o = intersection_offset(inct.position, inct.frame.z, bsdf_sample.dir);
             var next_ray_d = bsdf_sample.dir;
-            
-            var output_index = cstd::atomic_add(active_state_counter, 1);
 
             var next_ray_out = dot(inct.frame.z, next_ray_d) > 0;
             var next_ray_medium_id = cstd::select(
                 next_ray_out, instance.outer_medium_id, instance.inner_medium_id);
 
-            var stored_pdf = cstd::select(bsdf_sample.is_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
+            var stored_bsdf_pdf = cstd::select(bsdf_sample.is_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
 
+            var output_index = cstd::atomic_add(active_state_counter, 1);
             soa.output_path.save(output_index, path.depth + 1, path.pixel_coord, path.beta, path.path_radiance, sampler);
-            soa.output_bsdf_le.save(output_index, new_beta_le, stored_pdf);
+            soa.output_bsdf_le.save(output_index, new_beta_le, stored_bsdf_pdf);
             soa.output_ray.save(output_index, CRay(next_ray_o, next_ray_d), next_ray_medium_id);
         }
         $else

@@ -21,43 +21,39 @@ namespace
 
         cuj::kernel(KERNEL, [&cc, &tex, lut_res, n_samples](ptr<f32> lum_table, ptr<f32> area_table)
         {
-            $declare_scope;
-
             var xi = cstd::block_dim_x() * cstd::block_idx_x() + cstd::thread_idx_x();
             var yi = cstd::block_dim_y() * cstd::block_idx_y() + cstd::thread_idx_y();
-            $if(xi >= lut_res.x | yi >= lut_res.y)
+            $if(xi < lut_res.x & yi < lut_res.y)
             {
-                $exit_scope;
+                var x0 = f32(xi) / lut_res.x;
+                var x1 = f32(xi + 1) / lut_res.x;
+                var y0 = f32(yi) / lut_res.y;
+                var y1 = f32(yi + 1) / lut_res.y;
+
+                std::vector<Vec2f> local_samples_data(n_samples);
+                for(int i = 0; i < n_samples; ++i)
+                    local_samples_data[i] = hammersley2d(i, n_samples);
+                var local_samples = cuj::const_data(std::span<const Vec2f>{ local_samples_data });
+
+                var i = 0;
+                var lum_sum = 0.0f;
+                $while(i < n_samples)
+                {
+                    var local_sample = 1.2f * local_samples[i] - CVec2f(0.1f);
+                    i = i + 1;
+                    var x = lerp(x0, x1, local_sample.x);
+                    var y = lerp(y0, y1, local_sample.y);
+                    var value = tex->sample_spectrum(cc, CVec2f(x, y));
+                    lum_sum = lum_sum + value.get_lum();
+                };
+
+                var lum = lum_sum / n_samples;
+                lum_table[yi * lut_res.x + xi] = lum;
+
+                var delta_area = cstd::abs(
+                    2 * btrc_pi * (x1 - x0) * (cstd::cos(btrc_pi * y1) - cstd::cos(btrc_pi * y0)));
+                area_table[yi * lut_res.x + xi] = delta_area;
             };
-
-            var x0 = f32(xi)     / lut_res.x;
-            var x1 = f32(xi + 1) / lut_res.x;
-            var y0 = f32(yi)     / lut_res.y;
-            var y1 = f32(yi + 1) / lut_res.y;
-
-            std::vector<Vec2f> local_samples_data(n_samples);
-            for(int i = 0; i < n_samples; ++i)
-                local_samples_data[i] = hammersley2d(i, n_samples);
-            var local_samples = cuj::const_data(std::span<const Vec2f>{ local_samples_data });
-
-            var i = 0;
-            var lum_sum = 0.0f;
-            $while(i < n_samples)
-            {
-                var local_sample = 1.2f * local_samples[i] - CVec2f(0.1f);
-                i = i + 1;
-                var x = lerp(x0, x1, local_sample.x);
-                var y = lerp(y0, y1, local_sample.y);
-                var value = tex->sample_spectrum(cc, CVec2f(x, y));
-                lum_sum = lum_sum + value.get_lum();
-            };
-
-            var lum = lum_sum / n_samples;
-            lum_table[yi * lut_res.x + xi] = lum;
-
-            var delta_area = cstd::abs(
-                2 * btrc_pi * (x1 - x0) * (cstd::cos(btrc_pi * y1) - cstd::cos(btrc_pi * y0)));
-            area_table[yi * lut_res.x + xi] = delta_area;
         });
         
         cuj::PTXGenerator gen;

@@ -77,6 +77,16 @@ public:
 
 private:
 
+    void get_medium_segment(
+        const Scene                            &scene,
+        const CSOAParams                       &soa,
+        i32                                     soa_index,
+        const CIntersectionSOA::LoadFlagResult &flag,
+        const CRaySOA::LoadResult              &ray,
+        float                                   world_diagonal,
+        ref<CMediumID>                          medium_id,
+        ref<CVec3f>                             medium_end) const;
+
     RC<cuda::Module>                cuda_module_;
     RC<cuda::Buffer<StateCounters>> state_counters_;
 };

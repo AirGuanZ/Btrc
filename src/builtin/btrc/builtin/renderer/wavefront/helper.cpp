@@ -18,9 +18,6 @@ namespace
         ref<CSpectrum>   li,
         const F         &dir_to_o)
     {
-        $declare_scope;
-        boolean result;
-
         var sam = sampler.get3d();
         const auto select_light = scene.scene.get_light_sampler()->sample(ref_pos, sampler.get1d());
 
@@ -46,6 +43,7 @@ namespace
             light_pdf = select_light.pdf * sample.pdf;
         };
 
+        boolean result;
         $if(select_light.light_idx >= 0)
         {
             $switch(select_light.light_idx)
@@ -130,51 +128,44 @@ CSpectrum estimate_medium_tr(
     return tr;
 }
 
-boolean sample_light_li(
+SampleLiResult sample_medium_light_li(
     const WFPTScene &scene,
     const CVec3f    &ref_pos,
-    Sampler         &sampler,
-    ref<CVec3f>      d,
-    ref<f32>         t1,
-    ref<f32>         light_pdf,
-    ref<CSpectrum>   li)
+    Sampler         &sampler)
 {
-    return sample_light_li_impl(
-        scene, ref_pos, sampler,
-        d, CVec3f(0), t1, light_pdf, li,
+    SampleLiResult result;
+    result.success = sample_light_li_impl(
+        scene, ref_pos, sampler, result.d,
+        result.o, result.t1, result.light_pdf, result.li,
         [&](const CVec3f &) { return ref_pos; });
+    return result;
 }
 
-boolean sample_light_li(
+SampleLiResult sample_surface_light_li(
     const WFPTScene &scene,
     const CVec3f    &ref_pos,
     const CVec3f    &ref_nor,
-    Sampler         &sampler,
-    ref<CVec3f>      o,
-    ref<CVec3f>      d,
-    ref<f32>         t1,
-    ref<f32>         light_pdf,
-    ref<CSpectrum>   li)
+    Sampler         &sampler)
 {
-    return sample_light_li_impl(
-        scene, ref_pos, sampler,
-        d, o, t1, light_pdf, li,
+    SampleLiResult result;
+    result.success = sample_light_li_impl(
+        scene, ref_pos, sampler, result.d,
+        result.o, result.t1, result.light_pdf, result.li,
         [&](const CVec3f &dir)
         {
             return intersection_offset(ref_pos, ref_nor, dir);
         });
+    return result;
 }
 
-CSpectrum handle_miss(
+CSpectrum eval_miss_le(
     const WFPTScene &scene,
     const CVec3f    &o,
     const CVec3f    &d,
     const CSpectrum &beta_le,
     f32              bsdf_pdf)
 {
-    $declare_scope;
-    CSpectrum result;
-
+    var result = CSpectrum::zero();
     auto envir_light = scene.scene.get_light_sampler()->get_envir_light();
     if(envir_light)
     {
@@ -194,7 +185,6 @@ CSpectrum handle_miss(
             result = beta_le * le / (bsdf_pdf + light_pdf);
         };
     }
-
     return result;
 }
 

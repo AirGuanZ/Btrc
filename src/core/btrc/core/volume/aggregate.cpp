@@ -57,32 +57,31 @@ void volume::Aggregate::sample_scattering(
     ref<CVec3f>                  output_position,
     HenyeyGreensteinPhaseShader &output_shader) const
 {
-    $declare_scope;
-
     $if(overlap.count == i32(0))
     {
         output_scattered = false;
         output_throughput = CSpectrum::one();
-        $exit_scope;
-    };
-
-    var overlap_index = find_overlap_index(overlap);
-    $switch(overlap_index)
+    }
+    $else
     {
-        for(size_t i = 0; i < overlaps_.size(); ++i)
+        var overlap_index = find_overlap_index(overlap);
+        $switch(overlap_index)
         {
-            $case(i)
+            for(size_t i = 0; i < overlaps_.size(); ++i)
             {
-                sample_scattering_in_overlap(
-                    cc, overlaps_[i], a, b, sampler,
-                    output_scattered, output_throughput,
-                    output_position, output_shader);
+                $case(i)
+                {
+                    sample_scattering_in_overlap(
+                        cc, overlaps_[i], a, b, sampler,
+                        output_scattered, output_throughput,
+                        output_position, output_shader);
+                };
+            }
+            $default
+            {
+                output_scattered = false;
+                output_throughput = CSpectrum::one();
             };
-        }
-        $default
-        {
-            output_scattered = false;
-            output_throughput = CSpectrum::one();
         };
     };
 }
@@ -91,31 +90,29 @@ CSpectrum volume::Aggregate::tr(
     CompileContext &cc, ref<Overlap> overlap,
     ref<CVec3f> a, ref<CVec3f> b, Sampler &sampler) const
 {
-    $declare_scope;
     CSpectrum result;
-
     $if(overlap.count == i32(0))
     {
         result = CSpectrum::one();
-        $exit_scope;
-    };
-
-    var overlap_index = find_overlap_index(overlap);
-    $switch(overlap_index)
+    }
+    $else
     {
-        for(size_t i = 0; i < overlaps_.size(); ++i)
+        var overlap_index = find_overlap_index(overlap);
+        $switch(overlap_index)
         {
-            $case(i)
+            for(size_t i = 0; i < overlaps_.size(); ++i)
             {
-                result = tr_in_overlap(cc, overlaps_[i], a, b, sampler);
+                $case(i)
+                {
+                    result = tr_in_overlap(cc, overlaps_[i], a, b, sampler);
+                };
+            }
+            $default
+            {
+                result = CSpectrum::one();
             };
-        }
-        $default
-        {
-            result = CSpectrum::one();
         };
     };
-
     return result;
 }
 

@@ -229,98 +229,104 @@ class DisneyBSDF : public BSDFComponent
 
     CVec3f sample_specular(const CVec3f &lwo, const CVec2f &sam) const
     {
-        $declare_scope;
         CVec3f lwi;
-
-        var lwh = microfacet::sample_anisotropic_gtr2_vnor(
-            lwo, ax_, ay_, sam);
-        $if(lwh.z <= 0)
+        $scope
         {
-            lwi = CVec3f(0);
-            $exit_scope;
-        };
+            var lwh = microfacet::sample_anisotropic_gtr2_vnor(
+                lwo, ax_, ay_, sam);
+            $if(lwh.z <= 0)
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
 
-        lwi = 2.0f * dot(lwo, lwh) * lwh - lwo;
-        $if(lwi.z <= 0)
-        {
-            lwi = CVec3f(0);
-            $exit_scope;
+            lwi = 2.0f * dot(lwo, lwh) * lwh - lwo;
+            $if(lwi.z <= 0)
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            lwi = normalize(lwi);
         };
-        lwi = normalize(lwi);
         return lwi;
     }
 
     CVec3f sample_clearcoat(const CVec3f &lwo, const CVec2f &sam) const
     {
-        $declare_scope;
         CVec3f lwi;
-
-        var lwh = microfacet::sample_gtr1(clearcoat_roughness_, sam);
-        $if(lwh.z <= 0)
+        $scope
         {
-            lwi = CVec3f(0);
-            $exit_scope;
-        };
+            var lwh = microfacet::sample_gtr1(clearcoat_roughness_, sam);
+            $if(lwh.z <= 0)
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
 
-        lwi = 2.0f * dot(lwo, lwh) * lwh - lwo;
-        $if(lwi.z <= 0)
-        {
-            lwi = CVec3f(0);
-            $exit_scope;
+            lwi = 2.0f * dot(lwo, lwh) * lwh - lwo;
+            $if(lwi.z <= 0)
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            lwi = normalize(lwi);
         };
-        lwi = normalize(lwi);
         return lwi;
     }
 
     CVec3f sample_transmission(const CVec3f &lwo, const CVec2f &sam) const
     {
-        $declare_scope;
         CVec3f lwi;
-        var lwh = microfacet::sample_anisotropic_gtr2(trans_ax_, trans_ay_, sam);
-        $if(lwh.z <= 0)
+        $scope
         {
-            lwi = CVec3f(0);
-            $exit_scope;
+            var lwh = microfacet::sample_anisotropic_gtr2(trans_ax_, trans_ay_, sam);
+            $if(lwh.z <= 0)
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            $if((lwo.z > 0) != (dot(lwh, lwo) > 0))
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            var eta = cstd::select(lwo.z > 0, 1.0f / ior_, ior_);
+            var owh = cstd::select(dot(lwh, lwo) > 0, CVec3f(lwh), -lwh);
+            $if(!refract(lwo, owh, eta, lwi))
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            $if(lwi.z * lwo.z > 0 | ((lwi.z > 0) != (dot(lwh, lwi) > 0)))
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            lwi = normalize(lwi);
         };
-        $if((lwo.z > 0) != (dot(lwh, lwo) > 0))
-        {
-            lwi = CVec3f(0);
-            $exit_scope;
-        };
-        var eta = cstd::select(lwo.z > 0, 1.0f / ior_, ior_);
-        var owh = cstd::select(dot(lwh, lwo) > 0, CVec3f(lwh), -lwh);
-        $if(!refract(lwo, owh, eta, lwi))
-        {
-            lwi = CVec3f(0);
-            $exit_scope;
-        };
-        $if(lwi.z * lwo.z > 0 | ((lwi.z > 0) != (dot(lwh, lwi) > 0)))
-        {
-            lwi = CVec3f(0);
-            $exit_scope;
-        };
-        lwi = normalize(lwi);
         return lwi;
     }
 
     CVec3f sample_inner_refl(const CVec3f &lwo, const CVec2f &sam) const
     {
         CUJ_ASSERT(lwo.z < 0);
-        $declare_scope;
         CVec3f lwi;
-        var lwh = microfacet::sample_anisotropic_gtr2(trans_ax_, trans_ay_, sam);
-        $if(lwh.z <= 0)
+        $scope
         {
-            lwi = CVec3f(0);
-            $exit_scope;
+            var lwh = microfacet::sample_anisotropic_gtr2(trans_ax_, trans_ay_, sam);
+            $if(lwh.z <= 0)
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            lwi = 2.0f * dot(lwo, lwh) * lwh - lwo;
+            $if(lwi.z > 0)
+            {
+                lwi = CVec3f(0);
+                $exit_scope;
+            };
+            lwi = normalize(lwi);
         };
-        lwi = 2.0f * dot(lwo, lwh) * lwh - lwo;
-        $if(lwi.z > 0)
-        {
-            lwi = CVec3f(0);
-            $exit_scope;
-        };
-        lwi = normalize(lwi);
         return lwi;
     }
 
@@ -364,36 +370,36 @@ class DisneyBSDF : public BSDFComponent
     {
         CUJ_ASSERT(lwi.z * lwo.z < 0);
 
-        $declare_scope;
         f32 result;
-
-        var eta = cstd::select(lwo.z > 0, ior_, 1.0f / ior_);
-        var lwh = normalize(lwo + eta * lwi);
-        $if(lwh.z < 0)
+        $scope
         {
-            lwh = -lwh;
+            var eta = cstd::select(lwo.z > 0, ior_, 1.0f / ior_);
+            var lwh = normalize(lwo + eta * lwi);
+            $if(lwh.z < 0)
+            {
+                lwh = -lwh;
+            };
+
+            $if(((lwo.z > 0) != (dot(lwh, lwo) > 0)) |
+                ((lwi.z > 0) != (dot(lwh, lwi) > 0)))
+            {
+                result = 0;
+                $exit_scope;
+            };
+
+            var sdem = dot(lwo, lwh) + eta * dot(lwi, lwh);
+            var dwh_to_dwi = eta * eta * dot(lwi, lwh) / (sdem * sdem);
+
+            var phi_h = local_angle::phi(lwh);
+            var sin_phi_h = cstd::sin(phi_h);
+            var cos_phi_h = cstd::cos(phi_h);
+            var cos_theta_h = local_angle::cos_theta(lwh);
+            var sin_theta_h = local_angle::cos2sin(cos_theta_h);
+
+            var D = microfacet::anisotropic_gtr2(
+                sin_phi_h, cos_phi_h, sin_theta_h, cos_theta_h, trans_ax_, trans_ay_);
+            result = cstd::abs(dot(lwi, lwh) * D * dwh_to_dwi);
         };
-
-        $if(((lwo.z > 0) != (dot(lwh, lwo) > 0)) |
-            ((lwi.z > 0) != (dot(lwh, lwi) > 0)))
-        {
-            result = 0;
-            $exit_scope;
-        };
-
-        var sdem = dot(lwo, lwh) + eta * dot(lwi, lwh);
-        var dwh_to_dwi = eta * eta * dot(lwi, lwh) / (sdem * sdem);
-
-        var phi_h = local_angle::phi(lwh);
-        var sin_phi_h = cstd::sin(phi_h);
-        var cos_phi_h = cstd::cos(phi_h);
-        var cos_theta_h = local_angle::cos_theta(lwh);
-        var sin_theta_h = local_angle::cos2sin(cos_theta_h);
-
-        var D = microfacet::anisotropic_gtr2(
-            sin_phi_h, cos_phi_h, sin_theta_h, cos_theta_h, trans_ax_, trans_ay_);
-        result = cstd::abs(dot(lwi, lwh) * D * dwh_to_dwi);
-
         return result;
     }
 
@@ -470,126 +476,171 @@ public:
 
     CSpectrum eval(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override
     {
-        $declare_scope;
         CSpectrum result;
-
-        $if(cstd::abs(lwi.z) < 1e-4f | cstd::abs(lwo.z) < 1e-4f)
+        $scope
         {
-            result = CSpectrum::zero();
-            $exit_scope;
-        };
-
-        // transmission
-
-        $if(lwi.z * lwo.z < 0)
-        {
-            $if(transmission_ == 0.0f)
+            $if(cstd::abs(lwi.z) < 1e-4f | cstd::abs(lwo.z) < 1e-4f)
             {
                 result = CSpectrum::zero();
                 $exit_scope;
             };
 
-            result = eval_trans(lwi, lwo, mode);
-            $exit_scope;
-        };
+            // transmission
 
-        // inner refl
+            $if(lwi.z * lwo.z < 0)
+            {
+                $if(transmission_ == 0.0f)
+                {
+                    result = CSpectrum::zero();
+                    $exit_scope;
+                };
 
-        $if(lwi.z < 0 & lwo.z < 0)
-        {
-            $if(transmission_ == 0.0f)
+                result = eval_trans(lwi, lwo, mode);
+                $exit_scope;
+            };
+
+            // inner refl
+
+            $if(lwi.z < 0 & lwo.z < 0)
+            {
+                $if(transmission_ == 0.0f)
+                {
+                    result = CSpectrum::zero();
+                    $exit_scope;
+                };
+
+                result = eval_inner_refl(lwi, lwo);
+                $exit_scope;
+            };
+
+            // reflection
+
+            $if(lwi.z <= 0 | lwo.z <= 0)
             {
                 result = CSpectrum::zero();
                 $exit_scope;
             };
 
-            result = eval_inner_refl(lwi, lwo);
-            $exit_scope;
-        };
+            var cos_theta_i = local_angle::cos_theta(lwi);
+            var cos_theta_o = local_angle::cos_theta(lwo);
 
-        // reflection
+            var lwh = normalize(lwi + lwo);
+            var cos_theta_d = dot(lwi, lwh);
 
-        $if(lwi.z <= 0 | lwo.z <= 0)
-        {
-            result = CSpectrum::zero();
-            $exit_scope;
-        };
-
-        var cos_theta_i = local_angle::cos_theta(lwi);
-        var cos_theta_o = local_angle::cos_theta(lwo);
-
-        var lwh = normalize(lwi + lwo);
-        var cos_theta_d = dot(lwi, lwh);
-
-        var diffuse = CSpectrum::zero(), sheen = CSpectrum::zero();
-        $if(metallic_ < 1.0f)
-        {
-            diffuse = eval_diffuse(cos_theta_i, cos_theta_o, cos_theta_d);
-            $if(sheen_ > 0.0f)
+            var diffuse = CSpectrum::zero(), sheen = CSpectrum::zero();
+            $if(metallic_ < 1.0f)
             {
-                sheen = eval_sheen(cos_theta_d);
+                diffuse = eval_diffuse(cos_theta_i, cos_theta_o, cos_theta_d);
+                $if(sheen_ > 0.0f)
+                {
+                    sheen = eval_sheen(cos_theta_d);
+                };
             };
+
+            var specular = eval_specular(lwi, lwo);
+
+            var clearcoat = CSpectrum::zero();
+            $if(clearcoat_ > 0.0f)
+            {
+                var tan_theta_i = local_angle::tan_theta(lwi);
+                var tan_theta_o = local_angle::tan_theta(lwo);
+                var cos_theta_h = local_angle::cos_theta(lwh);
+                var sin_theta_h = local_angle::cos2sin(cos_theta_h);
+                clearcoat = eval_clearcoat(
+                    cos_theta_i, cos_theta_o, tan_theta_i, tan_theta_o,
+                    sin_theta_h, cos_theta_h, cos_theta_d);
+            };
+
+            result = (1.0f - metallic_) * (1.0f - transmission_)
+                      * (diffuse + sheen) + specular + clearcoat;
         };
-
-        var specular = eval_specular(lwi, lwo);
-
-        var clearcoat = CSpectrum::zero();
-        $if(clearcoat_ > 0.0f)
-        {
-            var tan_theta_i = local_angle::tan_theta(lwi);
-            var tan_theta_o = local_angle::tan_theta(lwo);
-            var cos_theta_h = local_angle::cos_theta(lwh);
-            var sin_theta_h = local_angle::cos2sin(cos_theta_h);
-            clearcoat = eval_clearcoat(
-                cos_theta_i, cos_theta_o, tan_theta_i, tan_theta_o,
-                sin_theta_h, cos_theta_h, cos_theta_d);
-        };
-
-        result = (1.0f - metallic_) * (1.0f - transmission_)
-                  * (diffuse + sheen) + specular + clearcoat;
         return result;
     }
 
     SampleResult sample(
         CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const override
     {
-        $declare_scope;
         SampleResult result;
-
-        auto handle_bad_sample = [&]
+        $scope
         {
-            var v = result.bsdf * cstd::abs(result.dir.z) / result.pdf;
-            $if(cstd::max(cstd::max(v.r, v.g), v.b) > 10)
+            auto handle_bad_sample = [&]
             {
-                result.clear();
+                var v = result.bsdf * cstd::abs(result.dir.z) / result.pdf;
+                $if(cstd::max(cstd::max(v.r, v.g), v.b) > 10)
+                {
+                    result.clear();
+                };
             };
-        };
 
-        $if(cstd::abs(lwo.z) < 1e-4f)
-        {
-            result.clear();
-            $exit_scope;
-        };
-
-        // transmission and inner refl
-
-        $if(lwo.z < 0)
-        {
-            $if(transmission_ == 0.0f)
+            $if(cstd::abs(lwo.z) < 1e-4f)
             {
                 result.clear();
                 $exit_scope;
             };
 
-            CVec3f lwi;
-            var macro_F = cstd::clamp(dielectric_fresnel(ior_, 1, lwo.z), 0.1f, 0.9f);
-            $if(sam.x >= macro_F)
+            // transmission and inner refl
+
+            $if(lwo.z < 0)
             {
-                lwi = sample_transmission(lwo, CVec2f(sam.y, sam.z));
+                $if(transmission_ == 0.0f)
+                {
+                    result.clear();
+                    $exit_scope;
+                };
+
+                CVec3f lwi;
+                var macro_F = cstd::clamp(dielectric_fresnel(ior_, 1, lwo.z), 0.1f, 0.9f);
+                $if(sam.x >= macro_F)
+                {
+                    lwi = sample_transmission(lwo, CVec2f(sam.y, sam.z));
+                }
+                $else
+                {
+                    lwi = sample_inner_refl(lwo, CVec2f(sam.y, sam.z));
+                };
+
+                $if(lwi.x == 0 & lwi.y == 0 & lwi.z == 0)
+                {
+                    result.clear();
+                    $exit_scope;
+                };
+
+                result.dir = lwi;
+                result.bsdf = eval(cc, lwi, lwo, mode);
+                result.pdf = pdf(cc, lwi, lwo, mode);
+                handle_bad_sample();
+                $exit_scope;
+            };
+
+            // reflection + transmission
+
+            var sam_selector = sam.x;
+            var new_sam = CVec2f(sam.y, sam.z);
+
+            CVec3f lwi;
+            $if(sam_selector < diffuse_weight_)
+            {
+                lwi = sample_diffuse(new_sam);
             }
             $else
             {
-                lwi = sample_inner_refl(lwo, CVec2f(sam.y, sam.z));
+                sam_selector = sam_selector - diffuse_weight_;
+                $if(sam_selector < transmission_weight_)
+                {
+                    lwi = sample_transmission(lwo, new_sam);
+                }
+                $else
+                {
+                    sam_selector = sam_selector - transmission_weight_;
+                    $if(sam_selector < specular_weight_)
+                    {
+                        lwi = sample_specular(lwo, new_sam);
+                    }
+                    $else
+                    {
+                        lwi = sample_clearcoat(lwo, new_sam);
+                    };
+                };
             };
 
             $if(lwi.x == 0 & lwi.y == 0 & lwi.z == 0)
@@ -602,50 +653,7 @@ public:
             result.bsdf = eval(cc, lwi, lwo, mode);
             result.pdf = pdf(cc, lwi, lwo, mode);
             handle_bad_sample();
-            $exit_scope;
         };
-
-        // reflection + transmission
-
-        var sam_selector = sam.x;
-        var new_sam = CVec2f(sam.y, sam.z);
-
-        CVec3f lwi;
-        $if(sam_selector < diffuse_weight_)
-        {
-            lwi = sample_diffuse(new_sam);
-        }
-        $else
-        {
-            sam_selector = sam_selector - diffuse_weight_;
-            $if(sam_selector < transmission_weight_)
-            {
-                lwi = sample_transmission(lwo, new_sam);
-            }
-            $else
-            {
-                sam_selector = sam_selector - transmission_weight_;
-                $if(sam_selector < specular_weight_)
-                {
-                    lwi = sample_specular(lwo, new_sam);
-                }
-                $else
-                {
-                    lwi = sample_clearcoat(lwo, new_sam);
-                };
-            };
-        };
-
-        $if(lwi.x == 0 & lwi.y == 0 & lwi.z == 0)
-        {
-            result.clear();
-            $exit_scope;
-        };
-
-        result.dir = lwi;
-        result.bsdf = eval(cc, lwi, lwo, mode);
-        result.pdf = pdf(cc, lwi, lwo, mode);
-        handle_bad_sample();
         return result;
     }
 
@@ -659,7 +667,10 @@ public:
             result.bsdf = t_result.bsdf;
             result.dir = t_result.dir;
             result.pdf = t_result.pdf;
-            result.pdf_rev = pdf(cc, lwo, t_result.dir, mode);
+            result.pdf_rev = pdf(
+                cc, lwo, t_result.dir,
+                mode == TransportMode::Radiance ? TransportMode::Importance
+                                                : TransportMode::Radiance);
         }
         $else
         {
@@ -670,50 +681,51 @@ public:
 
     f32 pdf(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override
     {
-        $declare_scope;
         f32 result;
-
-        $if(cstd::abs(lwi.z) < 1e-4f | cstd::abs(lwo.z) < 1e-4f)
+        $scope
         {
-            result = 0;
-            $exit_scope;
-        };
-
-        // transmission and inner refl
-
-        $if(lwo.z < 0)
-        {
-            $if(transmission_ == 0.0f)
+            $if(cstd::abs(lwi.z) < 1e-4f | cstd::abs(lwo.z) < 1e-4f)
             {
                 result = 0;
                 $exit_scope;
             };
 
-            var macro_F = cstd::clamp(dielectric_fresnel(ior_, 1, lwo.z), 0.1f, 0.9f);
-            $if(lwi.z > 0)
+            // transmission and inner refl
+
+            $if(lwo.z < 0)
             {
-                result = (1.0f - macro_F) * pdf_transmission(lwi, lwo);
+                $if(transmission_ == 0.0f)
+                {
+                    result = 0;
+                    $exit_scope;
+                };
+
+                var macro_F = cstd::clamp(dielectric_fresnel(ior_, 1, lwo.z), 0.1f, 0.9f);
+                $if(lwi.z > 0)
+                {
+                    result = (1.0f - macro_F) * pdf_transmission(lwi, lwo);
+                    $exit_scope;
+                };
+                result = macro_F * pdf_inner_refl(lwi, lwo);
                 $exit_scope;
             };
-            result = macro_F * pdf_inner_refl(lwi, lwo);
-            $exit_scope;
+
+            // transmission and refl
+
+            $if(lwi.z < 0)
+            {
+                result = transmission_weight_ * pdf_transmission(lwi, lwo);
+                $exit_scope;
+            };
+
+            var diffuse = pdf_diffuse(lwi, lwo);
+
+            auto [specular, clearcoat] = pdf_specular_clearcoat(lwi, lwo);
+
+            result = diffuse_weight_ * diffuse
+                   + specular_weight_ * specular
+                   + clearcoat_weight_ * clearcoat;
         };
-
-        // transmission and refl
-
-        $if(lwi.z < 0)
-        {
-            result = transmission_weight_ * pdf_transmission(lwi, lwo);
-            $exit_scope;
-        };
-
-        var diffuse = pdf_diffuse(lwi, lwo);
-
-        auto [specular, clearcoat] = pdf_specular_clearcoat(lwi, lwo);
-
-        result = diffuse_weight_ * diffuse
-               + specular_weight_ * specular
-               + clearcoat_weight_ * clearcoat;
         return result;
     }
 

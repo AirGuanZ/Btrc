@@ -124,143 +124,145 @@ boolean volume::BVH::find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref
     if(nodes_.empty())
         return false;
 
-    $declare_scope;
     boolean result;
-
-    var nodes = cuj::const_data(std::span{ nodes_ });
-    var prims = cuj::const_data(std::span{ prims_ });
-
-    var dir = b - a;
-    var inv_dir = 1.0f / dir;
-    var final_t = btrc_max_float, t_max = 1.0f;
-
-    cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
-    traversal_stack[0] = 0;
-
-    var top = 1;
-    $while(top > 0)
+    $scope
     {
-        top = top - 1;
-        var task_node_idx = traversal_stack[top];
-        ref node = nodes[task_node_idx];
+        var nodes = cuj::const_data(std::span{ nodes_ });
+        var prims = cuj::const_data(std::span{ prims_ });
 
-        $if(is_leaf_node(node))
+        var dir = b - a;
+        var inv_dir = 1.0f / dir;
+        var final_t = btrc_max_float, t_max = 1.0f;
+
+        cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
+        traversal_stack[0] = 0;
+
+        var top = 1;
+        $while(top > 0)
         {
-            $forrange(i, node.prim_beg, node.prim_end)
+            top = top - 1;
+            var task_node_idx = traversal_stack[top];
+            ref<CBVHNode> node = nodes[task_node_idx];
+
+            $if(is_leaf_node(node))
             {
-                var t = find_closest_intersection(a, dir, t_max, prims[i]);
-                $if(t >= 0.0f)
+                $forrange(i, node.prim_beg, node.prim_end)
                 {
-                    final_t = cstd::min(final_t, t);
-                    t_max = final_t;
+                    var t = find_closest_intersection(a, dir, t_max, prims[i]);
+                    $if(t >= 0.0f)
+                    {
+                        final_t = cstd::min(final_t, t);
+                        t_max = final_t;
+                    };
+                };
+            }
+            $else
+            {
+                var left = nodes[node.prim_end];
+                $if(intersect_ray_aabb(left.lower, left.upper, a, inv_dir, t_max))
+                {
+                    traversal_stack[top] = u32(node.prim_end);
+                    top = top + 1;
+                };
+
+                var right = nodes[node.prim_end + 1];
+                $if(intersect_ray_aabb(right.lower, right.upper, a, inv_dir, t_max))
+                {
+                    traversal_stack[top] = u32(node.prim_end + 1);
+                    top = top + 1;
                 };
             };
-        }
-        $else
-        {
-            var left = nodes[node.prim_end];
-            $if(intersect_ray_aabb(left.lower, left.upper, a, inv_dir, t_max))
-            {
-                traversal_stack[top] = u32(node.prim_end);
-                top = top + 1;
-            };
-
-            var right = nodes[node.prim_end + 1];
-            $if(intersect_ray_aabb(right.lower, right.upper, a, inv_dir, t_max))
-            {
-                traversal_stack[top] = u32(node.prim_end + 1);
-                top = top + 1;
-            };
         };
+
+        $if(final_t > 10)
+        {
+            result = false;
+            $exit_scope;
+        };
+
+        CUJ_ASSERT(final_t >= 0.0f);
+        CUJ_ASSERT(final_t <= 1.0f);
+        output_position = a * (1.0f - final_t) + b * final_t;
+
+        result = true;
     };
-
-    $if(final_t > 10)
-    {
-        result = false;
-        $exit_scope;
-    };
-
-    CUJ_ASSERT(final_t >= 0.0f);
-    CUJ_ASSERT(final_t <= 1.0f);
-    output_position = a * (1.0f - final_t) + b * final_t;
-
-    result = true;
     return result;
 }
 
 volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
 {
-    $declare_scope;
     Overlap result;
     result.count = 0;
-
     if(nodes_.empty())
         return result;
 
-    var nodes = cuj::const_data(std::span{ nodes_ });
-    var prims = cuj::const_data(std::span{ prims_ });
-
-    cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
-    traversal_stack[0] = 0;
-
-    auto sort_result = [&result]
+    $scope
     {
-        $forrange(i, 0, result.count)
-        {
-            $forrange(j, 0, result.count - 1 - i)
-            {
-                $if(result.data[j] > result.data[j + 1])
-                {
-                    var t = result.data[j + 1];
-                    result.data[j + 1] = result.data[j];
-                    result.data[j] = t;
-                };
-            };
-        };
-    };
+        var nodes = cuj::const_data(std::span{ nodes_ });
+        var prims = cuj::const_data(std::span{ prims_ });
 
-    var top = 1;
-    $while(top > 0)
-    {
-        top = top - 1;
-        ref node = nodes[traversal_stack[top]];
+        cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
+        traversal_stack[0] = 0;
 
-        $if(is_leaf_node(node))
+        auto sort_result = [&result]
         {
-            $forrange(i, node.prim_beg, node.prim_end)
+            $forrange(i, 0, result.count)
             {
-                ref prim = prims[i];
-                $if(is_in_prim(position, prim))
+                $forrange(j, 0, result.count - 1 - i)
                 {
-                    result.data[result.count] = prim.vol_id;
-                    result.count = result.count + 1;
-                    $if(result.count >= MAX_OVERLAP_COUNT)
+                    $if(result.data[j] > result.data[j + 1])
                     {
-                        sort_result();
-                        $exit_scope;
+                        var t = result.data[j + 1];
+                        result.data[j + 1] = result.data[j];
+                        result.data[j] = t;
                     };
                 };
             };
-        }
-        $else
-        {
-            var left = nodes[node.prim_end];
-            $if(is_in_aabb(position, left.lower, left.upper))
-            {
-                traversal_stack[top] = u32(node.prim_end);
-                top = top + 1;
-            };
+        };
 
-            var right = nodes[node.prim_end + 1];
-            $if(is_in_aabb(position, right.lower, right.upper))
+        var top = 1;
+        $while(top > 0)
+        {
+            top = top - 1;
+            ref node = nodes[traversal_stack[top]];
+
+            $if(is_leaf_node(node))
             {
-                traversal_stack[top] = u32(node.prim_end + 1);
-                top = top + 1;
+                $forrange(i, node.prim_beg, node.prim_end)
+                {
+                    ref prim = prims[i];
+                    $if(is_in_prim(position, prim))
+                    {
+                        result.data[result.count] = prim.vol_id;
+                        result.count = result.count + 1;
+                        $if(result.count >= MAX_OVERLAP_COUNT)
+                        {
+                            sort_result();
+                            $exit_scope;
+                        };
+                    };
+                };
+            }
+            $else
+            {
+                var left = nodes[node.prim_end];
+                $if(is_in_aabb(position, left.lower, left.upper))
+                {
+                    traversal_stack[top] = u32(node.prim_end);
+                    top = top + 1;
+                };
+
+                var right = nodes[node.prim_end + 1];
+                $if(is_in_aabb(position, right.lower, right.upper))
+                {
+                    traversal_stack[top] = u32(node.prim_end + 1);
+                    top = top + 1;
+                };
             };
         };
-    };
 
-    sort_result();
+        sort_result();
+    };
     return result;
 }
 
@@ -315,28 +317,29 @@ f32 volume::BVH::find_closest_intersection(ref<CVec3f> p, ref<CVec3f> d, f32 t_m
     process_interval(prim.y_div_y2);
     process_interval(prim.z_div_z2);
 
-    $declare_scope;
     f32 result;
-
-    $if(t0 > t1)
+    $scope
     {
+        $if(t0 > t1)
+        {
+            result = -1;
+            $exit_scope;
+        };
+
+        $if(t0 > 0)
+        {
+            result = t0;
+            $exit_scope;
+        };
+
+        $if(t1 < t_max)
+        {
+            result = t1;
+            $exit_scope;
+        };
+
         result = -1;
-        $exit_scope;
     };
-
-    $if(t0 > 0)
-    {
-        result = t0;
-        $exit_scope;
-    };
-
-    $if(t1 < t_max)
-    {
-        result = t1;
-        $exit_scope;
-    };
-
-    result = -1;
     return result;
 }
 

@@ -17,35 +17,30 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
 
     Shader::SampleBidirResult sample_bidir(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
     {
-        $declare_scope;
         Shader::SampleBidirResult result;
+        result.clear();
 
         var frame = raw_frame.flip_for_black_fringes(wo);
         var lwo = frame.shading.global_to_local(wo);
-        $if(lwo.z <= 0)
+        $if(lwo.z > 0)
         {
-            result.clear();
-            $exit_scope;
+            lwo = normalize(lwo);
+
+            var lwi = CVec3f(-lwo.x, -lwo.y, lwo.z);
+            var wi = frame.shading.local_to_global(lwi);
+            $if(!raw_frame.is_black_fringes(wi))
+            {
+                var fr = schlick_approx(color, lwo.z);
+                var bsdf = fr / lwo.z;
+                var norm_factor = frame.correct_shading_energy(wi);
+
+                result.bsdf = bsdf * norm_factor;
+                result.dir = wi;
+                result.pdf = 1;
+                result.pdf_rev = 1;
+                result.is_delta = true;
+            };
         };
-        lwo = normalize(lwo);
-
-        var lwi = CVec3f(-lwo.x, -lwo.y, lwo.z);
-        var wi = frame.shading.local_to_global(lwi);
-        $if(raw_frame.is_black_fringes(wi))
-        {
-            result.clear();
-            $exit_scope;
-        };
-
-        var fr = schlick_approx(color, lwo.z);
-        var bsdf = fr / lwo.z;
-        var norm_factor = frame.correct_shading_energy(wi);
-
-        result.bsdf = bsdf * norm_factor;
-        result.dir = wi;
-        result.pdf = 1;
-        result.pdf_rev = 1;
-        result.is_delta = true;
         return result;
     }
 

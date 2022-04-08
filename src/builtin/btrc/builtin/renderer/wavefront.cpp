@@ -156,7 +156,8 @@ void WavefrontPathTracer::recompile()
             impl_->medium.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
         impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
 
-        cuj::PTXGenerator ptx_gen;
+        //cuj::PTXGenerator ptx_gen;
+        cuj::NVRTC ptx_gen;
         ptx_gen.set_options(cuj::Options{
             .opt_level = cuj::OptimizationLevel::O3,
             .fast_math = true,
