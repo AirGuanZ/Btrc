@@ -127,8 +127,8 @@ boolean volume::BVH::find_closest_intersection(ref<CVec3f> a, ref<CVec3f> b, ref
     boolean result;
     $scope
     {
-        var nodes = cuj::const_data(std::span{ nodes_ });
-        var prims = cuj::const_data(std::span{ prims_ });
+        var nodes = cuj::const_data(nodes_);
+        var prims = cuj::const_data(prims_);
 
         var dir = b - a;
         var inv_dir = 1.0f / dir;
@@ -198,27 +198,11 @@ volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
 
     $scope
     {
-        var nodes = cuj::const_data(std::span{ nodes_ });
-        var prims = cuj::const_data(std::span{ prims_ });
+        var nodes = cuj::const_data(nodes_);
+        var prims = cuj::const_data(prims_);
 
         cuj::arr<u32, TRAVERSAL_STACK_SIZE> traversal_stack;
         traversal_stack[0] = 0;
-
-        auto sort_result = [&result]
-        {
-            $forrange(i, 0, result.count)
-            {
-                $forrange(j, 0, result.count - 1 - i)
-                {
-                    $if(result.data[j] > result.data[j + 1])
-                    {
-                        var t = result.data[j + 1];
-                        result.data[j + 1] = result.data[j];
-                        result.data[j] = t;
-                    };
-                };
-            };
-        };
 
         var top = 1;
         $while(top > 0)
@@ -237,7 +221,6 @@ volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
                         result.count = result.count + 1;
                         $if(result.count >= MAX_OVERLAP_COUNT)
                         {
-                            sort_result();
                             $exit_scope;
                         };
                     };
@@ -260,8 +243,6 @@ volume::BVH::Overlap volume::BVH::get_overlap(ref<CVec3f> position) const
                 };
             };
         };
-
-        sort_result();
     };
     return result;
 }

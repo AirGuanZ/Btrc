@@ -43,21 +43,23 @@ volume::OverlapIndexer::OverlapIndexer(
     for(size_t i = 0; i < overlaps.size(); ++i)
     {
         std::vector<RC<VolumePrimitive>> vols{ overlaps[i].begin(), overlaps[i].end() };
-        std::sort(vols.begin(), vols.end(), [&](const auto &l, const auto &r)
-        {
-            return vol_to_id.at(l) < vol_to_id.at(r);
-        });
 
-        Node *node = &root_node;
-        for(auto &vol : vols)
+        auto cmp = [&](const auto &l, const auto &r) { return vol_to_id.at(l) < vol_to_id.at(r); };
+        std::sort(vols.begin(), vols.end(), cmp);
+
+        do
         {
-            auto it = node->children.find(vol);
-            if(it == node->children.end())
-                it = node->children.insert({ vol, newBox<Node>() }).first;
-            node = it->second.get();
-        }
-        assert(node->overlap_index == -2);
-        node->overlap_index = static_cast<int>(i);
+            Node *node = &root_node;
+            for(auto &vol : vols)
+            {
+                auto it = node->children.find(vol);
+                if(it == node->children.end())
+                    it = node->children.insert({ vol, newBox<Node>() }).first;
+                node = it->second.get();
+            }
+            assert(node->overlap_index == -2);
+            node->overlap_index = static_cast<int>(i);
+        } while(std::next_permutation(vols.begin(), vols.end(), cmp));
     }
 
     // create indices
