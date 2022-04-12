@@ -5,7 +5,6 @@
 #include <btrc/builtin/renderer/wavefront/shade.h>
 #include <btrc/builtin/renderer/wavefront/shadow.h>
 #include <btrc/builtin/renderer/wavefront/soa_buffer.h>
-#include <btrc/builtin/renderer/wavefront/sort.h>
 #include <btrc/builtin/renderer/wavefront/trace.h>
 #include <btrc/builtin/renderer/wavefront.h>
 
@@ -43,7 +42,6 @@ struct WavefrontPathTracer::Impl
     wfpt::GeneratePipeline      generate;
     wfpt::TracePipeline         trace;
     wfpt::MediumPipeline        medium;
-    wfpt::SortPipeline          sort;
     wfpt::ShadePipeline         shade;
     wfpt::ShadowPipeline        shadow;
     wfpt::PreviewImageGenerator preview;
@@ -141,7 +139,6 @@ void WavefrontPathTracer::recompile()
     impl_->generate = {};
     impl_->trace = {};
     impl_->medium = {};
-    impl_->sort = {};
     impl_->shade = {};
     impl_->shadow = {};
 
@@ -180,8 +177,6 @@ void WavefrontPathTracer::recompile()
         impl_->scene->has_motion_blur(),
         impl_->scene->is_triangle_only(),
         2);
-
-    impl_->sort = wfpt::SortPipeline();
 
     impl_->shadow = wfpt::ShadowPipeline(
         *impl_->scene, impl_->film, *impl_->optix_ctx,
@@ -251,7 +246,7 @@ Renderer::RenderResult WavefrontPathTracer::render()
                 .inct = *impl_->inct_buffer
             });
 
-        cudaMemsetAsync(impl_->state_counters->get(), 0, sizeof(wfpt::StateCounters));
+        impl_->state_counters->clear_bytes_async(0);
 
         if(impl_->has_medium)
         {
@@ -268,8 +263,6 @@ Renderer::RenderResult WavefrontPathTracer::render()
                     .shadow_ray     = *impl_->shadow_ray_buffer
                 });
         }
-
-        // impl_->sort.sort(active_state_count, soa.inct_t, soa.inct_uv_id, soa.active_state_indices);
 
         impl_->shade.shade(
             active_state_count,

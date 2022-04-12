@@ -49,11 +49,11 @@ static bool build_and_intersect_bvh(const std::vector<Primitive>& primitives) {
         auto intersection = hit->intersection;
         std::cout
             << "Hit primitive " << triangle_index << "\n"
-            << "distance: "    << intersection.t << "\n";
+            << "distance: "     << intersection.t << "\n";
         if constexpr (std::is_same_v<Primitive, Triangle>) {
             std::cout
-                << "u: "           << intersection.u << "\n"
-                << "v: "           << intersection.v << "\n";
+                << "u: " << intersection.u << "\n"
+                << "v: " << intersection.v << "\n";
         }
         return true;
     }
@@ -76,8 +76,8 @@ int main() {
         return 1;
 
     std::vector<Sphere> spheres;
-    spheres.emplace_back(Vector3( 1.0, -1.0, 1.0), 1.0);
-    spheres.emplace_back(Vector3( 0.0,  0.0, 2.0), 0.5);
+    spheres.emplace_back(Vector3( 1.0, -1.0, 1.0), Scalar(1.0));
+    spheres.emplace_back(Vector3( 0.0,  0.0, 2.0), Scalar(0.5));
     if (!build_and_intersect_bvh(spheres))
         return 1;
     return 0;

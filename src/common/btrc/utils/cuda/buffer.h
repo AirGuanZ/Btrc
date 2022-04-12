@@ -65,11 +65,19 @@ public:
 
     void clear(const T &val);
 
+    void clear_async(const T &val);
+
     void clear_bytes(uint8_t byte);
+
+    void clear_bytes_async(uint8_t byte);
 
     void to_cpu(T *output, size_t beg = 0, size_t end = 0) const;
 
+    void to_cpu_async(T *output, size_t beg = 0, size_t end = 0) const;
+
     void from_cpu(const T *cpu_data, size_t beg = 0, size_t end = 0);
+
+    void from_cpu_async(const T *cpu_data, size_t beg = 0, size_t end = 0);
 
     auto get_cuj_ptr() const;
 
@@ -235,10 +243,25 @@ void Buffer<T>::clear(const T &val)
 }
 
 template<typename T>
+void Buffer<T>::clear_async(const T &val)
+{
+    assert(!is_empty());
+    std::vector<T> vals(elem_count_, val);
+    from_cpu_async(vals.data());
+}
+
+template<typename T>
 void Buffer<T>::clear_bytes(uint8_t byte)
 {
     assert(!is_empty());
     throw_on_error(cudaMemset(buffer_, byte, get_size_in_bytes()));
+}
+
+template<typename T>
+void Buffer<T>::clear_bytes_async(uint8_t byte)
+{
+    assert(!is_empty());
+    throw_on_error(cudaMemsetAsync(buffer_, byte, get_size_in_bytes()));
 }
 
 template<typename T>
@@ -253,9 +276,14 @@ void Buffer<T>::from_cpu(const T *cpu_data, size_t beg, size_t end)
 }
 
 template<typename T>
-auto Buffer<T>::get_cuj_ptr() const
+void Buffer<T>::from_cpu_async(const T *cpu_data, size_t beg, size_t end)
 {
-    return cuj::import_pointer(buffer_);
+    if(end <= beg)
+        end = elem_count_;
+    assert(beg < end);
+    const size_t bytes = sizeof(T) * (end - beg);
+    throw_on_error(cudaMemcpyAsync(
+        buffer_ + beg, cpu_data, bytes, cudaMemcpyHostToDevice));
 }
 
 template<typename T>
@@ -267,6 +295,23 @@ void Buffer<T>::to_cpu(T *output, size_t beg, size_t end) const
     const size_t bytes = sizeof(T) * (end - beg);
     throw_on_error(cudaMemcpy(
         output, buffer_ + beg, bytes, cudaMemcpyDeviceToHost));
+}
+
+template<typename T>
+void Buffer<T>::to_cpu_async(T *output, size_t beg, size_t end) const
+{
+    if(end <= beg)
+        end = elem_count_;
+    assert(beg < end);
+    const size_t bytes = sizeof(T) * (end - beg);
+    throw_on_error(cudaMemcpyAsync(
+        output, buffer_ + beg, bytes, cudaMemcpyDeviceToHost));
+}
+
+template<typename T>
+auto Buffer<T>::get_cuj_ptr() const
+{
+    return cuj::import_pointer(buffer_);
 }
 
 BTRC_CUDA_END

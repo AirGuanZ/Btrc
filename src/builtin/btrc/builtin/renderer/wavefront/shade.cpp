@@ -277,7 +277,7 @@ void ShadePipeline::shade(int total_state_count, const SOAParams &soa)
 
     StateCounters *device_counters = counters_->get();
     int32_t *active_state_counter   = reinterpret_cast<int32_t *>(device_counters);
-    int32_t *shadow_ray_counter     = active_state_counter + 2;
+    int32_t *shadow_ray_counter     = active_state_counter + 1;
 
     constexpr int BLOCK_DIM = 256;
     const int thread_count = total_state_count;

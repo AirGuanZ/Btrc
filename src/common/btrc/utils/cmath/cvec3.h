@@ -22,6 +22,19 @@ CUJ_PROXY_CLASS_EX(CVec3f, Vec3f, x, y, z)
     ref<f32> operator[](i32 i) const;
 };
 
+CUJ_PROXY_CLASS_EX(CVec3i, Vec3i, x, y, z)
+{
+    CUJ_BASE_CONSTRUCTORS
+
+    explicit CVec3i(i32 v = 0);
+
+    CVec3i(i32 _x, i32 _y, i32 _z);
+
+    CVec3i(const Vec3i &v);
+
+    ref<i32> operator[](i32 i) const;
+};
+
 inline CVec3f load_aligned(ptr<CVec3f> addr);
 
 inline void save_aligned(ref<CVec3f> val, ptr<CVec3f> addr);
@@ -56,6 +69,10 @@ inline CVec3f operator*(const CVec3f &a, f32 b);
 inline CVec3f operator/(const CVec3f &a, f32 b);
 
 inline CVec3f operator-(const CVec3f &v);
+
+inline CVec3i operator+(const CVec3i &a, const CVec3i &b);
+inline CVec3i operator+(i32 a, const CVec3i &b);
+inline CVec3i operator+(const CVec3i &a, i32 b);
 
 // ========================== impl ==========================
 
@@ -93,6 +110,30 @@ inline CVec3f::CVec3f(ref<cstd::PCG> rng)
 }
 
 inline ref<f32> CVec3f::operator[](i32 i) const
+{
+    return *(x.address() + i);
+}
+
+inline CVec3i::CVec3i(i32 v)
+    : CVec3i(v, v, v)
+{
+    
+}
+
+inline CVec3i::CVec3i(i32 _x, i32 _y, i32 _z)
+{
+    x = _x;
+    y = _y;
+    z = _z;
+}
+
+inline CVec3i::CVec3i(const Vec3i &v)
+    : CVec3i(v.x, v.y, v.z)
+{
+    
+}
+
+inline ref<i32> CVec3i::operator[](i32 i) const
 {
     return *(x.address() + i);
 }
@@ -211,6 +252,21 @@ inline CVec3f operator/(const CVec3f &a, f32 b)
 inline CVec3f operator-(const CVec3f &v)
 {
     return CVec3f(-v.x, -v.y, -v.z);
+}
+
+inline CVec3i operator+(const CVec3i &a, const CVec3i &b)
+{
+    return CVec3i(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+inline CVec3i operator+(i32 a, const CVec3i &b)
+{
+    return CVec3i(a) + b;
+}
+
+inline CVec3i operator+(const CVec3i &a, i32 b)
+{
+    return a + CVec3i(b);
 }
 
 BTRC_END

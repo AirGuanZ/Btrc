@@ -214,7 +214,7 @@ void MediumPipeline::sample_scattering(int total_state_count, const SOAParams &s
 
     StateCounters *device_counters = state_counters_->get();
     int32_t *active_state_counter = reinterpret_cast<int32_t *>(device_counters);
-    int32_t *shadow_ray_counter = active_state_counter + 2;
+    int32_t *shadow_ray_counter = active_state_counter + 1;
 
     constexpr int BLOCK_DIM = 256;
     const int thread_count = total_state_count;
