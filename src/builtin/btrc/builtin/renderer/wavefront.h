@@ -12,6 +12,7 @@ public:
 
     struct Params
     {
+        bool tile = false;
         int spp = 128;
 
         int   min_depth    = 5;

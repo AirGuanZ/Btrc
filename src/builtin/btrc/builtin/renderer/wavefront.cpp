@@ -142,13 +142,17 @@ void WavefrontPathTracer::recompile()
     impl_->shade = {};
     impl_->shadow = {};
 
+    impl_->generate.set_mode(
+        impl_->params.tile ? wfpt::GeneratePipeline::Mode::Tile : wfpt::GeneratePipeline::Mode::Uniform);
+
     const AABB3f world_bbox = union_aabb(impl_->camera->get_bounding_box(), impl_->scene->get_bbox());
     const float world_diagonal = 1.2f * length(world_bbox.upper - world_bbox.lower);
 
     {
         cuj::ScopedModule cuj_module;
 
-        impl_->generate.record_device_code(cc, *impl_->scene, *impl_->camera, impl_->film, *impl_->filter);
+        impl_->generate.record_device_code(
+            cc, *impl_->scene, *impl_->camera, impl_->film, *impl_->filter, impl_->params.spp);
         if(impl_->has_medium)
             impl_->medium.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
         impl_->shade.record_device_code(cc, impl_->film, *impl_->scene, shade_params, world_diagonal);
@@ -373,6 +377,7 @@ void WavefrontPathTracer::new_preview_image()
 RC<Renderer> WavefrontPathTracerCreator::create(RC<const factory::Node> node, factory::Context &context)
 {
     WavefrontPathTracer::Params params;
+    params.tile         = node->parse_child_or("tile", params.tile);
     params.spp          = node->parse_child_or("spp", params.spp);
     params.min_depth    = node->parse_child_or("min_depth", params.min_depth);
     params.max_depth    = node->parse_child_or("max_depth", params.max_depth);

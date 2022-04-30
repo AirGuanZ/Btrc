@@ -12,13 +12,19 @@ namespace
 } // namespace anonymous
 
 GeneratePipeline::GeneratePipeline()
-    : pixel_count_(0), spp_(0), state_count_(0),
+    : mode_(Mode::Uniform), pixel_count_(0), spp_(0), state_count_(0),
       finished_spp_(0), finished_pixel_(0)
 {
 
 }
 
-void GeneratePipeline::record_device_code(CompileContext &cc, const Scene &scene, const Camera &camera, Film &film, FilmFilter &filter)
+void GeneratePipeline::set_mode(Mode mode)
+{
+    mode_ = mode;
+}
+
+void GeneratePipeline::record_device_code(
+    CompileContext &cc, const Scene &scene, const Camera &camera, Film &film, FilmFilter &filter, int spp)
 {
     using namespace cuj;
 
@@ -26,7 +32,7 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Scene &scene
 
     kernel(
         GENERATE_KERNEL_NAME,
-        [&cc, &scene, &camera, &film, &filter, &film_res](
+        [this, spp, &cc, &scene, &camera, &film, &filter, &film_res](
             CSOAParams soa_params,
             i64        initial_pixel_index,
             i32        new_state_count,
@@ -39,9 +45,21 @@ void GeneratePipeline::record_device_code(CompileContext &cc, const Scene &scene
         };
 
         i32 state_index = active_state_count + thread_idx;
-        i32 pixel_index = i32((initial_pixel_index + i64(thread_idx)) % (film_res.x * film_res.y));
-        i32 sample_index = i32((initial_pixel_index + i64(thread_idx)) / (film_res.x * film_res.y));
+        i64 accu_state_index = initial_pixel_index + i64(thread_idx);
 
+        i32 pixel_index, sample_index;
+        if(mode_ == Mode::Uniform)
+        {
+            pixel_index = i32(accu_state_index % (film_res.x * film_res.y));
+            sample_index = i32(accu_state_index / (film_res.x * film_res.y));
+        }
+        else
+        {
+            assert(mode == Mode::Tile);
+            pixel_index = i32(accu_state_index / spp);
+            sample_index = i32(accu_state_index % spp);
+        }
+        
         i32 pixel_x = pixel_index % film_res.x;
         i32 pixel_y = pixel_index / film_res.x;
 
@@ -98,6 +116,7 @@ GeneratePipeline &GeneratePipeline::operator=(GeneratePipeline &&other) noexcept
 
 void GeneratePipeline::swap(GeneratePipeline &other) noexcept
 {
+    std::swap(mode_, other.mode_);
     std::swap(film_res_, other.film_res_);
     std::swap(pixel_count_, other.pixel_count_);
     std::swap(spp_, other.spp_);

@@ -33,12 +33,21 @@ class GeneratePipeline : public Uncopyable
 {
 public:
 
+    enum class Mode
+    {
+        Uniform,
+        Tile  
+    };
+
     using SOAParams = generate_pipeline_detail::SOAParams;
     using CSOAParams = generate_pipeline_detail::CSOAParams;
 
     GeneratePipeline();
 
-    void record_device_code(CompileContext &cc, const Scene &scene, const Camera &camera, Film &film, FilmFilter &filter);
+    void set_mode(Mode mode);
+
+    void record_device_code(
+        CompileContext &cc, const Scene &scene, const Camera &camera, Film &film, FilmFilter &filter, int spp);
 
     void initialize(RC<cuda::Module> cuda_module, int spp, int state_count, const Vec2i &film_res);
 
@@ -61,6 +70,8 @@ public:
     float get_generated_percentage() const;
 
 private:
+
+    Mode mode_;
 
     Vec2i   film_res_;
     int64_t pixel_count_;
