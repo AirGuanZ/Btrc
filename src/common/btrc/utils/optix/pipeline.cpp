@@ -174,8 +174,8 @@ SimpleOptixPipeline::SimpleOptixPipeline(
     // sbt
 
     sbt_.set_raygen_shader(raygen_group_);
-    sbt_.set_miss_shader(miss_group_);
-    sbt_.set_hit_shader(hit_group_);
+    sbt_.set_miss_shaders({ miss_group_ });
+    sbt_.set_hit_shaders({ hit_group_ });
 }
 
 SimpleOptixPipeline::SimpleOptixPipeline(SimpleOptixPipeline &&other) noexcept

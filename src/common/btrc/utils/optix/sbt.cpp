@@ -21,7 +21,7 @@ SBT &SBT::operator=(SBT &&other) noexcept
 SBT::~SBT()
 {
     if(sbt_.raygenRecord)
-        cudaFree(reinterpret_cast<void*>(sbt_.raygenRecord));
+        cudaFree(reinterpret_cast<void *>(sbt_.raygenRecord));
     if(sbt_.missRecordBase)
         cudaFree(reinterpret_cast<void *>(sbt_.missRecordBase));
     if(sbt_.hitgroupRecordBase)
@@ -35,26 +35,26 @@ void SBT::swap(SBT &other) noexcept
 
 void SBT::set_raygen_shader(OptixProgramGroup group)
 {
-    auto record = prepare_record(group);
+    auto record = prepare_records({ group });
     cudaFree(reinterpret_cast<void *>(sbt_.raygenRecord));
     sbt_.raygenRecord = record;
 }
 
-void SBT::set_miss_shader(OptixProgramGroup group)
+void SBT::set_miss_shaders(const std::vector<OptixProgramGroup> &groups)
 {
-    auto record = prepare_record(group);
+    auto records = prepare_records(groups);
     cudaFree(reinterpret_cast<void *>(sbt_.missRecordBase));
-    sbt_.missRecordBase          = record;
-    sbt_.missRecordCount         = 1;
+    sbt_.missRecordBase = records;
+    sbt_.missRecordCount = static_cast<unsigned>(groups.size());
     sbt_.missRecordStrideInBytes = OPTIX_SBT_RECORD_HEADER_SIZE;
 }
 
-void SBT::set_hit_shader(OptixProgramGroup group)
+void SBT::set_hit_shaders(const std::vector<OptixProgramGroup> &groups)
 {
-    auto record = prepare_record(group);
+    auto records = prepare_records(groups);
     cudaFree(reinterpret_cast<void *>(sbt_.hitgroupRecordBase));
-    sbt_.hitgroupRecordBase          = record;
-    sbt_.hitgroupRecordCount         = 1;
+    sbt_.hitgroupRecordBase = records;
+    sbt_.hitgroupRecordCount = static_cast<unsigned>(groups.size());
     sbt_.hitgroupRecordStrideInBytes = OPTIX_SBT_RECORD_HEADER_SIZE;
 }
 
@@ -68,17 +68,18 @@ const OptixShaderBindingTable &SBT::get_table() const
     return sbt_;
 }
 
-CUdeviceptr SBT::prepare_record(OptixProgramGroup group) const
+CUdeviceptr SBT::prepare_records(const std::vector<OptixProgramGroup> &groups)
 {
-    char head[OPTIX_SBT_RECORD_HEADER_SIZE];
-    optixSbtRecordPackHeader(group, head);
-
     void *result = nullptr;
-    throw_on_error(cudaMalloc(&result, OPTIX_SBT_RECORD_HEADER_SIZE));
+    throw_on_error(cudaMalloc(&result, OPTIX_SBT_RECORD_HEADER_SIZE * groups.size()));
     BTRC_SCOPE_FAIL{ cudaFree(result); };
-    throw_on_error(cudaMemcpy(
-        result, head, OPTIX_SBT_RECORD_HEADER_SIZE, cudaMemcpyHostToDevice));
-
+    for(size_t i = 0; i < groups.size(); ++i)
+    {
+        char head[OPTIX_SBT_RECORD_HEADER_SIZE];
+        optixSbtRecordPackHeader(groups[i], head);
+        void *dst = static_cast<char *>(result) + i * OPTIX_SBT_RECORD_HEADER_SIZE;
+        throw_on_error(cudaMemcpy(dst, head, OPTIX_SBT_RECORD_HEADER_SIZE, cudaMemcpyHostToDevice));
+    }
     return reinterpret_cast<CUdeviceptr>(result);
 }
 

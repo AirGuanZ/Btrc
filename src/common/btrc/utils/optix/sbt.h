@@ -8,14 +8,6 @@
 
 BTRC_OPTIX_BEGIN
 
-template<typename Data>
-struct SBTRecord
-{
-    alignas(OPTIX_SBT_RECORD_ALIGNMENT)
-        char header[OPTIX_SBT_RECORD_HEADER_SIZE];
-    Data data;
-};
-
 class SBT : public Uncopyable
 {
 public:
@@ -29,12 +21,12 @@ public:
     ~SBT();
 
     void swap(SBT &other) noexcept;
-    
+
     void set_raygen_shader(OptixProgramGroup group);
 
-    void set_miss_shader(OptixProgramGroup group);
+    void set_miss_shaders(const std::vector<OptixProgramGroup> &groups);
 
-    void set_hit_shader(OptixProgramGroup group);
+    void set_hit_shaders(const std::vector<OptixProgramGroup> &groups);
 
     operator const OptixShaderBindingTable &() const;
 
@@ -42,7 +34,7 @@ public:
 
 private:
 
-    CUdeviceptr prepare_record(OptixProgramGroup group) const;
+    static CUdeviceptr prepare_records(const std::vector<OptixProgramGroup> &groups);
 
     OptixShaderBindingTable sbt_ = {};
 };

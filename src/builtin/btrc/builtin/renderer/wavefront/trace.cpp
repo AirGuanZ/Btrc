@@ -1,5 +1,3 @@
-#include <fstream>
-
 #include <btrc/utils/cmath/cmath.h>
 #include <btrc/utils/cuda/buffer.h>
 #include <btrc/utils/cuda/error.h>
@@ -51,7 +49,7 @@ namespace
             optix::trace(
                 launch_params.tlas,
                 ray.o, ray.d, 0, ray.t, time, mask, OPTIX_RAY_FLAG_NONE,
-                0, 1, 0, launch_idx);
+                0, 0, 0, launch_idx);
         });
 
         kernel(
