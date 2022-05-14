@@ -10,6 +10,10 @@ u32 get_launch_index_x();
 
 u32 get_launch_dimension_x();
 
+u32 get_launch_index_y();
+
+u32 get_launch_dimension_y();
+
 void trace(
     u64    handle,
     CVec3f ori,

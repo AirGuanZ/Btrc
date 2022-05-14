@@ -3,7 +3,6 @@
 #include <array>
 
 #include <btrc/utils/optix/device_funcs.h>
-#include <btrc/utils/optix/pipeline_mk.h>
 
 BTRC_OPTIX_BEGIN
 
@@ -68,17 +67,19 @@ MegaKernelPipeline<LaunchParams, CLaunchParams>::MegaKernelPipeline(
         record_context.launch_params = global_launch_params;
         record_context.find_closest_intersection = [](u64 handle, const CRay &ray)
         {
+            u32 p0, p1, p2, p3, p4;
             trace(
                 handle, ray.o, ray.d, 0.0f, ray.t, 0.0f,
-                u32(RAY_MASK_ALL), OPTIX_RAY_FLAG_NONE, 0, 0, 0);
+                u32(RAY_MASK_ALL), OPTIX_RAY_FLAG_NONE, 0, 0, 0,
+                p0, p1, p2, p3, p4);
             Hit hit;
-            hit.t = bitcast<f32>(get_payload(0));
+            hit.t = bitcast<f32>(p0);
             $if(hit.t >= 0.0f)
             {
-                hit.inst_id = get_payload(1);
-                hit.prim_id = get_payload(2);
-                hit.uv.x = bitcast<f32>(get_payload(3));
-                hit.uv.y = bitcast<f32>(get_payload(4));
+                hit.inst_id = p1;
+                hit.prim_id = p2;
+                hit.uv.x = bitcast<f32>(p3);
+                hit.uv.y = bitcast<f32>(p4);
             }
             $else
             {
@@ -91,10 +92,11 @@ MegaKernelPipeline<LaunchParams, CLaunchParams>::MegaKernelPipeline(
         };
         record_context.has_intersection = [](u64 handle, const CRay &ray)
         {
+            u32 p0;
             trace(
                 handle, ray.o, ray.d, 0.0f, ray.t, 0.0f,
-                u32(RAY_MASK_ALL), OPTIX_RAY_FLAG_NONE, 1, 0, 1);
-            return get_payload(0) != 0;
+                u32(RAY_MASK_ALL), OPTIX_RAY_FLAG_NONE, 1, 0, 1, p0);
+            return p0 != 0;
         };
 
         kernel(KERNEL_NAME_RAYGEN, [&record_context, &raygen_recorder]
@@ -338,11 +340,12 @@ MegaKernelPipeline<LaunchParams, CLaunchParams>::operator bool() const
 }
 
 template<typename LaunchParams, typename CLaunchParams>
-void MegaKernelPipeline<LaunchParams, CLaunchParams>::launch(const LaunchParams &launch_params, int width, int height, int depth)
+void MegaKernelPipeline<LaunchParams, CLaunchParams>::launch(
+    const LaunchParams &launch_params, int width, int height, int depth)
 {
     device_launch_params_.from_cpu(&launch_params);
     throw_on_error(optixLaunch(
-        pipeline_, nullptr, device_launch_params_, sizeof(LaunchParams), sbt_, width, height, depth));
+        pipeline_, nullptr, device_launch_params_, sizeof(LaunchParams), &sbt_.get_table(), width, height, depth));
 }
 
 BTRC_OPTIX_END

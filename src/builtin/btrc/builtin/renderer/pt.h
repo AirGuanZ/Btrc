@@ -6,37 +6,34 @@
 
 BTRC_BUILTIN_BEGIN
 
-class WavefrontPathTracer : public Renderer, public Uncopyable
+class PathTracer : public Renderer, public Uncopyable
 {
 public:
 
     struct Params
     {
-        bool tile = false;
         int spp = 128;
 
-        int   min_depth    = 5;
-        int   max_depth    = 10;
+        int min_depth = 5;
+        int max_depth = 10;
         float rr_threshold = 0.1f;
         float rr_cont_prob = 0.5f;
-
-        int state_count = 1000000;
 
         bool albedo = false;
         bool normal = false;
     };
 
-    explicit WavefrontPathTracer(optix::Context &optix_ctx);
+    explicit PathTracer(optix::Context &optix_ctx);
 
-    ~WavefrontPathTracer() override;
+    ~PathTracer();
 
     void set_params(const Params &params);
 
     void set_film_filter(RC<FilmFilter> filter);
 
-    void set_scene(RC<Scene> scene) override;
+    void set_scene(RC<Scene> scene);
 
-    void set_camera(RC<Camera> camera) override;
+    void set_camera(RC<Camera> camera);
 
     void set_film(int width, int height) override;
 
@@ -59,11 +56,11 @@ private:
     Box<Impl> impl_;
 };
 
-class WavefrontPathTracerCreator : public factory::Creator<Renderer>
+class PathTracerCreator : public factory::Creator<Renderer>
 {
 public:
 
-    std::string get_name() const override { return "wfpt"; }
+    std::string get_name() const override { return "pt"; }
 
     RC<Renderer> create(RC<const factory::Node> node, factory::Context &context) override;
 };

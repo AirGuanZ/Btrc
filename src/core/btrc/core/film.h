@@ -42,6 +42,8 @@ public:
 
     int height() const;
 
+    Vec2i size() const;
+
     void add_output(std::string name, Format format);
 
     bool has_output(std::string_view name) const;

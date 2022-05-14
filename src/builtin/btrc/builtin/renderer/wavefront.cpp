@@ -317,8 +317,7 @@ Renderer::RenderResult WavefrontPathTracer::render()
         return {};
 
     new_preview_image();
-
-    update_device_preview_data();
+    
     RenderResult result;
     result.color.swap(impl_->device_preview_image);
     result.albedo.swap(impl_->device_preview_albedo);

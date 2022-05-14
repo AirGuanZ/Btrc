@@ -48,6 +48,11 @@ int Film::height() const
     return height_;
 }
 
+Vec2i Film::size() const
+{
+    return { width_, height_ };
+}
+
 void Film::add_output(std::string name, Format format)
 {
     assert(*this);

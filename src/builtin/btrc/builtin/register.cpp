@@ -17,6 +17,7 @@
 #include <btrc/builtin/postprocess/optix_denoiser.h>
 #include <btrc/builtin/postprocess/save_to_image.h>
 #include <btrc/builtin/postprocess/tonemap.h>
+#include <btrc/builtin/renderer/pt.h>
 #include <btrc/builtin/renderer/wavefront.h>
 #include <btrc/builtin/texture2d/array2d.h>
 #include <btrc/builtin/texture2d/math.h>
@@ -76,6 +77,7 @@ void register_builtin_creators(factory::Factory<PostProcessor> &factory)
 
 void register_builtin_creators(factory::Factory<Renderer> &factory)
 {
+    factory.add_creator(newBox<PathTracerCreator>());
     factory.add_creator(newBox<WavefrontPathTracerCreator>());
 }
 

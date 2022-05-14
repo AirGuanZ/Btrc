@@ -81,6 +81,24 @@ u32 get_launch_dimension_x()
     return result;
 }
 
+u32 get_launch_index_y()
+{
+    u32 index;
+    cuj::inline_asm(
+        "call ($0), _optix_get_launch_index_y, ();",
+        { { "=r", index } }, {}, {});
+    return index;
+}
+
+u32 get_launch_dimension_y()
+{
+    u32 result;
+    cuj::inline_asm(
+        "call ($0), _optix_get_launch_dimension_y, ();",
+        { { "=r", result } }, {}, {});
+    return result;
+}
+
 void trace(
     u64    handle,
     CVec3f ori,

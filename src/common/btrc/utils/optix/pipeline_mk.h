@@ -13,7 +13,7 @@ namespace pipeline_mk_detail
         CUJ_MEMBER_VARIABLE(u32,    inst_id)
         CUJ_MEMBER_VARIABLE(u32,    prim_id)
         CUJ_MEMBER_VARIABLE(CVec2f, uv)
-        boolean miss() const { return t >= 0.0f; }
+        boolean miss() const { return t < 0.0f; }
     CUJ_CLASS_END
 
 } // namespace pipeline_mk_detail
@@ -74,3 +74,5 @@ private:
 };
 
 BTRC_OPTIX_END
+
+#include <btrc/utils/optix/pipeline_mk.inl>
