@@ -58,6 +58,19 @@ void prepare_scene(const RC<Renderer> &renderer, const RC<Scene> &scene)
     renderer->recompile();
 }
 
+bool select_config_filename(std::string &output_filename)
+{
+    auto open = pfd::open_file(
+        "Select Scene Configuration FIle",
+        std::filesystem::current_path().string(),
+        { ".json" });
+    const auto result = open.result();
+    if(result.size() != 1)
+        return false;
+    output_filename = result.at(0);
+    return true;
+}
+
 BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &optix_context)
 {
     BtrcScene result;
@@ -159,14 +172,13 @@ void execute_post_processors(
         p->process(result.color, result.albedo, result.normal, width, height);
 }
 
-void run(const std::string &config_filename)
+// returns next config filename
+std::string run(Window &window, const std::string &config_filename)
 {
     cuda::Context cuda_context(0);
     optix::Context optix_context(nullptr);
 
     auto scene = initialize_btrc_scene(config_filename, optix_context);
-
-    Window window("BtrcGUI", 1024, 768);
 
     auto reporter = newRC<GUIPreviewer>();
     reporter->set_preview_interval(0);
@@ -214,7 +226,10 @@ void run(const std::string &config_filename)
         print_render_time = false;
     };
 
-    while(!window.should_close())
+    bool exit_render_session = false;
+    std::string next_config_name;
+
+    while(!window.should_close() && !exit_render_session)
     {
         window.begin_frame();
 
@@ -232,7 +247,7 @@ void run(const std::string &config_filename)
         bool open_still_rendering_window = false;
         if(ImGui::BeginMainMenuBar())
         {
-            if(ImGui::MenuItem("Execute Post Processors"))
+            if(ImGui::MenuItem("[Execute Post Processors]"))
             {
                 if(!scene.renderer->is_rendering())
                 {
@@ -247,7 +262,19 @@ void run(const std::string &config_filename)
                     open_still_rendering_window = true;
             }
 
-            if(ImGui::BeginMenu("Camera"))
+            if(ImGui::MenuItem("[Load New]"))
+            {
+                if(select_config_filename(next_config_name))
+                    exit_render_session = true;
+            }
+
+            if(ImGui::MenuItem("[Reload]"))
+            {
+                next_config_name = config_filename;
+                exit_render_session = true;
+            }
+
+            if(ImGui::BeginMenu("[Camera]"))
             {
                 ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
                 ImGui::SliderFloat("RotateAxisX Speed", &controller_params.rotate_speed_hori, 0.1f, 3.0f);
@@ -301,7 +328,7 @@ void run(const std::string &config_filename)
             }
         }
 
-        if(reporter->get_percentage() > 2)
+        if(reporter->get_percentage() > 10 || Clock::now() - start_render_time > std::chrono::seconds(3))
             reporter->set_preview_interval(1000);
 
         {
@@ -349,6 +376,8 @@ void run(const std::string &config_filename)
 
     if(scene.renderer->is_waitable())
         scene.renderer->stop_async();
+
+    return next_config_name;
 }
 
 int main(int argc, char *argv[])
@@ -364,20 +393,14 @@ int main(int argc, char *argv[])
     std::string filename;
     if(argc == 2)
         filename = argv[1];
-    else
-    {
-        auto open = pfd::open_file(
-            "Select Scene Configuration FIle",
-            std::filesystem::current_path().string(),
-            {".json" });
-        if(open.result().size() != 1)
-            return 0;
-        filename = open.result()[0];
-    }
+    else if(!select_config_filename(filename))
+        return 0;
 
     try
     {
-        run(filename);
+        Window window("BtrcGUI", 1024, 768);
+        while(!filename.empty())
+            filename = run(window, filename);
     }
     catch(const std::exception &err)
     {

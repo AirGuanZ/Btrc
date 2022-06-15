@@ -27,6 +27,8 @@ TraceResult trace_path(
     const Params     &params,
     const Scene      &scene,
     const CRay       &ray,
-    GlobalSampler    &sampler);
+    CMediumID         initial_ray_medium_id,
+    GlobalSampler    &sampler,
+    float             world_diagonal);
 
 BTRC_PT_END

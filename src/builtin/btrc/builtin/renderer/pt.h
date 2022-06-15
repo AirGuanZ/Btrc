@@ -25,7 +25,7 @@ public:
 
     explicit PathTracer(optix::Context &optix_ctx);
 
-    ~PathTracer();
+    ~PathTracer() override;
 
     void set_params(const Params &params);
 

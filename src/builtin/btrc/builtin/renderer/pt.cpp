@@ -154,8 +154,13 @@ void PathTracer::recompile()
             .normal = params.normal
         };
 
+        const AABB3f world_bbox = union_aabb(camera->get_bounding_box(), scene->get_bbox());
+        const float world_diagonal = 1.2f * length(world_bbox.upper - world_bbox.lower);
+
         CRay trace_ray(sample_we_result.pos, sample_we_result.dir);
-        auto trace_result = trace_path(cc, trace_utils, trace_params, *scene, trace_ray, sampler);
+        auto trace_result = trace_path(
+            cc, trace_utils, trace_params, *scene, trace_ray,
+            scene->get_volume_primitive_medium_id(), sampler, world_diagonal);
 
         var radiance = sample_we_result.throughput * trace_result.radiance;
 

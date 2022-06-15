@@ -67,18 +67,9 @@ void MediumPipeline::record_device_code(
         {
             // update beta_le
 
-            CSpectrum unscatter_tr;
-            $if(sample_medium.scattered)
-            {
-                unscatter_tr = medium->tr(cc, load_ray.ray.o, medium_end, sampler);
-            }
-            $else
-            {
-                unscatter_tr = sample_medium.throughput;
-            };
-
+            var unscatter_tr = medium->tr(cc, load_ray.ray.o, medium_end, sampler);
             auto [beta_le, bsdf_pdf] = soa.bsdf_le.load(soa_index);
-            soa.bsdf_le.save(soa_index, beta_le *unscatter_tr, bsdf_pdf);
+            soa.bsdf_le.save(soa_index, beta_le * unscatter_tr, bsdf_pdf);
 
             // handle scattering
 
