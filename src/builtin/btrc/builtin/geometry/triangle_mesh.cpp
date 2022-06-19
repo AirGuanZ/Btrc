@@ -9,19 +9,16 @@ BTRC_BUILTIN_BEGIN
 void TriangleMesh::set_optix_context(optix::Context &optix_ctx)
 {
     optix_ctx_ = &optix_ctx;
-    set_need_commit();
 }
 
 void TriangleMesh::set_filename(std::string filename)
 {
     filename_ = std::move(filename);
-    set_need_commit();
 }
 
 void TriangleMesh::set_transform_to_unit_cube(bool transform)
 {
     transform_to_unit_cube_ = transform;
-    set_need_commit();
 }
 
 void TriangleMesh::commit()

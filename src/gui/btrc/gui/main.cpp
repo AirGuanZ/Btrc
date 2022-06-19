@@ -117,7 +117,13 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
 
     std::cout << "compile kernel" << std::endl;
 
+    using Clock = std::chrono::steady_clock;
+    const auto start = Clock::now();
     prepare_scene(result.renderer, result.scene);
+    const auto compile_time = Clock::now() - start;
+
+    std::cout << "compile time: " <<
+        std::chrono::duration_cast<std::chrono::milliseconds>(compile_time).count() << "ms" << std::endl;
 
     return result;
 }

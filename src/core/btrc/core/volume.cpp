@@ -96,7 +96,6 @@ VolumePrimitiveMedium::~VolumePrimitiveMedium()
 void VolumePrimitiveMedium::set_volumes(const std::vector<RC<VolumePrimitive>> &vols)
 {
     impl_->vols = vols;
-    set_need_commit();
 }
 
 void VolumePrimitiveMedium::commit()

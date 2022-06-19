@@ -62,9 +62,7 @@ public:
 
     RC<const Object> as_shared() const;
 
-    bool need_commit() const;
-
-    void set_need_commit(bool need = true);
+    virtual bool should_compile_separately() const { return false; }
 
     virtual void commit() { }
 
@@ -82,8 +80,6 @@ protected:
     ObjectSlot<T> new_object();
 
 private:
-
-    bool need_commit_ = true;
 
     std::vector<ObjectReferenceCommon *> dependent_objects_;
 };
@@ -108,6 +104,10 @@ public:
         const ObjectAction &action,
         Args             ...args);
 
+    void set_allow_separate_compile(bool allow);
+
+    std::vector<const cuj::Module *> get_separate_modules() const;
+
 private:
 
     struct ActionRecord
@@ -117,8 +117,11 @@ private:
 
     struct ObjectRecord
     {
-        std::map<std::string, ActionRecord, std::less<>> actions;
+        Box<cuj::Module> separate_module;
+        std::map<std::pair<const cuj::Module*, std::string>, ActionRecord, std::less<>> actions;
     };
+
+    bool allow_separate_compile_ = false;
 
     std::map<RC<const Object>, ObjectRecord> object_records_;
 };
@@ -261,16 +264,6 @@ inline RC<const Object> Object::as_shared() const
     return this->shared_from_this();
 }
 
-inline bool Object::need_commit() const
-{
-    return need_commit_;
-}
-
-inline void Object::set_need_commit(bool need)
-{
-    need_commit_ = need;
-}
-
 inline std::vector<RC<Object>> Object::get_dependent_objects()
 {
     std::vector<RC<Object>> result;
@@ -335,23 +328,57 @@ auto CompileContext::record_object_action(
     using StdFunction = decltype(std::function{ action });
     using CujFunction = decltype(cuj::Function{ std::declval<StdFunction>() });
 
+    auto old_module = cuj::Module::get_current_module();
     auto &object_record = object_records_[object];
 
-    if(auto it = object_record.actions.find(action_name);
-       it != object_record.actions.end())
+    if(auto it = object_record.actions.find({ old_module, action_name }); it != object_record.actions.end())
     {
         Any &untyped_func = it->second.cuj_func;
         auto func = untyped_func.as<CujFunction>();
         return func(args...);
     }
 
-    const auto func_symbol_name = fmt::format(
-        "btrc_{}_of_object_{}", action_name, static_cast<const void*>(object.get()));
+    if(!(allow_separate_compile_ && object->should_compile_separately()))
+    {
+        // separately compiled function are always defined in current bound module.
+        // thus it may duplicate in modules. we encode module ptr in its name to avoid symbol conflict.
 
-    auto func = cuj::function(func_symbol_name, action);
-    auto &action_record = object_record.actions[action_name];
-    action_record.cuj_func = func;
-    return func(args...);
+        const auto func_symbol_name = fmt::format(
+            "btrc_{}_of_object_{}_in_{}", action_name,
+            static_cast<const void *>(object.get()),
+            static_cast<const void*>(old_module));
+
+        auto func = cuj::function(func_symbol_name, action);
+        auto &action_record = object_record.actions[{ old_module, action_name }];
+        action_record.cuj_func = func;
+        return func(args...);
+    }
+
+    const auto func_symbol_name = fmt::format(
+        "btrc_{}_of_object_{}", action_name, static_cast<const void *>(object.get()));
+
+    if(!object_record.separate_module)
+        object_record.separate_module = newBox<cuj::Module>();
+    auto separate_module = object_record.separate_module.get();
+
+    // define func in its own module, and...
+
+    cuj::Module::set_current_module(separate_module);
+    if(object_record.actions.find({ separate_module, action_name }) == object_record.actions.end())
+    {
+        auto func = cuj::function(func_symbol_name, action);
+        auto &separate_action_record = object_record.actions[{ separate_module, action_name }];
+        separate_action_record.cuj_func = func;
+    }
+    cuj::Module::set_current_module(old_module);
+
+    // declare it in current module
+
+    CujFunction decl;
+    decl.set_name(func_symbol_name);
+    auto &action_record = object_record.actions[{ old_module, action_name }];
+    action_record.cuj_func = decl;
+    return decl(args...);
 }
 
 template<typename ObjectAction, typename...Args>
@@ -363,6 +390,22 @@ auto CompileContext::record_object_action(
 {
     return this->record_object_action(
         RC<const Object>(object), action_name, action, args...);
+}
+
+inline void CompileContext::set_allow_separate_compile(bool allow)
+{
+    allow_separate_compile_ = allow;
+}
+
+inline std::vector<const cuj::Module*> CompileContext::get_separate_modules() const
+{
+    std::vector<const cuj::Module *> ret;
+    for(auto &[_, record] : object_records_)
+    {
+        if(record.separate_module)
+            ret.push_back(record.separate_module.get());
+    }
+    return ret;
 }
 
 BTRC_END

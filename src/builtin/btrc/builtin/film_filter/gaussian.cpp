@@ -17,13 +17,11 @@ namespace
 void GaussianFilter::set_radius(float radius)
 {
     radius_ = radius;
-    set_need_commit();
 }
 
 void GaussianFilter::set_alpha(float alpha)
 {
     alpha_ = alpha;
-    set_need_commit();
 }
 
 void GaussianFilter::commit()

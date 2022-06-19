@@ -5,31 +5,26 @@ BTRC_BUILTIN_BEGIN
 void PinholeCamera::set_eye(const Vec3f &eye)
 {
     eye_ = eye;
-    set_need_commit();
 }
 
 void PinholeCamera::set_dst(const Vec3f &dst)
 {
     dst_ = dst;
-    set_need_commit();
 }
 
 void PinholeCamera::set_up(const Vec3f &up)
 {
     up_ = up;
-    set_need_commit();
 }
 
 void PinholeCamera::set_fov_y_deg(float deg)
 {
     fov_y_deg_ = deg;
-    set_need_commit();
 }
 
 void PinholeCamera::set_w_over_h(float ratio)
 {
     w_over_h_ = ratio;
-    set_need_commit();
 }
 
 const Vec3f &PinholeCamera::get_eye() const

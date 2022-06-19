@@ -6,19 +6,16 @@ BTRC_BUILTIN_BEGIN
 void IBL::set_texture(RC<Texture2D> tex)
 {
     tex_ = std::move(tex);
-    set_need_commit();
 }
 
 void IBL::set_up(const Vec3f &up)
 {
     frame_ = Frame::from_z(up);
-    set_need_commit();
 }
 
 void IBL::set_lut_res(const Vec2i &lut_res)
 {
     lut_res_ = lut_res;
-    set_need_commit();
 }
 
 void IBL::commit()

@@ -27,6 +27,7 @@ public:
 
     struct RecordContext
     {
+        CompileContext                                  *cc;
         cuj::dsl::GlobalVariable<CLaunchParams>          launch_params;
         std::function<Hit(u64 handle, const CRay &)>     find_closest_intersection;
         std::function<boolean(u64 handle, const CRay &)> has_intersection;

@@ -96,8 +96,6 @@ std::vector<RC<Object>> PathTracer::get_dependent_objects()
 
 void PathTracer::recompile()
 {
-    CompileContext cc;
-
     auto &params = impl_->params;
 
     // film
@@ -113,7 +111,6 @@ void PathTracer::recompile()
     // pipeline
 
     auto raygen = [
-        &cc,
         &params,
         &film = impl_->film,
         &filter = impl_->filter,
@@ -135,7 +132,7 @@ void PathTracer::recompile()
         var film_x = pixel_xf / static_cast<float>(film.width());
         var film_y = pixel_yf / static_cast<float>(film.height());
         var time_sample = sampler.get1d();
-        auto sample_we_result = camera->generate_ray(cc, CVec2f(film_x, film_y), time_sample);
+        auto sample_we_result = camera->generate_ray(*ctx.cc, CVec2f(film_x, film_y), time_sample);
 
         // trace
 
@@ -159,7 +156,7 @@ void PathTracer::recompile()
 
         CRay trace_ray(sample_we_result.pos, sample_we_result.dir);
         auto trace_result = trace_path(
-            cc, trace_utils, trace_params, *scene, trace_ray,
+            *ctx.cc, trace_utils, trace_params, *scene, trace_ray,
             scene->get_volume_primitive_medium_id(), sampler, world_diagonal);
 
         var radiance = sample_we_result.throughput * trace_result.radiance;

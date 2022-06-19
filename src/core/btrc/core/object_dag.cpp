@@ -21,29 +21,8 @@ const std::vector<RC<Object>> &ObjectDAG::get_sorted_objects() const
 
 void ObjectDAG::commit()
 {
-    std::map<RC<Object>, bool> need_commit;
     for(auto &obj : sorted_)
-    {
-        bool need = false;
-        if(obj->need_commit())
-            need = true;
-        else
-        {
-            for(auto &d : obj->get_dependent_objects())
-            {
-                if(need_commit.at(d))
-                {
-                    need = true;
-                    break;
-                }
-            }
-        }
-        if(need)
-            obj->commit();
-        need_commit.insert({ obj, need });
-    }
-    for(auto &obj : sorted_)
-        obj->set_need_commit(false);
+        obj->commit();
 }
 
 void ObjectDAG::add(const RC<Object> &object, std::set<RC<Object>> &processed)

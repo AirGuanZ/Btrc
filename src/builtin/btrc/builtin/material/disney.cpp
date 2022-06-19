@@ -6,31 +6,31 @@
 
 BTRC_BUILTIN_BEGIN
 
-class DisneyBSDF : public BSDFComponent
-{
-    CSpectrum C_;
-    CSpectrum C_tint_;
-    f32 metallic_;
-    f32 roughness_;
-    f32 specular_;
-    f32 specular_tint_;
-    f32 anisotropic_;
-    f32 sheen_;
-    f32 sheen_tint_;
-    f32 clearcoat_;
-    f32 clearcoat_roughness_;
-    f32 transmission_;
-    f32 ior_;
-    f32 transmission_roughness_;
-    f32 trans_ax_;
-    f32 trans_ay_;
-    f32 ax_;
-    f32 ay_;
-    f32 diffuse_weight_;
-    f32 specular_weight_;
-    f32 clearcoat_weight_;
-    f32 transmission_weight_;
+CUJ_CLASS_BEGIN(DisneyBSDFImpl)
 
+    CUJ_MEMBER_VARIABLE(CSpectrum, C_)
+    CUJ_MEMBER_VARIABLE(CSpectrum, C_tint_)
+    CUJ_MEMBER_VARIABLE(f32, metallic_)
+    CUJ_MEMBER_VARIABLE(f32, roughness_)
+    CUJ_MEMBER_VARIABLE(f32, specular_)
+    CUJ_MEMBER_VARIABLE(f32, specular_tint_)
+    CUJ_MEMBER_VARIABLE(f32, anisotropic_)
+    CUJ_MEMBER_VARIABLE(f32, sheen_)
+    CUJ_MEMBER_VARIABLE(f32, sheen_tint_)
+    CUJ_MEMBER_VARIABLE(f32, clearcoat_)
+    CUJ_MEMBER_VARIABLE(f32, clearcoat_roughness_)
+    CUJ_MEMBER_VARIABLE(f32, transmission_)
+    CUJ_MEMBER_VARIABLE(f32, ior_)
+    CUJ_MEMBER_VARIABLE(f32, transmission_roughness_)
+    CUJ_MEMBER_VARIABLE(f32, trans_ax_)
+    CUJ_MEMBER_VARIABLE(f32, trans_ay_)
+    CUJ_MEMBER_VARIABLE(f32, ax_)
+    CUJ_MEMBER_VARIABLE(f32, ay_)
+    CUJ_MEMBER_VARIABLE(f32, diffuse_weight_)
+    CUJ_MEMBER_VARIABLE(f32, specular_weight_)
+    CUJ_MEMBER_VARIABLE(f32, clearcoat_weight_)
+    CUJ_MEMBER_VARIABLE(f32, transmission_weight_)
+    
     static f32 sqr(f32 x)
     {
         return x * x;
@@ -109,7 +109,7 @@ class DisneyBSDF : public BSDFComponent
         var cos_theta_i = local_angle::cos_theta(lwi);
         var cos_theta_o = local_angle::cos_theta(lwo);
 
-        var eta = cstd::select(cos_theta_o > 0, ior_, 1.0f / ior_);
+        var eta = cstd::select(cos_theta_o > 0, f32(ior_), 1.0f / ior_);
         var lwh = normalize(lwo + eta * lwi);
         $if(lwh.z < 0)
         {
@@ -147,7 +147,7 @@ class DisneyBSDF : public BSDFComponent
                 * corr_factor * corr_factor
                 / (cos_theta_i * cos_theta_o * sdem * sdem);
 
-        var trans_factor = cstd::select(cos_theta_o > 0, transmission_, f32(1.0f));
+        var trans_factor = cstd::select(cos_theta_o > 0, f32(transmission_), f32(1.0f));
         return (1.0f - metallic_) * trans_factor * sqrtC * cstd::abs(val);
     }
 
@@ -290,7 +290,7 @@ class DisneyBSDF : public BSDFComponent
                 lwi = CVec3f(0);
                 $exit_scope;
             };
-            var eta = cstd::select(lwo.z > 0, 1.0f / ior_, ior_);
+            var eta = cstd::select(lwo.z > 0, 1.0f / ior_, f32(ior_));
             var owh = cstd::select(dot(lwh, lwo) > 0, CVec3f(lwh), -lwh);
             $if(!refract(lwo, owh, eta, lwi))
             {
@@ -373,7 +373,7 @@ class DisneyBSDF : public BSDFComponent
         f32 result;
         $scope
         {
-            var eta = cstd::select(lwo.z > 0, ior_, 1.0f / ior_);
+            var eta = cstd::select(lwo.z > 0, f32(ior_), 1.0f / ior_);
             var lwh = normalize(lwo + eta * lwi);
             $if(lwh.z < 0)
             {
@@ -421,9 +421,7 @@ class DisneyBSDF : public BSDFComponent
         return cstd::abs(cos_theta_h * D / (4.0f * cos_theta_d));
     }
 
-public:
-
-    DisneyBSDF(
+    void initialize(
         const CSpectrum &base_color,
         f32 metallic,
         f32 roughness,
@@ -474,7 +472,7 @@ public:
         clearcoat_weight_    = B * clearcoat / (2.0f + clearcoat);
     }
 
-    CSpectrum eval(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override
+    CSpectrum eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
     {
         CSpectrum result;
         $scope
@@ -489,7 +487,7 @@ public:
 
             $if(lwi.z * lwo.z < 0)
             {
-                $if(transmission_ == 0.0f)
+                $if(transmission_ == f32(0))
                 {
                     result = CSpectrum::zero();
                     $exit_scope;
@@ -503,7 +501,7 @@ public:
 
             $if(lwi.z < 0 & lwo.z < 0)
             {
-                $if(transmission_ == 0.0f)
+                $if(transmission_ == f32(0))
                 {
                     result = CSpectrum::zero();
                     $exit_scope;
@@ -557,10 +555,9 @@ public:
         return result;
     }
 
-    SampleResult sample(
-        CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const override
+    BSDFComponent::SampleResult sample(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
     {
-        SampleResult result;
+        BSDFComponent::SampleResult result;
         $scope
         {
             auto handle_bad_sample = [&]
@@ -582,7 +579,7 @@ public:
 
             $if(lwo.z < 0)
             {
-                $if(transmission_ == 0.0f)
+                $if(transmission_ == f32(0))
                 {
                     result.clear();
                     $exit_scope;
@@ -606,8 +603,8 @@ public:
                 };
 
                 result.dir = lwi;
-                result.bsdf = eval(cc, lwi, lwo, mode);
-                result.pdf = pdf(cc, lwi, lwo, mode);
+                result.bsdf = eval(lwi, lwo, mode);
+                result.pdf = pdf(lwi, lwo, mode);
                 handle_bad_sample();
                 $exit_scope;
             };
@@ -650,25 +647,24 @@ public:
             };
 
             result.dir = lwi;
-            result.bsdf = eval(cc, lwi, lwo, mode);
-            result.pdf = pdf(cc, lwi, lwo, mode);
+            result.bsdf = eval(lwi, lwo, mode);
+            result.pdf = pdf(lwi, lwo, mode);
             handle_bad_sample();
         };
         return result;
     }
 
-    SampleBidirResult sample_bidir(
-        CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const override
+    BSDFComponent::SampleBidirResult sample_bidir(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
     {
-        var t_result = sample(cc, lwo, sam, mode);
-        SampleBidirResult result;
+        var t_result = sample(lwo, sam, mode);
+        BSDFComponent::SampleBidirResult result;
         $if(t_result.pdf > 0)
         {
             result.bsdf = t_result.bsdf;
             result.dir = t_result.dir;
             result.pdf = t_result.pdf;
             result.pdf_rev = pdf(
-                cc, lwo, t_result.dir,
+                lwo, t_result.dir,
                 mode == TransportMode::Radiance ? TransportMode::Importance
                                                 : TransportMode::Radiance);
         }
@@ -679,7 +675,7 @@ public:
         return result;
     }
 
-    f32 pdf(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override
+    f32 pdf(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
     {
         f32 result;
         $scope
@@ -694,7 +690,7 @@ public:
 
             $if(lwo.z < 0)
             {
-                $if(transmission_ == 0.0f)
+                $if(transmission_ == f32(0))
                 {
                     result = 0;
                     $exit_scope;
@@ -729,11 +725,12 @@ public:
         return result;
     }
 
-    CSpectrum albedo(CompileContext &cc) const override
+    CSpectrum albedo() const
     {
         return C_;
     }
-};
+
+CUJ_CLASS_END
 
 void DisneyMaterial::set_shadow_terminator_term(bool enable)
 {
@@ -831,13 +828,15 @@ RC<Shader> DisneyMaterial::create_shader(CompileContext &cc, const SurfacePoint 
     var clearcoat              = clearcoat_->sample_float(cc, inct);
     var clearcoat_gloss        = clearcoat_gloss_->sample_float(cc, inct);
 
-    auto comp = newBox<DisneyBSDF>(
+    DisneyBSDFImpl disney_bsdf_closure;
+    disney_bsdf_closure.initialize(
         base_color, metallic, roughness, specular, specular_tint,
         anisotropic, sheen, sheen_tint, clearcoat, clearcoat_gloss,
         transmission, transmission_roughness, ior);
 
     auto shader = newRC<BSDFAggregate>(cc, as_shared(), frame, shadow_terminator_term_);
-    shader->add_component(1, std::move(comp));
+    shader->add_closure(1, "disney", disney_bsdf_closure);
+
     return shader;
 }
 

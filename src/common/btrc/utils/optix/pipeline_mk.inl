@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <execution>
 
 #include <btrc/utils/optix/device_funcs.h>
 
@@ -27,7 +28,9 @@ MegaKernelPipeline<LaunchParams, CLaunchParams>::MegaKernelPipeline(
 
     // record ptx
 
-    std::string ptx;
+    CompileContext cc;
+
+    std::vector<std::string> ptxs;
     {
         using namespace cuj;
 
@@ -64,6 +67,7 @@ MegaKernelPipeline<LaunchParams, CLaunchParams>::MegaKernelPipeline(
         });
 
         RecordContext record_context;
+        record_context.cc = &cc;
         record_context.launch_params = global_launch_params;
         record_context.find_closest_intersection = [](u64 handle, const CRay &ray)
         {
@@ -104,14 +108,51 @@ MegaKernelPipeline<LaunchParams, CLaunchParams>::MegaKernelPipeline(
             raygen_recorder(record_context);
         });
 
-        PTXGenerator ptx_gen;
-        ptx_gen.set_options(Options{
-            .opt_level = OptimizationLevel::O3,
-            .fast_math = true,
-            .approx_math_func = true
+        auto modules = cc.get_separate_modules();
+        modules.push_back(&cuj_module);
+
+        ptxs.resize(modules.size());
+        std::for_each(std::execution::par, modules.begin(), modules.end(), [&](const Module* &mod)
+        {
+            PTXGenerator ptx_gen;
+            ptx_gen.set_options(Options{
+                .opt_level = OptimizationLevel::O3,
+                .fast_math = true,
+                .approx_math_func = true
+            });
+            ptx_gen.generate(*mod);
+
+            const size_t offset = &mod - &modules[0];
+            ptxs[offset] = ptx_gen.get_ptx();
         });
-        ptx_gen.generate(cuj_module);
-        ptx = ptx_gen.get_ptx();
+    }
+
+    std::string ptx = ptxs[0];
+    for(size_t i = 1; i < ptxs.size(); ++i)
+    {
+        auto &p = ptxs[i];
+
+        // remove header
+
+        const std::string_view header = ".address_size 64";
+        const size_t header_pos = p.find(header);
+        p = p.substr(header_pos + header.size());
+
+        // remove extern specifier
+
+        size_t next_pos = 0;
+        while(true)
+        {
+            const size_t pos = p.find(".extern .func", next_pos);
+            if(pos == std::string::npos)
+                break;
+
+            const size_t bpos = p.find("btrc_", pos);
+            p.insert(bpos, "dummy_extern_");
+            next_pos = bpos;
+        }
+
+        ptx += p;
     }
 
     // create module
