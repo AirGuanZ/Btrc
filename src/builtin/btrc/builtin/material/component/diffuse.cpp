@@ -2,14 +2,13 @@
 
 BTRC_BUILTIN_BEGIN
 
-BSDFComponent::SampleResult DiffuseComponentImpl::sample(
-    ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+BSDFComponent::SampleResult DiffuseComponentImpl::sample(ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
 {
     return BSDFComponent::discard_pdf_rev(sample_bidir(lwo, sam, mode));
 }
 
 BSDFComponent::SampleBidirResult DiffuseComponentImpl::sample_bidir(
-    ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
 {
     BSDFComponent::SampleBidirResult result;
     $if(lwo.z <= 0)
@@ -18,7 +17,7 @@ BSDFComponent::SampleBidirResult DiffuseComponentImpl::sample_bidir(
     }
     $else
     {
-        var lwi = sample_hemisphere_zweighted(sam.x, sam.y);
+        var lwi = sample_hemisphere_zweighted(sam[0], sam[1]);
         result.bsdf     = albedo_value / btrc_pi;
         result.dir      = lwi;
         result.pdf      = pdf_sample_hemisphere_zweighted(lwi);
@@ -27,8 +26,7 @@ BSDFComponent::SampleBidirResult DiffuseComponentImpl::sample_bidir(
     return result;
 }
 
-CSpectrum DiffuseComponentImpl::eval(
-    ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+CSpectrum DiffuseComponentImpl::eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
 {
     CSpectrum result;
     $if(lwi.z <= 0 | lwo.z <= 0)
@@ -42,8 +40,7 @@ CSpectrum DiffuseComponentImpl::eval(
     return result;
 }
 
-f32 DiffuseComponentImpl::pdf(
-    ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+f32 DiffuseComponentImpl::pdf(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
 {
     f32 result;
     $if(lwi.z <= 0 | lwo.z <= 0)

@@ -31,10 +31,6 @@ public:
 
     f32 get1d() override;
 
-    CVec2f get2d() override;
-
-    CVec3f get3d() override;
-
 private:
 
     CState state_;

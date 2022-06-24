@@ -35,14 +35,12 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
     CUJ_MEMBER_VARIABLE(CSpectrum,   color)
     CUJ_MEMBER_VARIABLE(f32,         ior)
 
-    Shader::SampleResult sample(
-        ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    Shader::SampleResult sample(ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const
     {
         return Shader::discard_pdf_rev(sample_bidir(wo, sam, mode));
     }
 
-    Shader::SampleBidirResult sample_bidir(
-        ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    Shader::SampleBidirResult sample_bidir(ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const
     {
         Shader::SampleBidirResult result;
         $scope
@@ -51,7 +49,7 @@ CUJ_CLASS_BEGIN(GlassShaderImpl)
             var nwo = normalize(frame.shading.global_to_local(wo));
             var fr = dielectric_fresnel(ior, 1, nwo.z);
 
-            $if(sam.x < fr)
+            $if(sam[0] < fr)
             {
                 var lwi = CVec3f(-nwo.x, -nwo.y, nwo.z);
                 var wi = frame.shading.local_to_global(lwi);

@@ -68,14 +68,7 @@ void run(const std::string &scene_filename)
     std::cout << "commit objects" << std::endl;
 
     ObjectDAG dag(renderer);
-
-    scene->precommit();
     dag.commit();
-    scene->postcommit();
-
-    std::cout << "compile kernel" << std::endl;
-
-    renderer->recompile();
 
     std::cout << "render image" << std::endl;
 

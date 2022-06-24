@@ -88,7 +88,7 @@ f32 HaltonSampler::get1d()
     return result;
 }
 
-CVec2f HaltonSampler::get2d()
+Sam2 HaltonSampler::get2d()
 {
     $if(state_.dimension + 1 >= PRIME_TABLE_SIZE)
     {
@@ -97,10 +97,10 @@ CVec2f HaltonSampler::get2d()
     var x = sample_halton(state_.dimension, state_.halton_index);
     var y = sample_halton(state_.dimension + 1, state_.halton_index);
     state_.dimension = state_.dimension + 2;
-    return CVec2f(x, y);
+    return make_sample(x, y);
 }
 
-CVec3f HaltonSampler::get3d()
+Sam3 HaltonSampler::get3d()
 {
     $if(state_.dimension + 2 >= PRIME_TABLE_SIZE)
     {
@@ -110,7 +110,7 @@ CVec3f HaltonSampler::get3d()
     var y = sample_halton(state_.dimension + 1, state_.halton_index);
     var z = sample_halton(state_.dimension + 2, state_.halton_index);
     state_.dimension = state_.dimension + 3;
-    return CVec3f(x, y, z);
+    return make_sample(x, y, z);
 }
 
 void HaltonSampler::initialize_consts(const Vec2i &res)

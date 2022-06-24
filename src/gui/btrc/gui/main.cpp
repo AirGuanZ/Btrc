@@ -35,9 +35,9 @@ struct BtrcScene
 
     RC<factory::Node> root;
 
-    RC<Scene>                      scene;
-    RC<Camera>                     camera;
-    RC<Renderer>                   renderer;
+    RC<Scene> scene;
+    RC<Camera> camera;
+    RC<Renderer> renderer;
     std::vector<RC<PostProcessor>> post_processors;
 };
 
@@ -46,17 +46,6 @@ struct Rect2D
     Vec2f lower;
     Vec2f upper;
 };
-
-void prepare_scene(const RC<Renderer> &renderer, const RC<Scene> &scene)
-{
-    ObjectDAG dag(renderer);
-
-    scene->precommit();
-    dag.commit();
-    scene->postcommit();
-
-    renderer->recompile();
-}
 
 bool select_config_filename(std::string &output_filename)
 {
@@ -115,11 +104,11 @@ BtrcScene initialize_btrc_scene(const std::string &filename, optix::Context &opt
     result.post_processors = parse_post_processors(
         result.root->find_child_node("post_processors"), *result.object_context);
 
-    std::cout << "compile kernel" << std::endl;
+    std::cout << "commit objects" << std::endl;
 
     using Clock = std::chrono::steady_clock;
     const auto start = Clock::now();
-    prepare_scene(result.renderer, result.scene);
+    ObjectDAG(result.renderer).commit();
     const auto compile_time = Clock::now() - start;
 
     std::cout << "compile time: " <<

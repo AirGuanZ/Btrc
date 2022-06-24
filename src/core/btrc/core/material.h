@@ -53,29 +53,13 @@ public:
 
     virtual ~Shader() = default;
 
-    virtual SampleResult sample(
-        CompileContext &cc,
-        ref<CVec3f>     wo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const = 0;
+    virtual SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const = 0;
 
-    virtual SampleBidirResult sample_bidir(
-        CompileContext &cc,
-        ref<CVec3f>     wo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const = 0;
+    virtual SampleBidirResult sample_bidir(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const = 0;
 
-    virtual CSpectrum eval(
-        CompileContext &cc,
-        ref<CVec3f>     wi,
-        ref<CVec3f>     wo,
-        TransportMode   mode) const = 0;
+    virtual CSpectrum eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const = 0;
 
-    virtual f32 pdf(
-        CompileContext &cc,
-        ref<CVec3f>     wi,
-        ref<CVec3f>     wo,
-        TransportMode   mode) const = 0;
+    virtual f32 pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const = 0;
 
     virtual CSpectrum albedo(CompileContext &cc) const = 0;
 

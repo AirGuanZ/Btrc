@@ -8,9 +8,9 @@ CUJ_CLASS_BEGIN(DiffuseComponentImpl)
 
     CUJ_MEMBER_VARIABLE(CSpectrum, albedo_value)
 
-    BSDFComponent::SampleResult sample(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const;
+    BSDFComponent::SampleResult sample(ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const;
 
-    BSDFComponent::SampleBidirResult sample_bidir(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const;
+    BSDFComponent::SampleBidirResult sample_bidir(ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const;
 
     CSpectrum eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const;
 

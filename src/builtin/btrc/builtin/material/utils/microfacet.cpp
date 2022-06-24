@@ -32,10 +32,10 @@ namespace microfacet
         return result;
     }
 
-    CVec3f sample_gtr2(f32 alpha, ref<CVec2f> sample)
+    CVec3f sample_gtr2(f32 alpha, ref<Sam2> sample)
     {
-        var phi = 2.0f * btrc_pi * sample.x;
-        var cos_theta = cstd::sqrt((1.0f - sample.y) / (1.0f + (sqr(alpha) - 1.0f) * sample.y));
+        var phi = 2.0f * btrc_pi * sample[0];
+        var cos_theta = cstd::sqrt((1.0f - sample[1]) / (1.0f + (sqr(alpha) - 1.0f) * sample[1]));
         var sin_theta = local_angle::cos2sin(cos_theta);
         return normalize(CVec3f(sin_theta * cstd::cos(phi), sin_theta * cstd::sin(phi), cos_theta));
     }
@@ -55,15 +55,15 @@ namespace microfacet
         return 1.0f / (1.0f + lambda);
     }
 
-    CVec3f sample_anisotropic_gtr2(f32 ax, f32 ay, ref<CVec2f> sample)
+    CVec3f sample_anisotropic_gtr2(f32 ax, f32 ay, ref<Sam2> sample)
     {
-        var sin_phi_h = ay * cstd::sin(2 * btrc_pi * sample.x);
-        var cos_phi_h = ax * cstd::cos(2 * btrc_pi * sample.x);
+        var sin_phi_h = ay * cstd::sin(2 * btrc_pi * sample[0]);
+        var cos_phi_h = ax * cstd::cos(2 * btrc_pi * sample[0]);
         var nor = 1.0f / cstd::sqrt(sqr(sin_phi_h) + sqr(cos_phi_h));
         sin_phi_h = sin_phi_h * nor;
         cos_phi_h = cos_phi_h * nor;
         var A = compute_a(sin_phi_h, cos_phi_h, ax, ay);
-        var cos_theta_h = cstd::sqrt(A * (1.0f - sample.y) / ((1.0f - A) * sample.y + A));
+        var cos_theta_h = cstd::sqrt(A * (1.0f - sample[1]) / ((1.0f - A) * sample[1] + A));
         var sin_theta_h = local_angle::cos2sin(cos_theta_h);
         return normalize(CVec3f(sin_theta_h * cos_phi_h, sin_theta_h * sin_phi_h, cos_theta_h));
     }
@@ -76,15 +76,15 @@ namespace microfacet
         return U / (LD * RD);
     }
 
-    CVec3f sample_gtr1(f32 alpha, ref<CVec2f> sample)
+    CVec3f sample_gtr1(f32 alpha, ref<Sam2> sample)
     {
-        var phi = 2 * btrc_pi * sample.x;
-        var cos_theta = cstd::sqrt((cstd::pow(alpha, 2.0f - 2.0f * sample.y) - 1.0f) / (sqr(alpha) - 1.0f));
+        var phi = 2 * btrc_pi * sample[0];
+        var cos_theta = cstd::sqrt((cstd::pow(alpha, 2.0f - 2.0f * sample[1]) - 1.0f) / (sqr(alpha) - 1.0f));
         var sin_theta = local_angle::cos2sin(cos_theta);
         return normalize(CVec3f(sin_theta * cstd::cos(phi), sin_theta * cstd::sin(phi), cos_theta));
     }
 
-    CVec3f sample_anisotropic_gtr2_vnor(ref<CVec3f> ve, f32 ax, f32 ay, ref<CVec2f> sam)
+    CVec3f sample_anisotropic_gtr2_vnor(ref<CVec3f> ve, f32 ax, f32 ay, ref<Sam2> sam)
     {
         var vh = normalize(CVec3f(ax * ve.x, ay * ve.y, ve.z));
         var lensq = vh.x * vh.x + vh.y * vh.y;
@@ -96,8 +96,8 @@ namespace microfacet
         };
         var t2 = cross(vh, t1);
 
-        var r = cstd::sqrt(sam.x);
-        var phi = 2 * btrc_pi * sam.y;
+        var r = cstd::sqrt(sam[0]);
+        var phi = 2 * btrc_pi * sam[1];
         var t_1 = r * cstd::cos(phi);
         var _t_2 = r * cstd::sin(phi);
         var s = 0.5f * (1.0f + vh.z);

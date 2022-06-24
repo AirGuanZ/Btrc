@@ -13,42 +13,26 @@ public:
         normal_ = normal;
     }
 
-    SampleResult sample(
-        CompileContext &cc,
-        ref<CVec3f>     wo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const override
+    SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const override
     {
         SampleResult result;
         result.clear();
         return result;
     }
 
-    SampleBidirResult sample_bidir(
-        CompileContext &cc,
-        ref<CVec3f>     wo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const override
+    SampleBidirResult sample_bidir(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const override
     {
         SampleBidirResult result;
         result.clear();
         return result;
     }
 
-    CSpectrum eval(
-        CompileContext &cc,
-        ref<CVec3f>     wi,
-        ref<CVec3f>     wo,
-        TransportMode   mode) const override
+    CSpectrum eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const override
     {
         return CSpectrum::zero();
     }
 
-    f32 pdf(
-        CompileContext &cc,
-        ref<CVec3f>     wi,
-        ref<CVec3f>     wo,
-        TransportMode mode) const override
+    f32 pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const override
     {
         return 0;
     }

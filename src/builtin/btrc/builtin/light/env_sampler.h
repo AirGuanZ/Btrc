@@ -16,7 +16,7 @@ public:
 
     void preprocess(const RC<const Texture2D> &tex, const Vec2i &lut_res, int n_samples);
 
-    SampleResult sample(ref<CVec3f> sam) const;
+    SampleResult sample(ref<Sam3> sam) const;
 
     f32 pdf(ref<CVec3f> to_light) const;
 

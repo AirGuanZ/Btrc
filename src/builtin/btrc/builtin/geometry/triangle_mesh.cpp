@@ -185,12 +185,12 @@ AABB3f TriangleMesh::get_bounding_box() const
     return bbox_;
 }
 
-Geometry::SampleResult TriangleMesh::sample_inline(ref<CVec3f> sam) const
+Geometry::SampleResult TriangleMesh::sample_inline(ref<Sam3> sam) const
 {
     using namespace cuj;
 
-    var prim_idx = alias_table_.sample(sam.x);
-    var uv = sample_triangle_uniform(sam.y, sam.z);
+    var prim_idx = alias_table_.sample(sam[0]);
+    var uv = sample_triangle_uniform(sam[1], sam[2]);
 
     var pos_ptr = bitcast<ptr<CVec3f>>(import_pointer(positions_.get()));
     var a  = pos_ptr[prim_idx * 3 + 0];
@@ -232,7 +232,7 @@ f32 TriangleMesh::pdf_inline(ref<CVec3f> pos) const
     return 1 / total_area_;
 }
 
-Geometry::SampleResult TriangleMesh::sample_inline(ref<CVec3f> dst_pos, ref<CVec3f> sam) const
+Geometry::SampleResult TriangleMesh::sample_inline(ref<CVec3f> dst_pos, ref<Sam3> sam) const
 {
     return sample_inline(sam);
 }

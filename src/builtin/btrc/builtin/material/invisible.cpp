@@ -9,12 +9,12 @@ public:
 
     CVec3f normal_;
 
-    SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const override
+    SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const override
     {
         return discard_pdf_rev(sample_bidir(cc, wo, sam, mode));
     }
     
-    SampleBidirResult sample_bidir(CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const override
+    SampleBidirResult sample_bidir(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const override
     {
         SampleBidirResult result;
         result.bsdf = CSpectrum::one() / cstd::abs(dot(normal_, normalize(wo)));

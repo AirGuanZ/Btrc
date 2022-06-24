@@ -30,7 +30,7 @@ CSpectrum IBL::eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const
     return eval_local(cc, dir);
 }
 
-EnvirLight::SampleLiResult IBL::sample_li_inline(CompileContext &cc, ref<CVec3f> sam) const
+EnvirLight::SampleLiResult IBL::sample_li_inline(CompileContext &cc, ref<Sam3> sam) const
 {
     var local_sample = sampler_->sample(sam);
     var local_dir = local_sample.to_light;
@@ -46,6 +46,18 @@ f32 IBL::pdf_li_inline(CompileContext &cc, ref<CVec3f> to_light) const
 {
     var dir = CFrame(frame_).global_to_local(to_light);
     return sampler_->pdf(dir);
+}
+
+EnvirLight::SampleEmitResult IBL::sample_emit_inline(CompileContext &cc, ref<Sam<3>> sam) const
+{
+    // TODO
+    return {};
+}
+
+f32 IBL::pdf_emit_inline(CompileContext &cc, ref<CVec3f> dir) const
+{
+    // TODO
+    return {};
 }
 
 CSpectrum IBL::eval_local(CompileContext &cc, ref<CVec3f> normalized_to_light) const

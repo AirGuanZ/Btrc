@@ -1,5 +1,6 @@
 #pragma once
 
+#include <btrc/core/context.h>
 #include <btrc/utils/cmath/cmath.h>
 #include <btrc/utils/optix/sbt.h>
 

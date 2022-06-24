@@ -202,7 +202,7 @@ CSpectrum handle_intersected_light(
     auto light_sampler = scene.scene.get_light_sampler();
     auto handle_light = [&](i32 light_id, const AreaLight *area)
     {
-        var le = area->eval_le(scene.cc, inct.position, inct.frame.z, inct.uv, inct.tex_coord, -d);
+        var le = area->eval_le(scene.cc, inct, -d);
         $if(bsdf_pdf < 0)
         {
             result = beta_le * le / -bsdf_pdf;

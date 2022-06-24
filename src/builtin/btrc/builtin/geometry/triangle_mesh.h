@@ -24,11 +24,11 @@ public:
 
     AABB3f get_bounding_box() const override;
 
-    SampleResult sample_inline(ref<CVec3f> sam) const override;
+    SampleResult sample_inline(ref<Sam3> sam) const override;
 
     f32 pdf_inline(ref<CVec3f> pos) const override;
 
-    SampleResult sample_inline(ref<CVec3f> dst_pos, ref<CVec3f> sam) const override;
+    SampleResult sample_inline(ref<CVec3f> dst_pos, ref<Sam3> sam) const override;
 
     f32 pdf_inline(ref<CVec3f> dst_pos, ref<CVec3f> pos) const override;
 

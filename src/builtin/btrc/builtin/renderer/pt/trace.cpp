@@ -95,7 +95,7 @@ namespace
         const SurfacePoint &hit_info,
         const LeParams     &le_params)
     {
-        var le = area->eval_le(cc, hit_info.position, hit_info.frame.z, hit_info.uv, hit_info.tex_coord, -r.d);
+        var le = area->eval_le(cc, hit_info, -r.d);
         var le_pdf = 0.0f;
         $if(!le_params.is_delta)
         {
@@ -175,7 +175,7 @@ namespace
 TraceResult trace_path(
     CompileContext   &cc,
     const TraceUtils &utils,
-    const Params     &params,
+    const TraceParams     &params,
     const Scene      &scene,
     const CRay       &ray,
     CMediumID         initial_ray_medium_id,

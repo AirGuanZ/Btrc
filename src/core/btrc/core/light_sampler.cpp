@@ -30,9 +30,7 @@ UniformLightSampler::SampleResult UniformLightSampler::sample(const CVec3f &ref,
         return result;
     }
 
-    var idx = cstd::min(
-        i32(sam * static_cast<int>(lights_.size())),
-        i32(static_cast<int>(lights_.size())) - 1);
+    var idx = cstd::min(i32(sam * static_cast<int>(lights_.size())), i32(static_cast<int>(lights_.size())) - 1);
     var pdf = 1.0f / f32(lights_.size());
 
     SampleResult result;
@@ -44,6 +42,16 @@ UniformLightSampler::SampleResult UniformLightSampler::sample(const CVec3f &ref,
 f32 UniformLightSampler::pdf(const CVec3f &ref, i32 light_index) const
 {
     return 1.0f / f32(lights_.size());
+}
+
+LightSampler::SampleEmitResult UniformLightSampler::sample_emit(f32 sam) const
+{
+    return sample(CVec3f(0), sam);
+}
+
+f32 UniformLightSampler::pdf_emit(i32 light_index) const
+{
+    return pdf(CVec3f(0), light_index);
 }
 
 int UniformLightSampler::get_light_count() const

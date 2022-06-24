@@ -95,17 +95,7 @@ void WavefrontPathTracer::set_reporter(RC<Reporter> reporter)
     impl_->reporter = std::move(reporter);
 }
 
-std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
-{
-    std::set<RC<Object>> scene_objects;
-    impl_->scene->collect_objects(scene_objects);
-    std::vector<RC<Object>> result = { scene_objects.begin(), scene_objects.end() };
-    result.push_back(impl_->camera);
-    result.push_back(impl_->filter);
-    return result;
-}
-
-void WavefrontPathTracer::recompile()
+void WavefrontPathTracer::commit()
 {
     CompileContext cc;
 
@@ -201,6 +191,15 @@ void WavefrontPathTracer::recompile()
     
     impl_->shadow_ray_buffer = newRC<wfpt::ShadowRayBuffer>(params.state_count);
     impl_->shadow_sampler_buffer = newRC<wfpt::ShadowSamplerBuffer>(params.state_count);
+}
+
+std::vector<RC<Object>> WavefrontPathTracer::get_dependent_objects()
+{
+    std::vector<RC<Object>> result;
+    result.push_back(impl_->scene);
+    result.push_back(impl_->camera);
+    result.push_back(impl_->filter);
+    return result;
 }
 
 Renderer::RenderResult WavefrontPathTracer::render()

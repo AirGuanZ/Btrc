@@ -13,8 +13,7 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
     CUJ_MEMBER_VARIABLE(f32, ax)
     CUJ_MEMBER_VARIABLE(f32, ay)
 
-    MicrofacetReflectionComponentImpl(
-        FresnelPoint _fresnel, f32 roughness, f32 anisotropic)
+    MicrofacetReflectionComponentImpl(FresnelPoint _fresnel, f32 roughness, f32 anisotropic)
     {
         fresnel = _fresnel;
         f32 aspect = 1.0f;
@@ -26,21 +25,18 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
         ay = (cstd::max)(f32(0.001f), roughness * roughness * aspect);
     }
 
-    BSDFComponent::SampleResult sample(
-        ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    BSDFComponent::SampleResult sample(ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
     {
         return BSDFComponent::discard_pdf_rev(sample_bidir(lwo, sam, mode));
     }
 
-    BSDFComponent::SampleBidirResult sample_bidir(
-        ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    BSDFComponent::SampleBidirResult sample_bidir(ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
     {
         BSDFComponent::SampleBidirResult result;
         result.clear();
         $if(lwo.z > 0)
         {
-            var lwh = normalize(microfacet::sample_anisotropic_gtr2_vnor(
-                lwo, ax, ay, CVec2f(sam.y, sam.z)));
+            var lwh = normalize(microfacet::sample_anisotropic_gtr2_vnor(lwo, ax, ay, make_sample(sam[1], sam[2])));
             $if(lwh.z > 0)
             {
                 var lwi = normalize(2.0f * dot(lwo, lwh) * lwh - lwo);
@@ -54,16 +50,14 @@ CUJ_TEMPLATE_CLASS_BEGIN(MicrofacetReflectionComponentImpl, FresnelPoint)
         return result;
     }
 
-    CSpectrum eval(
-        ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+    CSpectrum eval(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
     {
         CSpectrum result; f32 pdf, pdf_rev;
         eval_and_pdf(lwi, lwo, result, pdf, pdf_rev);
         return result;
     }
 
-    f32 pdf(
-        ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+    f32 pdf(ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
     {
         CSpectrum bsdf; f32 pdf, pdf_rev;
         eval_and_pdf(lwi, lwo, bsdf, pdf, pdf_rev);

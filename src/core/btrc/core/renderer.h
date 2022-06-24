@@ -31,10 +31,6 @@ public:
 
     virtual void set_reporter(RC<Reporter> reporter) = 0;
 
-    void commit() final { }
-
-    virtual void recompile() = 0;
-
     virtual RenderResult render() = 0;
 
     void render_async();

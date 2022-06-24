@@ -24,19 +24,4 @@ f32 IndependentSampler::get1d()
     return state_.rng.uniform_float();
 }
 
-CVec2f IndependentSampler::get2d()
-{
-    var x = get1d();
-    var y = get1d();
-    return CVec2f(x, y);
-}
-
-CVec3f IndependentSampler::get3d()
-{
-    var x = get1d();
-    var y = get1d();
-    var z = get1d();
-    return CVec3f(x, y, z);
-}
-
 BTRC_BUILTIN_END

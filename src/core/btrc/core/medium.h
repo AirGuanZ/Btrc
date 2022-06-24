@@ -27,14 +27,11 @@ public:
 
     virtual ~PhaseShader() = default;
 
-    virtual SampleResult sample(
-        CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam) const = 0;
+    virtual SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam) const = 0;
 
-    virtual CSpectrum eval(
-        CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const = 0;
+    virtual CSpectrum eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const = 0;
 
-    virtual f32 pdf(
-        CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const = 0;
+    virtual f32 pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const = 0;
 };
 
 class HenyeyGreensteinPhaseShader : public PhaseShader
@@ -45,7 +42,7 @@ public:
 
     void set_color(ref<CSpectrum> color);
 
-    SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam) const override;
+    SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam) const override;
 
     CSpectrum eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo) const override;
 

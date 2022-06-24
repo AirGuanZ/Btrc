@@ -11,21 +11,13 @@ void MeshLight::set_geometry(RC<Geometry> geometry, const Transform3D &local_to_
 {
     geometry_ = std::move(geometry);
     local_to_world_ = local_to_world;
-    scale_ = length(
-        local_to_world.apply_to_point({ 1, 0, 0 }) -
-        local_to_world.apply_to_point({ 0, 0, 0 }));
+    scale_ = length(local_to_world.apply_to_point({ 1, 0, 0 }) - local_to_world.apply_to_point({ 0, 0, 0 }));
 }
 
-CSpectrum MeshLight::eval_le_inline(
-    CompileContext &cc,
-    ref<CVec3f>     pos,
-    ref<CVec3f>     nor,
-    ref<CVec2f>     uv,
-    ref<CVec2f>     tex_coord,
-    ref<CVec3f>     wr) const
+CSpectrum MeshLight::eval_le_inline(CompileContext &cc, ref<SurfacePoint> spt, ref<CVec3f> wr) const
 {
     CSpectrum result;
-    $if(dot(nor, wr) >= 0)
+    $if(dot(spt.frame.z, wr) >= 0)
     {
         result = CSpectrum(intensity_);
     }
@@ -36,10 +28,7 @@ CSpectrum MeshLight::eval_le_inline(
     return result;
 }
 
-AreaLight::SampleLiResult MeshLight::sample_li_inline(
-    CompileContext &cc,
-    ref<CVec3f>     ref_pos,
-    ref<CVec3f>     sam) const
+AreaLight::SampleLiResult MeshLight::sample_li_inline(CompileContext &cc, ref<CVec3f> ref_pos, ref<Sam3> sam) const
 {
     CTransform3D ctrans = local_to_world_;
 
@@ -48,8 +37,7 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
     var snor = normalize(ctrans.apply_to_normal(surface_sample.point.frame.z));
     var pos_to_ref = ref_pos - spos;
     var dist2 = length_square(pos_to_ref);
-    var pdf_sa = 1 / (scale_ * scale_)
-               * surface_sample.pdf * dist2 / cstd::abs(dot(snor, normalize(pos_to_ref)));
+    var pdf_sa = 1 / (scale_ * scale_) * surface_sample.pdf * dist2 / cstd::abs(dot(snor, normalize(pos_to_ref)));
 
     CSpectrum rad;
     $if(dot(pos_to_ref, snor) > 0)
@@ -69,11 +57,7 @@ AreaLight::SampleLiResult MeshLight::sample_li_inline(
     return result;
 }
 
-f32 MeshLight::pdf_li_inline(
-    CompileContext &cc,
-    ref<CVec3f>     ref_pos,
-    ref<CVec3f>     pos,
-    ref<CVec3f>     nor) const
+f32 MeshLight::pdf_li_inline(CompileContext &cc, ref<CVec3f> ref_pos, ref<CVec3f> pos, ref<CVec3f> nor) const
 {
     f32 result;
     $if(dot(nor, ref_pos - pos) <= 0)
@@ -86,10 +70,21 @@ f32 MeshLight::pdf_li_inline(
         var spt_to_ref = ref_pos - pos;
         var dist2 = length_square(spt_to_ref);
         var dist3 = cstd::sqrt(dist2) * dist2;
-        result = 1 / (scale_ * scale_)
-               * pdf_area * dist3 / cstd::abs(dot(nor, spt_to_ref));
+        result = 1 / (scale_ * scale_) * pdf_area * dist3 / cstd::abs(dot(nor, spt_to_ref));
     };
     return result;
+}
+
+AreaLight::SampleEmitResult MeshLight::sample_emit_inline(CompileContext &cc, ref<Sam<5>> sam) const
+{
+    // TODO
+    return {};
+}
+
+AreaLight::PdfEmitResult MeshLight::pdf_emit_inline(CompileContext &cc, ref<SurfacePoint> spt, ref<CVec3f> wr) const
+{
+    // TODO
+    return {};
 }
 
 RC<Light> MeshLightCreator::create(RC<const factory::Node> node, factory::Context &context)

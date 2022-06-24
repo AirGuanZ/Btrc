@@ -222,18 +222,17 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
         return F * D * G / cstd::abs(4.0f * cos_theta_i * cos_theta_o);
     }
 
-    CVec3f sample_diffuse(const CVec2f &sam) const noexcept
+    CVec3f sample_diffuse(const Sam2 &sam) const noexcept
     {
-        return sample_hemisphere_zweighted(sam.x, sam.y);
+        return sample_hemisphere_zweighted(sam[0], sam[1]);
     }
 
-    CVec3f sample_specular(const CVec3f &lwo, const CVec2f &sam) const
+    CVec3f sample_specular(const CVec3f &lwo, const Sam2 &sam) const
     {
         CVec3f lwi;
         $scope
         {
-            var lwh = microfacet::sample_anisotropic_gtr2_vnor(
-                lwo, ax_, ay_, sam);
+            var lwh = microfacet::sample_anisotropic_gtr2_vnor(lwo, ax_, ay_, sam);
             $if(lwh.z <= 0)
             {
                 lwi = CVec3f(0);
@@ -251,7 +250,7 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
         return lwi;
     }
 
-    CVec3f sample_clearcoat(const CVec3f &lwo, const CVec2f &sam) const
+    CVec3f sample_clearcoat(const CVec3f &lwo, const Sam2 &sam) const
     {
         CVec3f lwi;
         $scope
@@ -274,7 +273,7 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
         return lwi;
     }
 
-    CVec3f sample_transmission(const CVec3f &lwo, const CVec2f &sam) const
+    CVec3f sample_transmission(const CVec3f &lwo, const Sam2 &sam) const
     {
         CVec3f lwi;
         $scope
@@ -307,7 +306,7 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
         return lwi;
     }
 
-    CVec3f sample_inner_refl(const CVec3f &lwo, const CVec2f &sam) const
+    CVec3f sample_inner_refl(const CVec3f &lwo, const Sam2 &sam) const
     {
         CUJ_ASSERT(lwo.z < 0);
         CVec3f lwi;
@@ -555,7 +554,7 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
         return result;
     }
 
-    BSDFComponent::SampleResult sample(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    BSDFComponent::SampleResult sample(ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
     {
         BSDFComponent::SampleResult result;
         $scope
@@ -587,13 +586,13 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
 
                 CVec3f lwi;
                 var macro_F = cstd::clamp(dielectric_fresnel(ior_, 1, lwo.z), 0.1f, 0.9f);
-                $if(sam.x >= macro_F)
+                $if(sam[0] >= macro_F)
                 {
-                    lwi = sample_transmission(lwo, CVec2f(sam.y, sam.z));
+                    lwi = sample_transmission(lwo, make_sample(sam[1], sam[2]));
                 }
                 $else
                 {
-                    lwi = sample_inner_refl(lwo, CVec2f(sam.y, sam.z));
+                    lwi = sample_inner_refl(lwo, make_sample(sam[1], sam[2]));
                 };
 
                 $if(lwi.x == 0 & lwi.y == 0 & lwi.z == 0)
@@ -611,8 +610,8 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
 
             // reflection + transmission
 
-            var sam_selector = sam.x;
-            var new_sam = CVec2f(sam.y, sam.z);
+            var sam_selector = sam[0];
+            var new_sam = make_sample(sam[1], sam[2]);
 
             CVec3f lwi;
             $if(sam_selector < diffuse_weight_)
@@ -654,7 +653,7 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
         return result;
     }
 
-    BSDFComponent::SampleBidirResult sample_bidir(ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    BSDFComponent::SampleBidirResult sample_bidir(ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
     {
         var t_result = sample(lwo, sam, mode);
         BSDFComponent::SampleBidirResult result;
@@ -665,8 +664,7 @@ CUJ_CLASS_BEGIN(DisneyBSDFImpl)
             result.pdf = t_result.pdf;
             result.pdf_rev = pdf(
                 lwo, t_result.dir,
-                mode == TransportMode::Radiance ? TransportMode::Importance
-                                                : TransportMode::Radiance);
+                mode == TransportMode::Radiance ? TransportMode::Importance : TransportMode::Radiance);
         }
         $else
         {

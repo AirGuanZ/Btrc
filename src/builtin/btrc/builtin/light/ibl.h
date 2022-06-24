@@ -21,9 +21,13 @@ public:
 
     CSpectrum eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) const override;
 
-    SampleLiResult sample_li_inline(CompileContext &cc, ref<CVec3f> sam) const override;
+    SampleLiResult sample_li_inline(CompileContext &cc, ref<Sam3> sam) const override;
 
     f32 pdf_li_inline(CompileContext &cc, ref<CVec3f> to_light) const override;
+
+    SampleEmitResult sample_emit_inline(CompileContext &cc, ref<Sam<3>> sam) const override;
+
+    f32 pdf_emit_inline(CompileContext &cc, ref<CVec3f> dir) const override;
 
 private:
 

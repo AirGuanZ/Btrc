@@ -31,7 +31,7 @@ void Scene::set_light_sampler(RC<LightSampler> light_sampler)
     light_sampler_ = std::move(light_sampler);
 }
 
-void Scene::precommit()
+void Scene::commit()
 {
     light_sampler_->clear();
     for(auto &inst : instances_)
@@ -43,10 +43,7 @@ void Scene::precommit()
         light_sampler_->add_light(env_light_);
 
     vol_prim_medium_->set_volumes(volumes_);
-}
 
-void Scene::postcommit()
-{
     tlas_ = {};
     materials_ = {};
     mediums_ = {};
@@ -136,7 +133,8 @@ void Scene::postcommit()
             .light_id        = light_idx,
             .transform       = inst.transform,
             .inner_medium_id = inner_med_id,
-            .outer_medium_id = outer_med_id
+            .outer_medium_id = outer_med_id,
+            .flag            = inst.flag
         });
 
         blas_instances.push_back(optix::Context::Instance{
@@ -183,27 +181,29 @@ void Scene::postcommit()
     }
 }
 
+std::vector<RC<Object>> Scene::get_dependent_objects()
+{
+    std::vector<RC<Object>> output;
+    for(auto &inst : instances_)
+    {
+        output.push_back(inst.geometry);
+        output.push_back(inst.material);
+        if(inst.light)
+            output.push_back(inst.light);
+        if(inst.inner_medium)
+            output.push_back(inst.inner_medium);
+        if(inst.outer_medium)
+            output.push_back(inst.outer_medium);
+    }
+    if(env_light_)
+        output.push_back(env_light_);
+    output.push_back(vol_prim_medium_);
+    return output;
+}
+
 OptixTraversableHandle Scene::get_tlas() const
 {
     return tlas_;
-}
-
-void Scene::collect_objects(std::set<RC<Object>> &output) const
-{
-    for(auto &inst : instances_)
-    {
-        output.insert(inst.geometry);
-        output.insert(inst.material);
-        if(inst.light)
-            output.insert(inst.light);
-        if(inst.inner_medium)
-            output.insert(inst.inner_medium);
-        if(inst.outer_medium)
-            output.insert(inst.outer_medium);
-    }
-    if(env_light_)
-        output.insert(env_light_);
-    output.insert(vol_prim_medium_);
 }
 
 int Scene::get_instance_count() const

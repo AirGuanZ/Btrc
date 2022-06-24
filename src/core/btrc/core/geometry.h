@@ -43,17 +43,17 @@ public:
 
     virtual AABB3f get_bounding_box() const = 0;
 
-    virtual SampleResult sample_inline(ref<CVec3f> sam) const = 0;
+    virtual SampleResult sample_inline(ref<Sam3> sam) const = 0;
 
     virtual f32 pdf_inline(ref<CVec3f> pos) const = 0;
 
-    virtual SampleResult sample_inline(ref<CVec3f> dst_pos, ref<CVec3f> sam) const = 0;
+    virtual SampleResult sample_inline(ref<CVec3f> dst_pos, ref<Sam3> sam) const = 0;
 
     virtual f32 pdf_inline(ref<CVec3f> dst_pos, ref<CVec3f> pos) const = 0;
 
-    SampleResult sample(CompileContext &cc, ref<CVec3f> sam) const
+    SampleResult sample(CompileContext &cc, ref<Sam3> sam) const
     {
-        auto action = [this](ref<CVec3f> _sam) { return sample_inline(_sam); };
+        auto action = [this](ref<Sam3> _sam) { return sample_inline(_sam); };
         return cc.record_object_action(as_shared(), "sample", action, sam);
     }
 
@@ -63,9 +63,9 @@ public:
         return cc.record_object_action(as_shared(), "pdf", action, pos);
     }
 
-    SampleResult sample(CompileContext &cc, ref<CVec3f> dst_pos, ref<CVec3f> sam) const
+    SampleResult sample(CompileContext &cc, ref<CVec3f> dst_pos, ref<Sam3> sam) const
     {
-        auto action = [this](ref<CVec3f> dst_pos, ref<CVec3f> sam) { return sample_inline(dst_pos, sam); };
+        auto action = [this](ref<CVec3f> dst_pos, ref<Sam3> sam) { return sample_inline(dst_pos, sam); };
         return cc.record_object_action(as_shared(), "sample_dst", action, dst_pos, sam);
     }
 

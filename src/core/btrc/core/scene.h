@@ -10,14 +10,21 @@
 
 BTRC_BEGIN
 
+using InstanceFlag = uint32_t;
+using CInstanceFlag = cuj::cxx<InstanceFlag>;
+
+constexpr InstanceFlag INSTANCE_FLAG_CAUSTICS_PROJECTOR = 1u << 0;
+constexpr InstanceFlag INSTANCE_FLAG_CAUSTICS_RECRIVER  = 1u << 1;
+
 struct InstanceInfo
 {
-    int32_t     geometry_id = 0;
-    int32_t     material_id = 0;
-    int32_t     light_id = 0;
-    Transform3D transform;
-    MediumID    inner_medium_id = 0;
-    MediumID    outer_medium_id = 0;
+    int32_t      geometry_id = 0;
+    int32_t      material_id = 0;
+    int32_t      light_id = 0;
+    Transform3D  transform;
+    MediumID     inner_medium_id = 0;
+    MediumID     outer_medium_id = 0;
+    InstanceFlag flag = 0;
 };
 
 CUJ_PROXY_CLASS(
@@ -28,9 +35,10 @@ CUJ_PROXY_CLASS(
     light_id,
     transform,
     inner_medium_id,
-    outer_medium_id);
+    outer_medium_id,
+    flag);
 
-class Scene
+class Scene : public Object
 {
 public:
 
@@ -42,6 +50,7 @@ public:
         Transform3D   transform;
         RC<Medium>    inner_medium;
         RC<Medium>    outer_medium;
+        InstanceFlag  flag;
     };
 
     explicit Scene(optix::Context &optix_ctx);
@@ -62,13 +71,11 @@ public:
 
     void set_light_sampler(RC<LightSampler> light_sampler);
 
-    void precommit();
+    void commit() override;
 
-    void postcommit();
+    std::vector<RC<Object>> get_dependent_objects() override;
 
     OptixTraversableHandle get_tlas() const;
-
-    void collect_objects(std::set<RC<Object>> &output) const;
 
     int get_geometry_count() const;
 

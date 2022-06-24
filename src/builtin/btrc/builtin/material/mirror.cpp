@@ -10,12 +10,12 @@ CUJ_CLASS_BEGIN(MirrorShaderImpl)
     CUJ_MEMBER_VARIABLE(ShaderFrame, raw_frame)
     CUJ_MEMBER_VARIABLE(CSpectrum,   color)
 
-    Shader::SampleResult sample(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    Shader::SampleResult sample(ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const
     {
         return Shader::discard_pdf_rev(sample_bidir(wo, sam, mode));
     }
 
-    Shader::SampleBidirResult sample_bidir(ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    Shader::SampleBidirResult sample_bidir(ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const
     {
         Shader::SampleBidirResult result;
         result.clear();

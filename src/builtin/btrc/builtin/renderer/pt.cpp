@@ -84,17 +84,7 @@ void PathTracer::set_reporter(RC<Reporter> reporter)
     impl_->reporter = std::move(reporter);
 }
 
-std::vector<RC<Object>> PathTracer::get_dependent_objects()
-{
-    std::set<RC<Object>> scene_objects;
-    impl_->scene->collect_objects(scene_objects);
-    std::vector<RC<Object>> result = { scene_objects.begin(), scene_objects.end()};
-    result.push_back(impl_->camera);
-    result.push_back(impl_->filter);
-    return result;
-}
-
-void PathTracer::recompile()
+void PathTracer::commit()
 {
     auto &params = impl_->params;
 
@@ -142,7 +132,7 @@ void PathTracer::recompile()
         trace_utils.has_intersection = [&](const CRay &r)
             { return ctx.has_intersection(scene->get_tlas(), r); };
 
-        const pt::Params trace_params = {
+        const pt::TraceParams trace_params = {
             .min_depth = params.min_depth,
             .max_depth = params.max_depth,
             .rr_threshold = params.rr_threshold,
@@ -179,6 +169,15 @@ void PathTracer::recompile()
         .motion_blur     = impl_->scene->has_motion_blur(),
         .triangle_only   = impl_->scene->is_triangle_only()
     });
+}
+
+std::vector<RC<Object>> PathTracer::get_dependent_objects()
+{
+    std::vector<RC<Object>> result;
+    result.push_back(impl_->scene);
+    result.push_back(impl_->camera);
+    result.push_back(impl_->filter);
+    return result;
 }
 
 Renderer::RenderResult PathTracer::render()

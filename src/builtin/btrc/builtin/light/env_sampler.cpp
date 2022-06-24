@@ -121,9 +121,9 @@ void EnvirLightSampler::preprocess(const RC<const Texture2D> &tex, const Vec2i &
     tile_alias_ = CAliasTable(AliasTable(lum));
 }
 
-EnvirLightSampler::SampleResult EnvirLightSampler::sample(ref<CVec3f> sam) const
+EnvirLightSampler::SampleResult EnvirLightSampler::sample(ref<Sam3> sam) const
 {
-    var tile_idx = tile_alias_.sample(sam.x);
+    var tile_idx = tile_alias_.sample(sam[0]);
     var tile_y = tile_idx / lut_res_.x;
     var tile_x = tile_idx % lut_res_.x;
     CUJ_ASSERT(tile_y < lut_res_.y);
@@ -145,9 +145,9 @@ EnvirLightSampler::SampleResult EnvirLightSampler::sample(ref<CVec3f> sam) const
         cv1 = t;
     };
 
-    var cos_theta = cv0 + sam.z * (cv1 - cv0);
+    var cos_theta = cv0 + sam[2] * (cv1 - cv0);
     var sin_theta = local_angle::cos2sin(cos_theta);
-    var phi = 2 * btrc_pi * lerp(u0, u1, sam.y);
+    var phi = 2 * btrc_pi * lerp(u0, u1, sam[1]);
 
     var dir = CVec3f(sin_theta * cstd::cos(phi), sin_theta * cstd::sin(phi), cos_theta);
     var in_tile_pdf = 1.0f / (2 * btrc_pi * (u1 - u0) * (cv1 - cv0));

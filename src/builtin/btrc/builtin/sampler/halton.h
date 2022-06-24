@@ -32,9 +32,9 @@ public:
 
     f32 get1d() override;
 
-    CVec2f get2d() override;
+    Sam2 get2d() override;
 
-    CVec3f get3d() override;
+    Sam3 get3d() override;
 
 private:
 

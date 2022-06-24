@@ -14,24 +14,15 @@ public:
 
     void set_geometry(RC<Geometry> geometry, const Transform3D &local_to_world) override;
 
-    CSpectrum eval_le_inline(
-        CompileContext &cc,
-        ref<CVec3f>     pos,
-        ref<CVec3f>     nor,
-        ref<CVec2f>     uv,
-        ref<CVec2f>     tex_coord,
-        ref<CVec3f>     wr) const override;
+    CSpectrum eval_le_inline(CompileContext &cc, ref<SurfacePoint> spt, ref<CVec3f> wr) const override;
 
-    SampleLiResult sample_li_inline(
-        CompileContext &cc,
-        ref<CVec3f>     ref_pos,
-        ref<CVec3f>     sam) const override;
+    SampleLiResult sample_li_inline(CompileContext &cc, ref<CVec3f> ref_pos, ref<Sam3> sam) const override;
 
-    f32 pdf_li_inline(
-        CompileContext &cc,
-        ref<CVec3f>     ref_pos,
-        ref<CVec3f>     pos,
-        ref<CVec3f>     nor) const override;
+    f32 pdf_li_inline(CompileContext &cc, ref<CVec3f> ref_pos, ref<CVec3f> pos, ref<CVec3f> nor) const override;
+
+    SampleEmitResult sample_emit_inline(CompileContext &cc, ref<Sam<5>> sam) const override;
+
+    PdfEmitResult pdf_emit_inline(CompileContext &cc, ref<SurfacePoint> spt, ref<CVec3f> wr) const override;
 
 private:
 

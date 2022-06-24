@@ -29,8 +29,7 @@ void BSDFAggregate::add_component(f32 sample_weight, Box<const BSDFComponent> co
     components_.push_back({ sample_weight, std::move(comp) });
 }
 
-Shader::SampleResult BSDFAggregate::sample(
-    CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+Shader::SampleResult BSDFAggregate::sample(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const
 {
     BSDFComponent::SampleResult comp_result;
     SampleResult result;
@@ -40,7 +39,7 @@ Shader::SampleResult BSDFAggregate::sample(
     {
         var frame = frame_.flip_for_black_fringes(wo);
         var lwo = normalize(frame.shading.global_to_local(wo));
-        var comp_selector = sum_weight_ * sam.x;
+        var comp_selector = sum_weight_ * sam[0];
         var selected_comp = -1;
         var selected_comp_weight = 0.0f;
 
@@ -50,7 +49,7 @@ Shader::SampleResult BSDFAggregate::sample(
                 auto &c = components_[i];
                 $if(comp_selector <= c.sample_weight)
                 {
-                    var new_sam = CVec3f(comp_selector / c.sample_weight, sam.y, sam.z);
+                    var new_sam = make_sample(comp_selector / c.sample_weight, sam[1], sam[2]);
                     comp_result = c.component->sample(cc, lwo, new_sam, mode);
                     selected_comp = static_cast<int>(i);
                     selected_comp_weight = c.sample_weight;
@@ -62,7 +61,7 @@ Shader::SampleResult BSDFAggregate::sample(
                 };
             }
             auto &c = components_.back();
-            var new_sam = CVec3f(comp_selector / c.sample_weight, sam.y, sam.z);
+            var new_sam = make_sample(comp_selector / c.sample_weight, sam[1], sam[2]);
             selected_comp = static_cast<int>(components_.size() - 1);
             selected_comp_weight = c.sample_weight;
             comp_result = c.component->sample(cc, lwo, new_sam, mode);
@@ -106,7 +105,7 @@ Shader::SampleResult BSDFAggregate::sample(
 }
 
 Shader::SampleBidirResult BSDFAggregate::sample_bidir(
-    CompileContext &cc, ref<CVec3f> wo, ref<CVec3f> sam, TransportMode mode) const
+    CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const
 {
     BSDFComponent::SampleBidirResult comp_result;
     SampleBidirResult result;
@@ -115,7 +114,7 @@ Shader::SampleBidirResult BSDFAggregate::sample_bidir(
     $scope{
         var frame = frame_.flip_for_black_fringes(wo);
         var lwo = normalize(frame.shading.global_to_local(wo));
-        var comp_selector = sum_weight_ * sam.x;
+        var comp_selector = sum_weight_ * sam[0];
         var selected_comp = -1;
         var selected_comp_weight = 0.0f;
 
@@ -125,7 +124,7 @@ Shader::SampleBidirResult BSDFAggregate::sample_bidir(
                 auto &c = components_[i];
                 $if(comp_selector <= c.sample_weight)
                 {
-                    var new_sam = CVec3f(comp_selector / c.sample_weight, sam.y, sam.z);
+                    var new_sam = make_sample(comp_selector / c.sample_weight, sam[1], sam[2]);
                     comp_result = c.component->sample_bidir(cc, lwo, new_sam, mode);
                     selected_comp = static_cast<int>(i);
                     selected_comp_weight = c.sample_weight;
@@ -137,7 +136,7 @@ Shader::SampleBidirResult BSDFAggregate::sample_bidir(
                 };
             }
             auto &c = components_.back();
-            var new_sam = CVec3f(comp_selector / c.sample_weight, sam.y, sam.z);
+            var new_sam = make_sample(comp_selector / c.sample_weight, sam[1], sam[2]);
             selected_comp = static_cast<int>(components_.size() - 1);
             selected_comp_weight = c.sample_weight;
             comp_result = c.component->sample_bidir(cc, lwo, new_sam, mode);
@@ -183,8 +182,7 @@ Shader::SampleBidirResult BSDFAggregate::sample_bidir(
     return result;
 }
 
-CSpectrum BSDFAggregate::eval(
-    CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
+CSpectrum BSDFAggregate::eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
 {
     var result = CSpectrum::zero();
     var frame = frame_.flip_for_black_fringes(wo);
@@ -198,8 +196,7 @@ CSpectrum BSDFAggregate::eval(
     return result;
 }
 
-f32 BSDFAggregate::pdf(
-    CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
+f32 BSDFAggregate::pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const
 {
     f32 result = 0;
     var frame = frame_.flip_for_black_fringes(wo);

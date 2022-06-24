@@ -37,13 +37,20 @@ RC<Scene> create_scene(const RC<const Node> &scene_root, Context &context)
             area_light->set_geometry(geometry, transform);
         }
 
+        InstanceFlag flag = 0;
+        if(entity->parse_child_or("caustics_projector", false))
+            flag |= INSTANCE_FLAG_CAUSTICS_PROJECTOR;
+        if(entity->parse_child_or("caustics_receiver", false))
+            flag |= INSTANCE_FLAG_CAUSTICS_RECRIVER;
+
         result->add_instance(Scene::Instance{
             .geometry     = std::move(geometry),
             .material     = std::move(material),
             .light        = std::move(area_light),
             .transform    = transform,
             .inner_medium = std::move(inner_medium),
-            .outer_medium = std::move(outer_medium)
+            .outer_medium = std::move(outer_medium),
+            .flag         = flag
         });
     }
 

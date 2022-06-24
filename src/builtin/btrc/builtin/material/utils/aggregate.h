@@ -37,29 +37,14 @@ public:
 
     virtual ~BSDFComponent() = default;
 
-    virtual SampleResult sample(
-        CompileContext &cc,
-        ref<CVec3f>     lwo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const = 0;
+    virtual SampleResult sample(CompileContext &cc, ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const = 0;
 
     virtual SampleBidirResult sample_bidir(
-        CompileContext &cc,
-        ref<CVec3f>     lwo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const = 0;
+        CompileContext &cc, ref<CVec3f> lwo, ref<Sam3> sam, TransportMode   mode) const = 0;
 
-    virtual CSpectrum eval(
-        CompileContext &cc,
-        ref<CVec3f>     lwi,
-        ref<CVec3f>     lwo,
-        TransportMode   mode) const = 0;
+    virtual CSpectrum eval(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const = 0;
 
-    virtual f32 pdf(
-        CompileContext &cc,
-        ref<CVec3f>     lwi,
-        ref<CVec3f>     lwo,
-        TransportMode   mode) const = 0;
+    virtual f32 pdf(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const = 0;
 
     virtual CSpectrum albedo(CompileContext &cc) const = 0;
 
@@ -77,29 +62,14 @@ public:
 
     BSDFComponentClosure(RC<const Object> material, std::string name, ref<Impl> impl);
 
-    SampleResult sample(
-        CompileContext &cc,
-        ref<CVec3f>     lwo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const override;
+    SampleResult sample(CompileContext &cc, ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const override;
 
     SampleBidirResult sample_bidir(
-        CompileContext &cc,
-        ref<CVec3f>     lwo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const override;
+        CompileContext &cc, ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const override;
 
-    CSpectrum eval(
-        CompileContext &cc,
-        ref<CVec3f>     lwi,
-        ref<CVec3f>     lwo,
-        TransportMode   mode) const override;
+    CSpectrum eval(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override;
 
-    f32 pdf(
-        CompileContext &cc,
-        ref<CVec3f>     lwi,
-        ref<CVec3f>     lwo,
-        TransportMode   mode) const override;
+    f32 pdf(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const override;
 
     CSpectrum albedo(CompileContext &cc) const override;
 };
@@ -119,28 +89,13 @@ public:
     template<typename Impl>
     void add_closure(f32 sample_weight, std::string name, const Impl &impl);
 
-    SampleResult sample(
-        CompileContext &cc,
-        ref<CVec3f>     wo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const override;
+    SampleResult sample(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const override;
 
-    SampleBidirResult sample_bidir(
-        CompileContext &cc,
-        ref<CVec3f>     wo,
-        ref<CVec3f>     sam,
-        TransportMode   mode) const override;
+    SampleBidirResult sample_bidir(CompileContext &cc, ref<CVec3f> wo, ref<Sam3> sam, TransportMode mode) const override;
 
-    CSpectrum eval(
-        CompileContext &cc,
-        ref<CVec3f>     wi,
-        ref<CVec3f>     wo,
-        TransportMode   mode) const override;
+    CSpectrum eval(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const override;
 
-    f32 pdf(CompileContext &cc,
-        ref<CVec3f>         wi,
-        ref<CVec3f>         wo,
-        TransportMode       mode) const override;
+    f32 pdf(CompileContext &cc, ref<CVec3f> wi, ref<CVec3f> wo, TransportMode mode) const override;
 
     CSpectrum albedo(CompileContext &cc) const override;
 
@@ -177,27 +132,24 @@ BSDFComponentClosure<Impl>::BSDFComponentClosure(
 
 template<typename Impl>
 BSDFComponent::SampleResult BSDFComponentClosure<Impl>::sample(
-    CompileContext &cc, ref<CVec3f> lwo, ref<CVec3f> sam, TransportMode mode) const
+    CompileContext &cc, ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
 {
     const std::string name = fmt::format(
         "sample_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
-    auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<CVec3f> _sam)
+    auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<Sam3> _sam)
     { return impl.sample(_lwo, _sam, mode); };
     return cc.record_object_action(material_, name, action, ref(impl_), lwo, sam);
 }
 
 template<typename Impl>
 BSDFComponent::SampleBidirResult BSDFComponentClosure<Impl>::sample_bidir(
-    CompileContext &cc,
-    ref<CVec3f>     lwo,
-    ref<CVec3f>     sam,
-    TransportMode   mode) const
+    CompileContext &cc, ref<CVec3f> lwo, ref<Sam3> sam, TransportMode mode) const
 {
     const std::string name = fmt::format(
         "sample_bidir_component_{}_{}", name_,
         mode == TransportMode::Radiance ? "radiance" : "importance");
-    auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<CVec3f> _sam)
+    auto action = [mode](ref<Impl> impl, ref<CVec3f> _lwo, ref<Sam3> _sam)
     { return impl.sample_bidir(_lwo, _sam, mode); };
     return cc.record_object_action(material_, name, action, ref(impl_), lwo, sam);
 }
@@ -216,8 +168,7 @@ CSpectrum BSDFComponentClosure<Impl>::eval(
 }
 
 template<typename Impl>
-f32 BSDFComponentClosure<Impl>::pdf(
-    CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
+f32 BSDFComponentClosure<Impl>::pdf(CompileContext &cc, ref<CVec3f> lwi, ref<CVec3f> lwo, TransportMode mode) const
 {
     const std::string name = fmt::format(
         "pdf_component_{}_{}", name_,

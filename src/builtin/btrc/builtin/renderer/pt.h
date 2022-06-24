@@ -39,9 +39,9 @@ public:
 
     void set_reporter(RC<Reporter> reporter) override;
 
-    std::vector<RC<Object>> get_dependent_objects() override;
+    void commit() override;
 
-    void recompile() override;
+    std::vector<RC<Object>> get_dependent_objects() override;
 
     RenderResult render() override;
 
