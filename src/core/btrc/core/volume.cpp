@@ -93,9 +93,14 @@ VolumePrimitiveMedium::~VolumePrimitiveMedium()
     delete impl_;
 }
 
-void VolumePrimitiveMedium::set_volumes(const std::vector<RC<VolumePrimitive>> &vols)
+void VolumePrimitiveMedium::add_volume(RC<VolumePrimitive> vol)
 {
-    impl_->vols = vols;
+    impl_->vols.push_back(std::move(vol));
+}
+
+const std::vector<RC<VolumePrimitive>> &VolumePrimitiveMedium::get_prims() const
+{
+    return impl_->vols;
 }
 
 void VolumePrimitiveMedium::commit()

@@ -166,8 +166,8 @@ void PathTracer::commit()
 
     impl_->pipeline = Pipeline(*impl_->optix_ctx, raygen, Pipeline::Config{
         .traversal_depth = 2,
-        .motion_blur     = impl_->scene->has_motion_blur(),
-        .triangle_only   = impl_->scene->is_triangle_only()
+        .motion_blur = impl_->scene->has_motion_blur(),
+        .triangle_only = impl_->scene->is_triangle_only()
     });
 }
 

@@ -29,4 +29,10 @@ f32 pdf_sample_hemisphere_zweighted(ref<CVec3f> v); // v must be normalized
 
 CVec2f sample_triangle_uniform(f32 u1, f32 u2);
 
+// disk
+
+CVec2f sample_disk_uniform(f32 u1, f32 u2);
+
+f32 pdf_sample_disk_uniform();
+
 BTRC_END

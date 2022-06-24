@@ -44,6 +44,8 @@ public:
     virtual RC<const EnvirLight> get_envir_light() const = 0;
 
     virtual int get_envir_light_index() const = 0;
+
+    void access_light(i32 light_idx, const std::function<void(const Light *)> &func) const;
 };
 
 class UniformLightSampler : public LightSampler

@@ -62,20 +62,10 @@ namespace
             $else
             {
                 var end_pnt = ray_o + ray_d * ray_t1;
-                $switch(medium_id)
+                scene.access_medium(i32(medium_id), [&](const Medium *medium)
                 {
-                    for(int i = 0; i < scene.get_medium_count(); ++i)
-                    {
-                        $case(i)
-                        {
-                            tr = scene.get_medium(i)->tr(cc, ray_o, end_pnt, ray_o, end_pnt, sampler);
-                        };
-                    }
-                    $default
-                    {
-                        cstd::unreachable();
-                    };
-                };
+                    tr = medium->tr(cc, ray_o, end_pnt, ray_o, end_pnt, sampler);
+                });
             };
             beta = beta * tr;
 

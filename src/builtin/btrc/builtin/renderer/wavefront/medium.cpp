@@ -63,8 +63,10 @@ void MediumPipeline::record_device_code(
         PhaseShader::SampleResult phase_sample;
         phase_sample.phase = CSpectrum::zero();
 
-        auto handle_medium = [&](const Medium *medium, const Medium::SampleResult &sample_medium)
+        scene.access_medium(i32(medium_id), [&](const Medium *medium)
         {
+            auto sample_medium = medium->sample(cc, load_ray.ray.o, medium_end, sampler);
+
             // update beta_le
 
             var unscatter_tr = medium->tr(cc, load_ray.ray.o, medium_end, sampler);
@@ -113,24 +115,7 @@ void MediumPipeline::record_device_code(
 
                 phase_sample = sample_medium.shader->sample(cc, -load_ray.ray.d, sampler.get3d());
             };
-        };
-
-        $switch(medium_id)
-        {
-            for(int i = 0; i < scene.get_medium_count(); ++i)
-            {
-                $case(MediumID(i))
-                {
-                    auto medium = scene.get_medium(i);
-                    auto sample_medium = medium->sample(cc, load_ray.ray.o, medium_end, sampler);
-                    handle_medium(medium, sample_medium);
-                };
-            }
-            $default
-            {
-                cstd::unreachable();
-            };
-        };
+        });
 
         $if(!scattered)
         {

@@ -72,4 +72,16 @@ CVec2f sample_triangle_uniform(f32 u1, f32 u2)
     return CVec2f(1.0f - t, t * u2);
 }
 
+CVec2f sample_disk_uniform(f32 u1, f32 u2)
+{
+    var phi = 2 * btrc_pi * u1;
+    var r = cstd::sqrt(u2);
+    return CVec2f(r * cstd::cos(phi), r * cstd::sin(phi));
+}
+
+f32 pdf_sample_disk_uniform()
+{
+    return 1 / (2 * btrc_pi);
+}
+
 BTRC_END

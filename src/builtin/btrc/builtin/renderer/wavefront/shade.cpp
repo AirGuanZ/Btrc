@@ -80,7 +80,7 @@ void ShadePipeline::record_device_code(
 
         ref<CInstanceInfo> instance = instances[inct_flag.instance_id];
         ref<CGeometryInfo> geometry = geometries[instance.geometry_id];
-        var inct = get_intersection(
+        var inct = get_hitinfo(
             load_ray.ray.o, load_ray.ray.d, instance, geometry,
             inct_detail.t, inct_detail.prim_id, inct_detail.uv);
 
@@ -126,7 +126,7 @@ void ShadePipeline::record_device_code(
         CVec3f gbuffer_albedo;
         CVec3f gbuffer_normal;
 
-        auto handle_material = [&](const Material *mat)
+        scene.access_material(instance.material_id, [&](const Material *mat)
         {
             auto shader = mat->create_shader(cc, inct);
 
@@ -156,20 +156,7 @@ void ShadePipeline::record_device_code(
                         cc, sample_shadow.d, -load_ray.ray.d, TransportMode::Radiance);
                 };
             };
-        };
-
-        var mat_id = instance.material_id;
-        $switch(mat_id)
-        {
-            for(int i = 0; i < scene.get_material_count(); ++i)
-            {
-                $case(i)
-                {
-                    handle_material(scene.get_material(i));
-                };
-            }
-            $default{ cstd::unreachable(); };
-        };
+        });
 
         // emit shadow ray
 

@@ -50,7 +50,9 @@ public:
 
     ~VolumePrimitiveMedium() override;
 
-    void set_volumes(const std::vector<RC<VolumePrimitive>> &vols);
+    void add_volume(RC<VolumePrimitive> vol);
+
+    const std::vector<RC<VolumePrimitive>> &get_prims() const;
 
     void commit() override;
 

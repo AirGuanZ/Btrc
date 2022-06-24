@@ -2,6 +2,24 @@
 
 BTRC_BEGIN
 
+void LightSampler::access_light(i32 light_idx, const std::function<void(const Light *)> &func) const
+{
+    $switch(light_idx)
+    {
+        for(int i = 0; i < get_light_count(); ++i)
+        {
+            $case(i)
+            {
+                func(get_light(i).get());
+            };
+        }
+        $default
+        {
+            cstd::unreachable();
+        };
+    };
+}
+
 void UniformLightSampler::clear()
 {
     lights_ = {};

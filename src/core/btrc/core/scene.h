@@ -10,6 +10,8 @@
 
 BTRC_BEGIN
 
+class Scene;
+
 using InstanceFlag = uint32_t;
 using CInstanceFlag = cuj::cxx<InstanceFlag>;
 
@@ -37,6 +39,15 @@ CUJ_PROXY_CLASS(
     inner_medium_id,
     outer_medium_id,
     flag);
+
+SurfacePoint get_hitinfo(
+    const CVec3f        &o,
+    const CVec3f        &d,
+    const CInstanceInfo &instance,
+    const CGeometryInfo &geometry,
+    f32                  t,
+    u32                  prim_id,
+    const CVec2f        &uv);
 
 class Scene : public Object
 {
@@ -111,13 +122,16 @@ public:
 
     bool has_medium() const;
 
+    void access_material(i32 idx, const std::function<void(const Material *)> &func) const;
+
+    void access_medium(i32 idx, const std::function<void(const Medium *)> &func) const;
+
 private:
 
     optix::Context *optix_ctx_;
 
-    std::vector<Instance>            instances_;
-    std::vector<RC<VolumePrimitive>> volumes_;
-    RC<EnvirLight>                   env_light_;
+    std::vector<Instance> instances_;
+    RC<EnvirLight>        env_light_;
 
     RC<VolumePrimitiveMedium> vol_prim_medium_;
 

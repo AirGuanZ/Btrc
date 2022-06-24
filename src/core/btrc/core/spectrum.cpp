@@ -68,11 +68,11 @@ CSpectrum::CSpectrum(const Spectrum &s)
     b = s.b;
 }
 
-CSpectrum::CSpectrum(f32 r, f32 g, f32 b, f32 w)
+CSpectrum::CSpectrum(f32 _r, f32 _g, f32 _b, f32 w)
 {
-    this->r = r;
-    this->g = g;
-    this->b = b;
+    r = _r;
+    g = _g;
+    b = _b;
     additional_data = w;
 }
 

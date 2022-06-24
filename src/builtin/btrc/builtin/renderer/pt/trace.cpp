@@ -6,63 +6,6 @@ BTRC_PT_BEGIN
 namespace
 {
 
-    SurfacePoint get_hitinfo(
-        const CVec3f        &o,
-        const CVec3f        &d,
-        const CInstanceInfo &instance,
-        const CGeometryInfo &geometry,
-        f32                  t,
-        u32                  prim_id,
-        const CVec2f        &uv)
-    {
-        ref local_to_world = instance.transform;
-
-        // position
-
-        var position = o + t * d;
-
-        // geometry frame
-
-        var gx_ua = load_aligned(geometry.geometry_ex_tex_coord_u_a + prim_id);
-        var gy_uba = load_aligned(geometry.geometry_ey_tex_coord_u_ba + prim_id);
-        var gz_uca = load_aligned(geometry.geometry_ez_tex_coord_u_ca + prim_id);
-
-        var sn_v_a = load_aligned(geometry.shading_normal_tex_coord_v_a + prim_id);
-        var sn_v_ba = load_aligned(geometry.shading_normal_tex_coord_v_ba + prim_id);
-        var sn_v_ca = load_aligned(geometry.shading_normal_tex_coord_v_ca + prim_id);
-
-        CFrame geometry_frame = CFrame(gx_ua.xyz(), gy_uba.xyz(), gz_uca.xyz());
-
-        geometry_frame.x = local_to_world.apply_to_vector(geometry_frame.x);
-        geometry_frame.y = local_to_world.apply_to_vector(geometry_frame.y);
-        geometry_frame.z = local_to_world.apply_to_normal(geometry_frame.z);
-        geometry_frame.x = normalize(geometry_frame.x);
-        geometry_frame.y = normalize(geometry_frame.y);
-        geometry_frame.z = normalize(geometry_frame.z);
-
-        // interpolated normal
-
-        var interp_normal = sn_v_a.xyz() + sn_v_ba.xyz() * uv.x + sn_v_ca.xyz() * uv.y;
-        interp_normal = normalize(local_to_world.apply_to_normal(interp_normal));
-
-        // tex coord
-
-        var tex_coord_u = gx_ua.w + gy_uba.w * uv.x + gz_uca.w * uv.y;
-        var tex_coord_v = sn_v_a.w + sn_v_ba.w * uv.x + sn_v_ca.w * uv.y;
-        var tex_coord = CVec2f(tex_coord_u, tex_coord_v);
-
-        // intersection
-
-        SurfacePoint material_inct;
-        material_inct.position = position;
-        material_inct.frame = geometry_frame;
-        material_inct.interp_z = interp_normal;
-        material_inct.uv = uv;
-        material_inct.tex_coord = tex_coord;
-
-        return material_inct;
-    }
-
     CUJ_CLASS_BEGIN(LeParams)
         CUJ_MEMBER_VARIABLE(CSpectrum, beta)
         CUJ_MEMBER_VARIABLE(f32,       bsdf_pdf)
@@ -137,7 +80,7 @@ namespace
             shadow_ray = CRay(src, dir);
         }
     }
-    
+
     void sample_medium_li(
         CompileContext &cc,
         const CVec3f   &scatter_pos,
@@ -173,14 +116,14 @@ namespace
 } // namespace anonymous
 
 TraceResult trace_path(
-    CompileContext   &cc,
-    const TraceUtils &utils,
-    const TraceParams     &params,
-    const Scene      &scene,
-    const CRay       &ray,
-    CMediumID         initial_ray_medium_id,
-    GlobalSampler    &sampler,
-    float             world_diagonal)
+    CompileContext    &cc,
+    const TraceUtils  &utils,
+    const TraceParams &params,
+    const Scene       &scene,
+    const CRay        &ray,
+    CMediumID          initial_ray_medium_id,
+    GlobalSampler     &sampler,
+    float              world_diagonal)
 {
     auto light_sampler = scene.get_light_sampler();
     TraceResult result;
@@ -241,8 +184,10 @@ TraceResult trace_path(
         f32       li_bsdf_pdf;
         boolean   has_li = true;
 
-        auto handle_medium = [&](const Medium *medium, const Medium::SampleResult &sample_medium)
+        scene.access_medium(i32(medium_id), [&](const Medium *medium)
         {
+            auto sample_medium = medium->sample(cc, r.o, medium_end, sampler);
+
             // modify le_params using full transmittance
 
             var unscatter_tr = medium->tr(cc, r.o, medium_end, sampler);
@@ -310,24 +255,7 @@ TraceResult trace_path(
 
                 phase_sample = sample_medium.shader->sample(cc, -r.d, sampler.get3d());
             };
-        };
-
-        $switch(medium_id)
-        {
-            for(int i = 0; i < scene.get_medium_count(); ++i)
-            {
-                $case(MediumID(i))
-                {
-                    auto medium = scene.get_medium(i);
-                    auto sample_medium = medium->sample(cc, r.o, medium_end, sampler);
-                    handle_medium(medium, sample_medium);
-                };
-            }
-            $default
-            {
-                cstd::unreachable();
-            };
-        };
+        });
 
         // accumulate direct le
 
@@ -339,23 +267,16 @@ TraceResult trace_path(
                 result.radiance = result.radiance + le_contrib;
             }
         }
-        $else
+        $elif(instance->light_id >= 0)
         {
-            $switch(instance->light_id)
+            light_sampler->access_light(instance->light_id, [&](const Light *light)
             {
-                for(int i = 0; i < light_sampler->get_light_count(); ++i)
+                if(auto area = light->as_area())
                 {
-                    auto area = light_sampler->get_light(i)->as_area();
-                    if(!area)
-                        continue;
-
-                    $case(i)
-                    {
-                        var le_contrib = accumulate_le(cc, area, light_sampler, r, hit_info, le_params);
-                        result.radiance = result.radiance + le_contrib;
-                    };
+                    var le_contrib = accumulate_le(cc, area, light_sampler, r, hit_info, le_params);
+                    result.radiance = result.radiance + le_contrib;
                 }
-            };
+            });
         };
 
         // transmittance of shadow ray
@@ -371,20 +292,10 @@ TraceResult trace_path(
             $else
             {
                 var end_pnt = shadow_ray.o + shadow_ray.d * shadow_ray.t;
-                $switch(shadow_medium_id)
+                scene.access_medium(i32(shadow_medium_id), [&](const Medium *medium)
                 {
-                    for(int i = 0; i < scene.get_medium_count(); ++i)
-                    {
-                        $case(i)
-                        {
-                            tr = scene.get_medium(i)->tr(cc, shadow_ray.o, end_pnt, sampler);
-                        };
-                    }
-                    $default
-                    {
-                        cstd::unreachable();
-                    };
-                };
+                    tr = medium->tr(cc, shadow_ray.o, end_pnt, sampler);
+                });
             };
             return tr;
         };
@@ -462,20 +373,16 @@ TraceResult trace_path(
         // sample light
 
         var select_light = light_sampler->sample(hit_info.position, sampler.get1d());
-        $switch(select_light.light_idx)
+        $if(select_light.light_idx >= 0)
         {
-            for(int i = 0; i < light_sampler->get_light_count(); ++i)
+            light_sampler->access_light(select_light.light_idx, [&](const Light *light)
             {
-                $case(i)
-                {
-                    auto light = light_sampler->get_light(i);
-                    sample_li(cc, hit_info, light.get(), sampler, li_rad, li_pdf, li_dir, li_ray);
-                };
-            }
-            $default
-            {
-                has_li = false;
-            };
+                sample_li(cc, hit_info, light, sampler, li_rad, li_pdf, li_dir, li_ray);
+            });
+        }
+        $else
+        {
+            has_li = false;
         };
 
         has_li = has_li & !utils.has_intersection(li_ray);
@@ -484,39 +391,32 @@ TraceResult trace_path(
 
         Shader::SampleResult bsdf_sample;
 
-        $switch(instance->material_id)
+        scene.access_material(instance->material_id, [&](const Material *material)
         {
-            for(int i = 0; i < scene.get_material_count(); ++i)
+            auto shader = material->create_shader(cc, hit_info);
+
+            // g-buffer
+            
+            $if(depth == 1)
             {
-                $case(i)
-                {
-                    auto material = scene.get_material(i);
-                    auto shader = material->create_shader(cc, hit_info);
-
-                    // g-buffer
-
-                    $if(depth == 1)
-                    {
-                        if(params.normal)
-                            result.normal = shader->normal(cc);
-                        if(params.albedo)
-                            result.albedo = shader->albedo(cc);
-                    };
-
-                    // eval bsdf for li
-
-                    $if(has_li)
-                    {
-                        li_bsdf = shader->eval(cc, li_dir, -r.d, TransportMode::Radiance);
-                        li_bsdf_pdf = shader->pdf(cc, li_dir, -r.d, TransportMode::Radiance);
-                    };
-
-                    // sample next ray
-
-                    bsdf_sample = shader->sample(cc, -r.d, sampler.get3d(), TransportMode::Radiance);
-                };
-            }
-        };
+                if(params.normal)
+                    result.normal = shader->normal(cc);
+                if(params.albedo)
+                    result.albedo = shader->albedo(cc);
+            };
+            
+            // eval bsdf for li
+            
+            $if(has_li)
+            {
+                li_bsdf = shader->eval(cc, li_dir, -r.d, TransportMode::Radiance);
+                li_bsdf_pdf = shader->pdf(cc, li_dir, -r.d, TransportMode::Radiance);
+            };
+            
+            // sample next ray
+            
+            bsdf_sample = shader->sample(cc, -r.d, sampler.get3d(), TransportMode::Radiance);
+        });
 
         // li
 
