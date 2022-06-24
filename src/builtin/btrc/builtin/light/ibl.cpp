@@ -50,14 +50,22 @@ f32 IBL::pdf_li_inline(CompileContext &cc, ref<CVec3f> to_light) const
 
 EnvirLight::SampleEmitResult IBL::sample_emit_inline(CompileContext &cc, ref<Sam<3>> sam) const
 {
-    // TODO
-    return {};
+    var local_sample = sampler_->sample(sam);
+    var local_dir = local_sample.to_light;
+    var global_dir = CFrame(frame_).local_to_global(local_dir);
+
+    SampleEmitResult result;
+    result.direction = -global_dir;
+    result.radiance = eval_local(cc, local_dir);
+    result.pdf_dir = local_sample.pdf;
+
+    return result;
 }
 
 f32 IBL::pdf_emit_inline(CompileContext &cc, ref<CVec3f> dir) const
 {
-    // TODO
-    return {};
+    var local_dir = CFrame(frame_).global_to_local(dir);
+    return sampler_->pdf(-local_dir);
 }
 
 CSpectrum IBL::eval_local(CompileContext &cc, ref<CVec3f> normalized_to_light) const

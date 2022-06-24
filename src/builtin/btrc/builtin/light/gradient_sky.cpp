@@ -26,13 +26,9 @@ CSpectrum GradientSky::eval_le_inline(CompileContext &cc, ref<CVec3f> to_light) 
 
 EnvirLight::SampleLiResult GradientSky::sample_li_inline(CompileContext &cc, ref<Sam3> sam) const
 {
-    CFrame frame = CFrame::from_z(up_);
-    var local_dir = sample_sphere_uniform(sam[0], sam[1]);
-    var global_dir = frame.local_to_global(local_dir);
-
     SampleLiResult result;
-    result.direction_to_light = global_dir;
-    result.radiance = eval_le(cc, global_dir);
+    result.direction_to_light = sample_sphere_uniform(sam[0], sam[1]);
+    result.radiance = eval_le(cc, result.direction_to_light);
     result.pdf = pdf_sample_sphere_uniform();
 
     return result;
@@ -45,14 +41,16 @@ f32 GradientSky::pdf_li_inline(CompileContext &cc, ref<CVec3f> to_light) const
 
 EnvirLight::SampleEmitResult GradientSky::sample_emit_inline(CompileContext &cc, ref<Sam3> sam) const
 {
-    // TODO
-    return {};
+    SampleEmitResult result;
+    result.direction = sample_sphere_uniform(sam[0], sam[1]);
+    result.radiance = eval_le(cc, -result.direction);
+    result.pdf_dir = pdf_sample_sphere_uniform();
+    return result;
 }
 
 f32 GradientSky::pdf_emit_inline(CompileContext &cc, ref<CVec3f> dir) const
 {
-    // TODO
-    return {};
+    return pdf_sample_sphere_uniform();
 }
 
 RC<Light> GradientSkyCreator::create(RC<const factory::Node> node, factory::Context &context)

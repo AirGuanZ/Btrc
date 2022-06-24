@@ -77,14 +77,38 @@ f32 MeshLight::pdf_li_inline(CompileContext &cc, ref<CVec3f> ref_pos, ref<CVec3f
 
 AreaLight::SampleEmitResult MeshLight::sample_emit_inline(CompileContext &cc, ref<Sam<5>> sam) const
 {
-    // TODO
-    return {};
+    var surface_sample = geometry_->sample(cc, make_sample(sam[0], sam[1], sam[2]));
+    var point = surface_sample.point;
+    var pdf_pos = surface_sample.pdf;
+
+    var local_dir = sample_hemisphere_zweighted(sam[3], sam[4]);
+    var pdf_dir = pdf_sample_hemisphere_zweighted(local_dir);
+
+    apply(CTransform3D(local_to_world_), point);
+
+    SampleEmitResult result;
+    result.point = point;
+    result.direction = point.frame.local_to_global(local_dir);
+    result.radiance = CSpectrum(intensity_);
+    result.pdf_pos = 1 / (scale_ * scale_) * pdf_pos;
+    result.pdf_dir = pdf_dir;
+
+    return result;
 }
 
 AreaLight::PdfEmitResult MeshLight::pdf_emit_inline(CompileContext &cc, ref<SurfacePoint> spt, ref<CVec3f> wr) const
 {
-    // TODO
-    return {};
+    var local_dir = normalize(spt.frame.global_to_local(wr));
+    var pdf_dir = pdf_sample_hemisphere_zweighted(local_dir);
+
+    var pdf_pos = geometry_->pdf(cc, spt.position);
+    pdf_pos = 1 / (scale_ * scale_) * pdf_pos;
+
+    PdfEmitResult result;
+    result.pdf_pos = pdf_pos;
+    result.pdf_dir = pdf_dir;
+
+    return result;
 }
 
 RC<Light> MeshLightCreator::create(RC<const factory::Node> node, factory::Context &context)
