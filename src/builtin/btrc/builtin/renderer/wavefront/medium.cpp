@@ -108,7 +108,8 @@ void MediumPipeline::record_device_code(
                 {
                     var shadow_phase_val = sample_medium.shader->eval(cc, sample_medium_li.d, -load_ray.ray.d);
                     var shadow_phase_pdf = sample_medium.shader->pdf(cc, sample_medium_li.d, -load_ray.ray.d);
-                    sample_medium_li.li = sample_medium_li.li * path.beta * shadow_phase_val / (shadow_phase_pdf + sample_medium_li.light_pdf);
+                    sample_medium_li.li = sample_medium_li.li * path.beta * shadow_phase_val
+                                        / (shadow_phase_pdf + sample_medium_li.light_pdf);
                 };
 
                 // generate next ray
@@ -149,9 +150,12 @@ void MediumPipeline::record_device_code(
 
             var output_index = cstd::atomic_add(active_state_counter, 1);
 
-            soa.output_path.save(output_index, path.depth + 1, path.pixel_coord, path.beta, path.path_radiance, sampler);
-            soa.output_bsdf_le.save(output_index, beta_le, phase_sample.pdf);
-            soa.output_ray.save(output_index, CRay(scatter_position, phase_sample.dir, btrc_max_float), medium_id);
+            soa.output_path.save(
+                output_index, path.depth + 1, path.pixel_coord, path.beta, path.path_radiance, sampler);
+            soa.output_bsdf_le.save(
+                output_index, beta_le, phase_sample.pdf);
+            soa.output_ray.save(
+                output_index, CRay(scatter_position, phase_sample.dir, btrc_max_float), medium_id);
         }
         $else
         {
@@ -160,7 +164,8 @@ void MediumPipeline::record_device_code(
     });
 }
 
-void MediumPipeline::initialize(RC<cuda::Module> cuda_module, RC<cuda::Buffer<StateCounters>> counters, const Scene &scene)
+void MediumPipeline::initialize(
+    RC<cuda::Module> cuda_module, RC<cuda::Buffer<StateCounters>> counters, const Scene &scene)
 {
     cuda_module_ = std::move(cuda_module);
     state_counters_ = std::move(counters);
@@ -230,7 +235,8 @@ void MediumPipeline::get_medium_segment(
         ref geometry = geometries[instance.geometry_id];
         var local_normal = load_aligned(geometry.geometry_ez_tex_coord_u_ca + inct_detail.prim_id).xyz();
         var inct_nor = instance.transform.apply_to_normal(local_normal);
-        var inct_medium_id = cstd::select(dot(ray.ray.d, inct_nor) < 0, instance.outer_medium_id, instance.inner_medium_id);
+        var inct_medium_id = cstd::select(
+            dot(ray.ray.d, inct_nor) < 0, instance.outer_medium_id, instance.inner_medium_id);
 
         medium_id = resolve_mediums(inct_medium_id, ray.medium_id);
         medium_end = intersection_offset(ray.ray.o + inct_detail.t * ray.ray.d, inct_nor, -ray.ray.d);

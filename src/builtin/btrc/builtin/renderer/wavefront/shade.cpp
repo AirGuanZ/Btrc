@@ -223,7 +223,8 @@ void ShadePipeline::record_device_code(
             var stored_bsdf_pdf = cstd::select(bsdf_sample.is_delta, -bsdf_sample.pdf, f32(bsdf_sample.pdf));
 
             var output_index = cstd::atomic_add(active_state_counter, 1);
-            soa.output_path.save(output_index, path.depth + 1, path.pixel_coord, path.beta, path.path_radiance, sampler);
+            soa.output_path.save(
+                output_index, path.depth + 1, path.pixel_coord, path.beta, path.path_radiance, sampler);
             soa.output_bsdf_le.save(output_index, new_beta_le, stored_bsdf_pdf);
             soa.output_ray.save(output_index, CRay(next_ray_o, next_ray_d), next_ray_medium_id);
         }
@@ -234,7 +235,8 @@ void ShadePipeline::record_device_code(
     });
 }
 
-void ShadePipeline::initialize(RC<cuda::Module> cuda_module, RC<cuda::Buffer<StateCounters>> counters, const Scene &scene)
+void ShadePipeline::initialize(
+    RC<cuda::Module> cuda_module, RC<cuda::Buffer<StateCounters>> counters, const Scene &scene)
 {
     kernel_ = std::move(cuda_module);
     counters_ = std::move(counters);
