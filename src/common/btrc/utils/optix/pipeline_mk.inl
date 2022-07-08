@@ -349,7 +349,7 @@ MegaKernelPipeline<LaunchParams, CLaunchParams>::~MegaKernelPipeline()
 {
     if(!pipeline_)
         return;
-    assert(module_ && raygen_group_ && miss_group_ && hit_group_);
+    //assert(module_ && raygen_group_ && miss_group_ && hit_group_);
     optixPipelineDestroy(pipeline_);
     optixProgramGroupDestroy(raygen_group_);
     optixProgramGroupDestroy(trace_miss_group_);

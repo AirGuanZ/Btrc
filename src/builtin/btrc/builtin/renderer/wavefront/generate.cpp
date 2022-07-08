@@ -55,7 +55,7 @@ void GeneratePipeline::record_device_code(
         }
         else
         {
-            assert(mode == Mode::Tile);
+            assert(mode_ == Mode::Tile);
             pixel_index = i32(accu_state_index / spp);
             sample_index = i32(accu_state_index % spp);
         }

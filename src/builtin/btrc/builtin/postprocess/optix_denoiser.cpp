@@ -103,7 +103,7 @@ void OptixAIDenoiser::process(Vec4f *color, Vec4f *albedo, Vec4f *normal, int wi
         impl_->scratch_buffer.get_size_in_bytes()));
 
     const OptixDenoiserParams params = {
-        .denoiseAlpha = false,
+        .denoiseAlpha = OPTIX_DENOISER_ALPHA_MODE_COPY,
         .hdrIntensity = impl_->intensity.get_device_ptr(),
         .blendFactor = 0,
         .hdrAverageColor = 0
